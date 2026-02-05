@@ -25,7 +25,13 @@ export async function apiRequest(
   }
 
   const res = await fetch(url, init);
-  const data = await res.json().catch(() => null);
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { error: text || res.statusText };
+  }
   return { status: res.status, data };
 }
 
