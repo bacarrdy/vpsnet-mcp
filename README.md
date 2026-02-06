@@ -28,7 +28,27 @@ This MCP server manages your VPS infrastructure through the VPSnet.com API, incl
 
 Most AI coding environments (Claude Code, Cline, Cursor, Codex) have built-in terminal access, so the AI can SSH into your VPS immediately after deploying a key — no extra tools needed.
 
-For environments without native SSH access, consider pairing this with a dedicated SSH MCP server for direct server connectivity.
+For environments without native SSH access, pair this with [mcp-server-ssh](https://github.com/bacarrdy/mcp-server-ssh) for direct server connectivity via MCP tools.
+
+**Combined config:**
+
+```json
+{
+  "mcpServers": {
+    "vpsnet": {
+      "command": "npx",
+      "args": ["-y", "vpsnet-mcp"],
+      "env": {
+        "VPSNET_API_KEY": "your_api_key_here"
+      }
+    },
+    "ssh": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-ssh"]
+    }
+  }
+}
+```
 
 ## Requirements
 
