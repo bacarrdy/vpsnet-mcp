@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "description": "MCP server for managing VPSnet.com virtual private servers",
   "bin": {
@@ -27,6 +27,9 @@
     "server-management",
     "hosting"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "zod": "^3.24.2"
