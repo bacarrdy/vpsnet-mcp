@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "MCP server for managing VPSnet.com virtual private servers",
   "bin": {
@@ -11,7 +11,9 @@
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
-  "files": ["build"],
+  "files": [
+    "build"
+  ],
   "repository": "github:bacarrdy/vpsnet-mcp",
   "homepage": "https://github.com/bacarrdy/vpsnet-mcp",
   "author": "bacarrdy",
