@@ -895,7 +895,6 @@ server.registerTool(
     description: "Create a new API key",
     inputSchema: {
       name: z.string().describe("Key name"),
-      scope: z.string().describe("Permission scope"),
       allowed_ips: z
         .string()
         .optional()
@@ -906,8 +905,8 @@ server.registerTool(
         .describe("Expiry date (YYYY-MM-DD)"),
     },
   },
-  async ({ name, scope, allowed_ips, expires_at }) => {
-    const body: Record<string, unknown> = { name, scope };
+  async ({ name, allowed_ips, expires_at }) => {
+    const body: Record<string, unknown> = { name };
     if (allowed_ips) body.allowed_ips = allowed_ips;
     if (expires_at) body.expires_at = expires_at;
     const { data } = await apiRequest("POST", "/account/api-keys", body);
@@ -922,7 +921,6 @@ server.registerTool(
     inputSchema: {
       id: z.number().describe("API key ID"),
       name: z.string().describe("Key name"),
-      scope: z.string().describe("Permission scope"),
       allowed_ips: z
         .string()
         .optional()
@@ -933,8 +931,8 @@ server.registerTool(
         .describe("Expiry date (YYYY-MM-DD)"),
     },
   },
-  async ({ id, name, scope, allowed_ips, expires_at }) => {
-    const body: Record<string, unknown> = { name, scope };
+  async ({ id, name, allowed_ips, expires_at }) => {
+    const body: Record<string, unknown> = { name };
     if (allowed_ips) body.allowed_ips = allowed_ips;
     if (expires_at) body.expires_at = expires_at;
     const { data } = await apiRequest(
