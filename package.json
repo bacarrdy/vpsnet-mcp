@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "type": "module",
   "description": "MCP server for managing VPSnet.com virtual private servers",
   "bin": {
