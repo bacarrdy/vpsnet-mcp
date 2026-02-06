@@ -15,6 +15,22 @@
 - Ordering new VPS instances
 - System status & pricing
 
+## Prerequisites
+
+Before installing, ensure you have:
+
+1. **Node.js 18 or newer**
+   - Check: `node --version`
+   - Linux/macOS: [nodejs.org](https://nodejs.org) or your package manager
+   - Windows: `winget install OpenJS.NodeJS.LTS` or download from [nodejs.org](https://nodejs.org)
+   - After installing Node.js, **restart your terminal/editor**
+
+2. **For Claude Code (CLI or VS Code extension) users:**
+   - Claude Code CLI installed globally: `npm install -g @anthropic-ai/claude-code`
+   - Check: `claude --version`
+
+3. **Active [VPSnet.com](https://www.vpsnet.com) account** with an API key (see [Getting an API key](#getting-an-api-key))
+
 ## SSH access workflow
 
 This MCP server manages your VPS infrastructure through the VPSnet.com API, including SSH key provisioning. Once an SSH key is deployed to a VPS, the AI assistant can connect directly using its environment's terminal (e.g. Claude Code's Bash tool, Cline's terminal).
@@ -50,12 +66,15 @@ For environments without native SSH access, pair this with [mcp-server-ssh](http
 }
 ```
 
-## Requirements
-
-- Node.js 18 or newer
-- A [VPSnet.com](https://www.vpsnet.com) account with an API key
-
 ## Getting started
+
+Choose your environment:
+
+- [Claude Code (CLI)](#claude-code) — Terminal-based AI coding
+- [Claude Code for VS Code](#claude-code-for-vs-code-extension) — VS Code extension
+- [Claude Desktop](#claude-desktop) — Desktop app
+- [VS Code with GitHub Copilot](#vs-code-with-github-copilot) — Copilot agent mode
+- [Cline](#cline) / [Cursor](#cursor) / [Windsurf](#windsurf) / [Roo Code](#roo-code) / [Codex](#codex) — Other clients
 
 The standard config works across most MCP clients:
 
@@ -85,6 +104,47 @@ Set the environment variable before running:
 ```bash
 export VPSNET_API_KEY="your_api_key_here"
 ```
+
+</details>
+
+<details>
+<summary>Claude Code for VS Code Extension</summary>
+
+> This section is for the **Claude Code VS Code extension**, not GitHub Copilot. If you use VS Code with GitHub Copilot, see the [VS Code with GitHub Copilot](#vs-code-with-github-copilot) section instead.
+
+**Step 1:** Install Claude Code CLI globally (required for the extension):
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**Step 2:** Add the MCP server via CLI:
+
+```bash
+claude mcp add vpsnet -- npx -y vpsnet-mcp
+```
+
+**Step 3:** Add your API key. Edit `~/.claude.json` (or `C:\Users\<username>\.claude.json` on Windows), find the `vpsnet` server section and add the `env` block:
+
+```json
+"vpsnet": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "vpsnet-mcp"],
+    "env": {
+        "VPSNET_API_KEY": "your_api_key_here",
+        "VPSNET_API_URL": "https://api.vpsnet.com"
+    }
+}
+```
+
+**Step 4:** Restart VS Code completely (Ctrl+Shift+P > "Reload Window" or close and reopen).
+
+**Step 5:** Verify by asking Claude: *"Get my VPSnet account info"*
+
+> **Windows users:** Use PowerShell or CMD (not Git Bash) when running `claude mcp add` commands.
+
+> The `code --add-mcp` command does **NOT** work with Claude Code extension — that's for VS Code Copilot only.
 
 </details>
 
@@ -184,7 +244,7 @@ Open Roo Code MCP settings and add to `roo_mcp_settings.json`:
 </details>
 
 <details>
-<summary>VS Code (Copilot)</summary>
+<summary>VS Code with GitHub Copilot</summary>
 
 Install using the VS Code CLI:
 
@@ -194,6 +254,8 @@ code --add-mcp '{"name":"vpsnet","command":"npx","args":["-y","vpsnet-mcp"],"env
 
 Or add to your VS Code MCP config manually using the standard config above.
 
+> This is for **GitHub Copilot** agent mode in VS Code. For the **Claude Code** extension, see the [Claude Code for VS Code Extension](#claude-code-for-vs-code-extension) section.
+
 </details>
 
 <details>
@@ -202,6 +264,14 @@ Or add to your VS Code MCP config manually using the standard config above.
 Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp). Use the standard config above.
 
 </details>
+
+## Windows Users
+
+- Use **PowerShell or CMD** (not Git Bash) for `claude mcp add` commands
+- Config file location: `C:\Users\<YourUsername>\.claude.json`
+- Install Node.js: `winget install OpenJS.NodeJS.LTS` or download from [nodejs.org](https://nodejs.org)
+- After installing Node.js, **restart your terminal and VS Code**
+- Environment variables in Claude Code extension must be in the `env` object within `.claude.json`, NOT system environment variables
 
 ## Environment variables
 
@@ -318,9 +388,50 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 1. Log in at [vpsnet.com](https://www.vpsnet.com)
 2. Go to **Account** > **API Keys**
 3. Click **Create API Key**
-4. Set the scope to match your needs and copy the key
+4. Give it a name and copy the key
 
 The key is shown only once — store it securely.
+
+## Troubleshooting
+
+### MCP tools not appearing in Claude Code VS Code extension
+
+1. Install Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
+2. Verify: `claude --version` should show a version number
+3. Add server via CLI: `claude mcp add vpsnet -- npx -y vpsnet-mcp`
+4. **Completely restart VS Code** (not just reload window)
+5. Check `~/.claude.json` for correct configuration
+
+### `claude: command not found`
+
+Install the Claude Code CLI globally:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Verify your PATH includes npm global packages. On Windows, restart your terminal after installing.
+
+### Environment variables not working
+
+For Claude Code extension, environment variables **must** be in the `env` object within `.claude.json`, NOT system environment variables:
+
+```json
+"vpsnet": {
+    "type": "stdio",
+    "command": "npx",
+    "args": ["-y", "vpsnet-mcp"],
+    "env": {
+        "VPSNET_API_KEY": "your_actual_key_here"
+    }
+}
+```
+
+### API key errors
+
+- Verify the key is correct (starts with `vpsnet_`)
+- Keys are shown only once at creation — if lost, create a new one
+- Check that the key hasn't expired (Account > API Keys)
 
 ## License
 
