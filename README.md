@@ -1,10 +1,10 @@
 # vpsnet-mcp
 
-[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSNet](https://www.vpsnet.com) virtual private servers. Gives AI assistants full control over your VPS infrastructure — start/stop servers, change plans, manage DNS, deploy SSH keys, order new servers, and more.
+[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) virtual private servers. Gives AI assistants full control over your VPS infrastructure — start/stop servers, change plans, manage DNS, deploy SSH keys, order new servers, and more.
 
 ## Features
 
-- **49 tools** covering the entire VPSNet API
+- **49 tools** covering the entire VPSnet.com API
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades)
@@ -17,7 +17,7 @@
 ## Requirements
 
 - Node.js 18 or newer
-- A [VPSNet](https://www.vpsnet.com) account with an API key
+- A [VPSnet.com](https://www.vpsnet.com) account with an API key
 
 ## Getting started
 
@@ -171,7 +171,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VPSNET_API_KEY` | Yes | Your VPSNet API key |
+| `VPSNET_API_KEY` | Yes | Your VPSnet.com API key |
 | `VPSNET_API_URL` | No | API base URL (defaults to `https://api.vpsnet.com`) |
 
 ## Tools
@@ -274,7 +274,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | Tool | Description |
 |------|-------------|
 | `get_pricing` | Get public pricing |
-| `get_system_status` | Get VPSNet system status |
+| `get_system_status` | Get VPSnet.com system status |
 | `get_faq` | Get frequently asked questions |
 
 ## Getting an API key

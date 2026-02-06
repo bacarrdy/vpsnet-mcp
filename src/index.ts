@@ -9,7 +9,7 @@ const server = new McpServer(
   { name: "vpsnet", version: "1.0.0" },
   {
     instructions: [
-      "This MCP server controls VPS (Virtual Private Server) services on VPSNet.",
+      "This MCP server controls VPS (Virtual Private Server) services on VPSnet.com.",
       "It manages VPS servers ONLY — not VDS or Dedicated Servers.",
       "",
       "## Ordering a new VPS",
@@ -1047,7 +1047,7 @@ server.registerTool(
 server.registerTool(
   "get_system_status",
   {
-    description: "Get VPSNet system status",
+    description: "Get VPSnet.com system status",
     inputSchema: {},
   },
   async () => {
@@ -1073,7 +1073,7 @@ server.registerTool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("VPSNet MCP server running");
+  console.error("VPSnet MCP server running");
 }
 
 main().catch((error) => {
