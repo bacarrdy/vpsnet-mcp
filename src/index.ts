@@ -20,6 +20,7 @@ const server = new McpServer(
       "rootPassword rules: 6-40 chars, alphanumeric only, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other (or neither for auto-generated password).",
       "After placing an order, wait 10-30 seconds before attempting SSH — the VPS needs time to boot and start SSH daemon.",
+      "deploy_ssh_key is also async — wait 15-30 seconds after deploying a key before attempting SSH to any VPS (not just new ones).",
       "",
       "## SSH key workflow (IMPORTANT for deploying software to VPS)",
       "",
@@ -27,6 +28,7 @@ const server = new McpServer(
       "You MUST deploy YOUR OWN SSH key first, then connect directly via SSH.",
       "After deploying your key, you can INSTANTLY access the VPS — no extra tools needed.",
       "Most AI environments (Claude Code, Cline, Cursor, Codex) have a built-in terminal/bash tool.",
+      "IMPORTANT: Grant FULL permissions/access to the AI tool — restricted/sandbox modes may block npm installs or SSH connections.",
       "Use that terminal to run: ssh -o StrictHostKeyChecking=no root@<vps_ip>",
       "",
       "### Step-by-step SSH key flow:",
@@ -393,7 +395,7 @@ server.registerTool(
   "deploy_ssh_key",
   {
     description:
-      "Deploy an SSH key to VPS. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here.",
+      "Deploy an SSH key to VPS. Returns noty UUID for tracking. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       ssh_key: z.number().describe("SSH key ID from list_ssh_keys"),
