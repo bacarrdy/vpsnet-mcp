@@ -1,6 +1,6 @@
 # vpsnet-mcp
 
-[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) virtual private servers. Gives AI assistants full control over your VPS infrastructure — start/stop servers, change plans, manage DNS, deploy SSH keys, order new servers, and more.
+[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) virtual private servers. Gives AI assistants full control over your VPS infrastructure — order servers, manage plans, deploy SSH keys, and directly access your servers via SSH for software installation and configuration.
 
 ## Features
 
@@ -9,10 +9,26 @@
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades)
 - DNS (rDNS/PTR records)
-- SSH key & API key management
+- SSH key management — deploy keys and gain direct server access
+- API key management
 - Backups, billing, invoices
 - Ordering new VPS instances
 - System status & pricing
+
+## SSH access workflow
+
+This MCP server manages your VPS infrastructure through the VPSnet.com API, including SSH key provisioning. Once an SSH key is deployed to a VPS, the AI assistant can connect directly using its environment's terminal (e.g. Claude Code's Bash tool, Cline's terminal).
+
+**Typical flow:**
+
+1. AI reads the local machine's public key (`~/.ssh/id_rsa.pub`)
+2. Uploads it to VPSnet.com via `create_ssh_key`
+3. Deploys it to a VPS via `deploy_ssh_key` (or passes it when ordering with `order_service`)
+4. Connects directly: `ssh root@<vps_ip>`
+
+Most AI coding environments (Claude Code, Cline, Cursor, Codex) have built-in terminal access, so the AI can SSH into your VPS immediately after deploying a key — no extra tools needed.
+
+For environments without native SSH access, consider pairing this with a dedicated SSH MCP server for direct server connectivity.
 
 ## Requirements
 
