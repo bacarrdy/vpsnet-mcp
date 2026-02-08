@@ -184,7 +184,7 @@ Open Cline MCP settings and add to your `cline_mcp_settings.json`:
 Use the Codex CLI:
 
 ```bash
-codex mcp add vpsnet npx "vpsnet-mcp"
+codex mcp add vpsnet --env VPSNET_API_KEY=your_api_key_here -- npx -y vpsnet-mcp
 ```
 
 Or edit `~/.codex/config.toml`:
@@ -192,10 +192,19 @@ Or edit `~/.codex/config.toml`:
 ```toml
 [mcp_servers.vpsnet]
 command = "npx"
-args = ["vpsnet-mcp"]
+args = ["-y", "vpsnet-mcp"]
+
+[mcp_servers.vpsnet.env]
+VPSNET_API_KEY = "your_api_key_here"
 ```
 
-Set `VPSNET_API_KEY` in your shell environment before running Codex.
+**If your system's default Node.js is older than 18** (common with nvm — check with `node --version`), wrap the command so nvm loads the right version:
+
+```bash
+codex mcp add vpsnet --env VPSNET_API_KEY=your_api_key_here -- bash -lc 'source ~/.nvm/nvm.sh >/dev/null 2>&1 && nvm use --silent 20 && npx -y vpsnet-mcp'
+```
+
+> **Note:** Codex requires network access to install packages via npx. If you run Codex in a restricted sandbox without network, npx installs will fail.
 
 </details>
 
@@ -432,6 +441,22 @@ For Claude Code extension, environment variables **must** be in the `env` object
 - Verify the key is correct (starts with `vpsnet_`)
 - Keys are shown only once at creation — if lost, create a new one
 - Check that the key hasn't expired (Account > API Keys)
+
+### `deploy_ssh_key` succeeded but SSH still fails
+
+The `deploy_ssh_key` tool injects a public key into the VPS via the hosting API, but SSH access may still fail if:
+
+- **Wrong username:** VPS templates typically use `root`. Some OS images may use a different default user.
+- **SSH daemon not configured for key auth:** Ensure `PubkeyAuthentication yes` and `PermitRootLogin yes` (or `prohibit-password`) are set in `/etc/ssh/sshd_config` on the VPS.
+- **Key injection requires reprovisioning:** Some VPS templates only inject SSH keys during OS install. If `deploy_ssh_key` doesn't work on an existing VPS, try reinstalling the OS with the key (use `reinstall_os` with `sshKey`).
+- **Timing:** Key deployment is async — wait 15-30 seconds after deploying before attempting SSH.
+
+### `fetch is not defined` or unexpected errors
+
+This server requires **Node.js 18+** (uses the built-in `fetch` API). If your default `node` is older (common with nvm setups), either:
+
+- Set Node 18+ as default: `nvm alias default 20`
+- Or use the nvm wrapper shown in the [Codex](#codex) section
 
 ## License
 
