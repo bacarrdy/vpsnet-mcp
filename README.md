@@ -444,12 +444,8 @@ For Claude Code extension, environment variables **must** be in the `env` object
 
 ### `deploy_ssh_key` succeeded but SSH still fails
 
-The `deploy_ssh_key` tool injects a public key into the VPS via the hosting API, but SSH access may still fail if:
-
-- **Wrong username:** VPS templates typically use `root`. Some OS images may use a different default user.
-- **SSH daemon not configured for key auth:** Ensure `PubkeyAuthentication yes` and `PermitRootLogin yes` (or `prohibit-password`) are set in `/etc/ssh/sshd_config` on the VPS.
-- **Key injection requires reprovisioning:** Some VPS templates only inject SSH keys during OS install. If `deploy_ssh_key` doesn't work on an existing VPS, try reinstalling the OS with the key (use `reinstall_os` with `sshKey`).
-- **Timing:** Key deployment is async — wait 15-30 seconds after deploying before attempting SSH.
+- All VPSnet.com servers use `root` as the SSH username
+- Key deployment is async — wait 15-30 seconds after deploying before attempting SSH
 
 ### `fetch is not defined` or unexpected errors
 
