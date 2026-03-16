@@ -85,7 +85,8 @@ The standard config works across most MCP clients:
       "command": "npx",
       "args": ["-y", "vpsnet-mcp"],
       "env": {
-        "VPSNET_API_KEY": "your_api_key_here"
+        "VPSNET_API_KEY": "your_api_key_here",
+        "VPSNET_API_TIMEOUT_MS": "45000"
       }
     }
   }
@@ -103,6 +104,7 @@ Set the environment variable before running:
 
 ```bash
 export VPSNET_API_KEY="your_api_key_here"
+export VPSNET_API_TIMEOUT_MS="45000"
 ```
 
 </details>

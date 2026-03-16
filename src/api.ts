@@ -1,9 +1,19 @@
 const API_BASE = process.env.VPSNET_API_URL || "https://api.vpsnet.com";
 const API_KEY = process.env.VPSNET_API_KEY || "";
+const DEFAULT_API_TIMEOUT_MS = 45_000;
 
 if (!API_KEY) {
   console.error("VPSNET_API_KEY environment variable is required");
   process.exit(1);
+}
+
+function resolveApiTimeoutMs(): number {
+  const raw = Number.parseInt(process.env.VPSNET_API_TIMEOUT_MS || "", 10);
+  if (Number.isFinite(raw) === false || raw <= 0) {
+    return DEFAULT_API_TIMEOUT_MS;
+  }
+
+  return raw;
 }
 
 export async function apiRequest(
@@ -24,7 +34,24 @@ export async function apiRequest(
     init.body = JSON.stringify(body);
   }
 
-  const res = await fetch(url, init);
+  const timeoutMs = resolveApiTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  init.signal = controller.signal;
+
+  let res: Response;
+  try {
+    res = await fetch(url, init);
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`VPSnet API request timed out after ${timeoutMs}ms: ${method} ${path}`);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
   const text = await res.text();
   let data: unknown;
   try {
