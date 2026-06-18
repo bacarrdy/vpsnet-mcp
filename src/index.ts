@@ -2,6 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
 
@@ -9,13 +10,14 @@ const server = new McpServer(
   { name: "vpsnet", version: "1.0.0" },
   {
     instructions: [
-      "This MCP server controls VPS (Virtual Private Server) services on VPSnet.com.",
-      "It manages VPS servers ONLY — not VDS or Dedicated Servers.",
+      "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
+      "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
       "",
       "## Ordering a new VPS",
       "Flow: get_order_plans → get_order_options(plan) → order_service.",
       "Payment object format: { payment: <numeric_id>, successUrl: '', cancelUrl: '' }.",
       "For balance payment use payment ID 1: { payment: 1, successUrl: '', cancelUrl: '' }.",
+      "Paid API-key order tools require paid_operations_enabled, the matching paid scope (vps:order/vds:order/ds:order/fc:order), configured daily/monthly spend caps, and an idempotencyKey; order_service performs quote → confirm with a server quoteToken.",
       "Resources is an array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword rules: 6-40 chars, alphanumeric only, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other (or neither for auto-generated password).",
@@ -78,6 +80,26 @@ const server = new McpServer(
       "## Renewal",
       "Payment object for renewal is the same format: { payment: 1, successUrl: '', cancelUrl: '' } for balance.",
       "Flow: get_period_options → renew_service(orderNo, period, payment).",
+      "",
+      "## DNS management",
+      "DNS tools require granular API key scopes: dns:read for reads, dns:write for writes, and dnssec:manage for DNSSEC state changes.",
+      "Zones can be native (records managed in VPSNet) or secondary (AXFR from public primary servers; records and DNSSEC stay read-only here). Secondary zones require TSIG; generate a Base64 secret with openssl rand -base64 32 and configure the same key on the primary.",
+      "Zone import/export uses BIND-style zone files for forward DNS desired-state records. Import skips/rejects system-managed reverse/PTR/SOA/DNSSEC wire/apex-NS records; PTR remains in the existing service rDNS flow.",
+      "PTR / reverse DNS is NOT managed through DNS zones here. Use change_rdns for service reverse DNS.",
+      "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
+      "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones.",
+      "",
+      "## Domain registration",
+      "Domain tools cover supported TLDs, availability checks, contacts, VPSNet-priced register/transfer/renewal quotes, and paid confirmations.",
+      "Use list_domains to discover owned domain IDs before quote_domain_renew.",
+      "Flow: quote_domain_register/quote_domain_transfer/quote_domain_renew/quote_domain_restore → confirm_domain_register/confirm_domain_transfer/confirm_domain_renew/confirm_domain_restore with the returned quoteToken, the same idempotencyKey, and a payment object. The domain action is queued only after VPSNet confirms the payment.",
+      "Domain registration, transfer, renewal, restore, and assignment payments are non-refundable once confirmed. Verify spelling, period, contacts, nameservers, and auth code before calling a confirm tool.",
+      "Customers choose only the domain and action. VPSNet returns the final price before payment; renew and restore use the price attached to that existing domain. Domain read tools require domains:read; contact writes require domains:manage; paid domain calls require an idempotencyKey and, for API keys, paid_operations_enabled plus domains:order, domains:transfer, or domains:renew with spend caps.",
+      "set_domain_nameservers changes delegation for an owned domain asynchronously; nameservers are hostnames only. It does not create same-domain nameserver IP records, DNS records, or PTR/reverse DNS.",
+      "Same-domain nameserver IP records are separate host/IP records such as ns1.customer.com -> 203.0.113.10. The hostname must be below the owned domain, and addresses must be public routable IPs. These tools do not change DNS records or PTR/reverse DNS.",
+      "Domain parent-DS tools manage DNSSEC DS records in the parent zone for an owned domain. They are separate from DNS zone records and never manage PTR/reverse DNS.",
+      "Transfer-away auth/EPP-code reveal is intentionally portal-only with 2FA/PIN step-up. The MCP uses X-API-KEY only and must not request or expose transfer-away credentials.",
+      "Use get_domain_ordering_status before paid domain tests to see whether domain search and ordering are currently available.",
     ].join("\n"),
   }
 );
@@ -85,6 +107,101 @@ const server = new McpServer(
 // Helper to build service settings path
 const svc = (orderNo: string, action: string) =>
   `/account/services/${orderNo}/${action}`;
+
+const idempotencyKeySchema = z.string().min(16).max(190);
+
+const nameserverHostnameSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.toLowerCase().replace(/\.$/, ""))
+  .refine((value) => !/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value) && !value.includes(":"), "Nameserver must be a hostname, not an IP address")
+  .refine((value) => value.length <= 253 && value.includes("."), "Nameserver must be a fully qualified hostname")
+  .refine(
+    (value) =>
+      value
+        .split(".")
+        .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)),
+    "Nameserver hostname is invalid"
+  );
+
+const whoisPrivacySchema = z
+  .boolean()
+  .optional()
+  .describe("Hide public WHOIS contact details where supported. Defaults to the TLD setting.");
+
+const isPublicIp = (value: string): boolean => {
+  const version = isIP(value);
+  if (version === 4) {
+    const octets = value.split(".").map((part) => Number.parseInt(part, 10));
+    if (octets.length !== 4 || octets.some((part) => Number.isNaN(part) || part < 0 || part > 255)) {
+      return false;
+    }
+    const [a, b, c] = octets;
+    return !(
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 0 && c === 0) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113)
+    );
+  }
+  if (version === 6) {
+    const lower = value.toLowerCase();
+    return !(
+      lower === "::" ||
+      lower === "::1" ||
+      lower.startsWith("fc") ||
+      lower.startsWith("fd") ||
+      lower.startsWith("fe80") ||
+      lower.startsWith("ff") ||
+      lower.startsWith("2001:db8")
+    );
+  }
+  return false;
+};
+
+const glueHostnameSchema = nameserverHostnameSchema.describe("Nameserver hostname below the owned domain, e.g. ns1.example.com. IP addresses are not accepted as hostnames.");
+const gluePublicIpSchema = z
+  .string()
+  .trim()
+  .refine((value) => isIP(value) !== 0, "Nameserver address must be an IPv4 or IPv6 address")
+  .refine(isPublicIp, "Nameserver address must be public and routable");
+
+const dnsRecordTypeSchema = z.enum([
+  "A",
+  "AAAA",
+  "ALIAS",
+  "CAA",
+  "CNAME",
+  "DNAME",
+  "DS",
+  "HINFO",
+  "HTTPS",
+  "IPSECKEY",
+  "LOC",
+  "MX",
+  "NAPTR",
+  "NS",
+  "OPENPGPKEY",
+  "RP",
+  "SMIMEA",
+  "SRV",
+  "SSHFP",
+  "SVCB",
+  "TLSA",
+  "TXT",
+  "URI",
+]);
+
+const dnsZoneKindSchema = z.enum(["native", "secondary"]);
 
 // --- Account ---
 
@@ -288,7 +405,7 @@ server.registerTool(
   "change_rdns",
   {
     description:
-      "Change reverse DNS record for a service IP. PTR value rules: min 3 chars, max 10 dot-separated labels, each label 1-30 chars (alphanumeric + hyphen, no leading/trailing hyphens). Blacklisted words in any label: 'vpsnet', 'speedy'. Use get_rdns first to see available IPs.",
+      "Change reverse DNS record for a service IP. PTR value rules: min 3 chars, max 10 dot-separated labels, each label 1-30 chars (alphanumeric + hyphen, no leading/trailing hyphens). Reserved system labels are blocked. Use get_rdns first to see available IPs.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       ip: z
@@ -299,7 +416,7 @@ server.registerTool(
       value: z
         .string()
         .describe(
-          "New rDNS value (hostname). Valid FQDN, e.g. 'mail.example.com'. Labels: 1-30 chars, alphanumeric+hyphen, no leading/trailing hyphens. Cannot contain 'vpsnet' or 'speedy'"
+          "New rDNS value (hostname). Valid FQDN, e.g. 'mail.example.com'. Labels: 1-30 chars, alphanumeric+hyphen, no leading/trailing hyphens. Reserved system labels are blocked."
         ),
     },
   },
@@ -674,6 +791,7 @@ server.registerTool(
     description: [
       "Order a new VPS. Requires sufficient account balance for balance payment.",
       "Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }.",
+      "API-key orders first call the server quote endpoint, then confirm with the returned quoteToken. The API key must have paid scope/caps enabled.",
       "Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other.",
@@ -700,6 +818,9 @@ server.registerTool(
         .describe(
           "Array of numeric resource value IDs from get_order_options, e.g. [901, 907, 902]"
         ),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Required for paid API-key orders. Stable unique key for this exact order attempt, e.g. UUID."
+      ),
       payment: z
         .object({
           payment: z
@@ -718,17 +839,29 @@ server.registerTool(
         ),
     },
   },
-  async ({ plan, os, rootPassword, sshKey, period, resources, payment }) => {
-    const body: Record<string, unknown> = { plan, payment };
+  async ({ plan, os, rootPassword, sshKey, period, resources, idempotencyKey, payment }) => {
+    const body: Record<string, unknown> = { plan, payment, idempotencyKey };
     if (os !== undefined) body.os = os;
     if (rootPassword) body.rootPassword = rootPassword;
     if (sshKey !== undefined) body.sshKey = sshKey;
     if (period !== undefined) body.period = period;
     if (resources) body.resources = resources;
+    const { data: quoteData } = await apiRequest(
+      "POST",
+      "/order/configuration/quote",
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    const quoteToken = (quoteData as { quoteToken?: string }).quoteToken;
+    if (!quoteToken) {
+      throw new Error("Order quote did not return quoteToken");
+    }
+    body.quoteToken = quoteToken;
     const { data } = await apiRequest(
       "POST",
       "/order/configuration/confirm",
-      body
+      body,
+      { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -897,6 +1030,30 @@ server.registerTool(
     description: "Create a new API key",
     inputSchema: {
       name: z.string().describe("Key name"),
+      scope: z
+        .enum(["full", "read"])
+        .optional()
+        .describe("Binary compatibility scope: full or read"),
+      scopes: z
+        .union([z.array(z.string()), z.string()])
+        .optional()
+        .describe("Granular scopes, e.g. dns:read,dns:write"),
+      paid_operations_enabled: z
+        .boolean()
+        .optional()
+        .describe("Enable paid API-key operations. Requires paid_scopes and daily/monthly spend limits."),
+      paid_scopes: z
+        .union([z.array(z.string()), z.string()])
+        .optional()
+        .describe("Paid scopes. Include only the scopes this key should use, e.g. vps:order,domains:order,domains:renew,domains:transfer"),
+      daily_spend_limit_eur: z
+        .number()
+        .optional()
+        .describe("Daily spend cap in EUR, required when paid operations are enabled"),
+      monthly_spend_limit_eur: z
+        .number()
+        .optional()
+        .describe("Monthly spend cap in EUR, required when paid operations are enabled"),
       allowed_ips: z
         .string()
         .optional()
@@ -907,8 +1064,14 @@ server.registerTool(
         .describe("Expiry date (YYYY-MM-DD)"),
     },
   },
-  async ({ name, allowed_ips, expires_at }) => {
+  async ({ name, scope, scopes, paid_operations_enabled, paid_scopes, daily_spend_limit_eur, monthly_spend_limit_eur, allowed_ips, expires_at }) => {
     const body: Record<string, unknown> = { name };
+    if (scope) body.scope = scope;
+    if (scopes) body.scopes = scopes;
+    if (paid_operations_enabled !== undefined) body.paid_operations_enabled = paid_operations_enabled;
+    if (paid_scopes) body.paid_scopes = paid_scopes;
+    if (daily_spend_limit_eur !== undefined) body.daily_spend_limit_eur = daily_spend_limit_eur;
+    if (monthly_spend_limit_eur !== undefined) body.monthly_spend_limit_eur = monthly_spend_limit_eur;
     if (allowed_ips) body.allowed_ips = allowed_ips;
     if (expires_at) body.expires_at = expires_at;
     const { data } = await apiRequest("POST", "/account/api-keys", body);
@@ -923,6 +1086,30 @@ server.registerTool(
     inputSchema: {
       id: z.number().describe("API key ID"),
       name: z.string().describe("Key name"),
+      scope: z
+        .enum(["full", "read"])
+        .optional()
+        .describe("Binary compatibility scope: full or read"),
+      scopes: z
+        .union([z.array(z.string()), z.string()])
+        .optional()
+        .describe("Granular scopes, e.g. dns:read,dns:write"),
+      paid_operations_enabled: z
+        .boolean()
+        .optional()
+        .describe("Enable paid API-key operations. Requires paid_scopes and daily/monthly spend limits."),
+      paid_scopes: z
+        .union([z.array(z.string()), z.string()])
+        .optional()
+        .describe("Paid scopes. Include only the scopes this key should use, e.g. vps:order,domains:order,domains:renew,domains:transfer"),
+      daily_spend_limit_eur: z
+        .number()
+        .optional()
+        .describe("Daily spend cap in EUR, required when paid operations are enabled"),
+      monthly_spend_limit_eur: z
+        .number()
+        .optional()
+        .describe("Monthly spend cap in EUR, required when paid operations are enabled"),
       allowed_ips: z
         .string()
         .optional()
@@ -933,8 +1120,14 @@ server.registerTool(
         .describe("Expiry date (YYYY-MM-DD)"),
     },
   },
-  async ({ id, name, allowed_ips, expires_at }) => {
+  async ({ id, name, scope, scopes, paid_operations_enabled, paid_scopes, daily_spend_limit_eur, monthly_spend_limit_eur, allowed_ips, expires_at }) => {
     const body: Record<string, unknown> = { name };
+    if (scope) body.scope = scope;
+    if (scopes) body.scopes = scopes;
+    if (paid_operations_enabled !== undefined) body.paid_operations_enabled = paid_operations_enabled;
+    if (paid_scopes) body.paid_scopes = paid_scopes;
+    if (daily_spend_limit_eur !== undefined) body.daily_spend_limit_eur = daily_spend_limit_eur;
+    if (monthly_spend_limit_eur !== undefined) body.monthly_spend_limit_eur = monthly_spend_limit_eur;
     if (allowed_ips) body.allowed_ips = allowed_ips;
     if (expires_at) body.expires_at = expires_at;
     const { data } = await apiRequest(
@@ -958,6 +1151,1010 @@ server.registerTool(
     const { data } = await apiRequest(
       "DELETE",
       `/account/api-keys/${id}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// --- DNS ---
+
+server.registerTool(
+  "list_domains",
+  {
+    description: "List domains owned by the account, including status, expiry, nameservers, DNS zone link, and renewal settings. Requires domains:read when using an API key.",
+    inputSchema: {},
+  },
+  async () => {
+    const { data } = await apiRequest("GET", "/account/domains");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_domain",
+  {
+    description: "Get one owned domain with current nameservers and any pending domain action. Requires domains:read when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+    },
+  },
+  async ({ domain_id }) => {
+    const { data } = await apiRequest("GET", `/account/domains/${domain_id}`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_domain_tlds",
+  {
+    description: "List TLDs currently enabled for the VPSNet domain catalog. Requires domains:read when using an API key.",
+    inputSchema: {},
+  },
+  async () => {
+    const { data } = await apiRequest("GET", "/account/domains/tlds");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "set_domain_nameservers",
+  {
+    description:
+      "Queue an asynchronous nameserver change for an owned domain. Nameservers must be hostnames, not IP addresses; same-domain nameserver IP records are managed separately. This does not manage DNS records or PTR. Requires domains:manage when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      nameservers: z.array(nameserverHostnameSchema).min(2).max(13).describe("2-13 nameserver hostnames, e.g. ns1.vpsnet.com, ns2.vpsnet.com. IP addresses are not accepted."),
+      idempotencyKey: idempotencyKeySchema.optional().describe("Optional idempotency key for the queued domain action"),
+    },
+  },
+  async ({ domain_id, nameservers, idempotencyKey }) => {
+    const headers = idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined;
+    const { data } = await apiRequest(
+      "POST",
+      `/account/domains/${domain_id}/nameservers`,
+      {
+        nameservers,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
+      },
+      headers
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_domain_glue_records",
+  {
+    description:
+      "List same-domain nameserver IP records for an owned domain, e.g. ns1.example.com -> 203.0.113.10. Requires domains:read when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+    },
+  },
+  async ({ domain_id }) => {
+    const { data } = await apiRequest("GET", `/account/domains/${domain_id}/glue`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "create_domain_glue_record",
+  {
+    description:
+      "Queue creating or updating a same-domain nameserver IP record for an owned domain. Hostname must be below the domain, addresses must be public IPs, and this does not create DNS A/AAAA records or PTR. Requires domains:manage when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      hostname: glueHostnameSchema,
+      addresses: z.array(gluePublicIpSchema).min(1).max(13).describe("Public IPv4/IPv6 addresses for this nameserver host"),
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
+    },
+  },
+  async ({ domain_id, hostname, addresses, idempotencyKey }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/domains/${domain_id}/glue`,
+      { hostname, addresses, idempotencyKey },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_domain_glue_record",
+  {
+    description:
+      "Queue deleting a same-domain nameserver IP record for an owned domain. Remove or change domain nameserver delegation first if the hostname is still delegated. Requires domains:manage when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      record_id: z.number().describe("Record ID from list_domain_glue_records"),
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
+    },
+  },
+  async ({ domain_id, record_id, idempotencyKey }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/domains/${domain_id}/glue/${record_id}`,
+      { idempotencyKey },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_domain_parent_ds",
+  {
+    description:
+      "List parent-zone DNSSEC DS records for an owned domain. Requires domains:read when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+    },
+  },
+  async ({ domain_id }) => {
+    const { data } = await apiRequest("GET", `/account/domains/${domain_id}/dnssec-ds`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "add_domain_parent_ds",
+  {
+    description:
+      "Queue adding DNSSEC DS records at the parent zone for an owned domain. Requires domains:manage when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      ds: z
+        .string()
+        .min(8)
+        .describe("One or more DS records, one per line. Accepted forms include '12345 13 2 ABCDEF...' or full BIND-style DS lines."),
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
+    },
+  },
+  async ({ domain_id, ds, idempotencyKey }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/domains/${domain_id}/dnssec-ds`,
+      { ds, idempotencyKey },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_domain_parent_ds",
+  {
+    description:
+      "Queue deleting DNSSEC DS records at the parent zone for an owned domain. Requires domains:manage when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      ds: z
+        .string()
+        .min(8)
+        .describe("One or more DS records to remove, one per line. Accepted forms include '12345 13 2 ABCDEF...' or full BIND-style DS lines."),
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
+    },
+  },
+  async ({ domain_id, ds, idempotencyKey }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/domains/${domain_id}/dnssec-ds`,
+      { ds, idempotencyKey },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "check_domain_availability",
+  {
+    description: "Check read-only domain availability. Requires domains:read when using an API key.",
+    inputSchema: {
+      domain: z.string().describe("Domain to check, e.g. example.lt or example.com"),
+    },
+  },
+  async ({ domain }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/domains/check?domain=${encodeURIComponent(domain)}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+const getDomainOrderingStatus = async () => {
+  const { data } = await apiRequest("GET", "/account/domains/status");
+  return { content: [{ type: "text" as const, text: formatJson(data) }] };
+};
+
+server.registerTool(
+  "get_domain_ordering_status",
+  {
+    description:
+      "Show non-secret domain ordering readiness. Requires domains:read when using an API key.",
+    inputSchema: {},
+  },
+  getDomainOrderingStatus
+);
+
+server.registerTool(
+  "list_domain_contacts",
+  {
+    description: "List domain registrant/admin/tech/billing contacts owned by the account. Requires domains:read when using an API key.",
+    inputSchema: {},
+  },
+  async () => {
+    const { data } = await apiRequest("GET", "/account/domains/contacts");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+const domainContactInputSchema = {
+  kind: z.enum(["individual", "business"]).describe("Contact kind"),
+  is_default: z.boolean().optional().describe("Make this the default domain contact"),
+  first_name: z.string().optional().describe("Required for individual contacts"),
+  last_name: z.string().optional().describe("Required for individual contacts"),
+  organization: z.string().optional().describe("Required for business contacts"),
+  organization_code: z.string().optional().describe("Company/legal entity code required for business contacts"),
+  email: z.string().email().describe("Contact email"),
+  phone: z.string().optional().describe("Phone number, preferably E.164"),
+  address1: z.string().optional().describe("Street address"),
+  address2: z.string().optional().describe("Street address line 2"),
+  city: z.string().optional().describe("City"),
+  state: z.string().optional().describe("State/province"),
+  postal_code: z.string().optional().describe("Postal code"),
+  country_code: z.string().length(2).describe("ISO-3166 alpha-2 country code"),
+  vat_code: z.string().optional().describe("VAT code when relevant"),
+};
+
+server.registerTool(
+  "create_domain_contact",
+  {
+    description: "Create a domain contact for future domain registration/transfer. Requires domains:manage when using an API key.",
+    inputSchema: domainContactInputSchema,
+  },
+  async (input) => {
+    const { data } = await apiRequest("POST", "/account/domains/contacts", input);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "update_domain_contact",
+  {
+    description: "Update an existing domain contact. Requires domains:manage when using an API key.",
+    inputSchema: {
+      id: z.number().describe("Domain contact ID"),
+      ...domainContactInputSchema,
+    },
+  },
+  async ({ id, ...input }) => {
+    const { data } = await apiRequest("POST", `/account/domains/contacts/${id}`, input);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_domain_contact",
+  {
+    description: "Delete an unused domain contact. Contacts referenced by domains are rejected. Requires domains:manage when using an API key.",
+    inputSchema: {
+      id: z.number().describe("Domain contact ID"),
+    },
+  },
+  async ({ id }) => {
+    const { data } = await apiRequest("DELETE", `/account/domains/contacts/${id}`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "quote_domain_register",
+  {
+    description: "Create a VPSNet-priced domain registration quote. Returns quoteToken; does not submit the domain action. Requires domains:read plus paid domains:order scope/caps for API keys.",
+    inputSchema: {
+      domain: z.string().describe("Domain to register, e.g. example.lt"),
+      years: z.number().optional().describe("Registration period in years"),
+      registrant_contact_id: z.number().optional().describe("Registrant contact ID; defaults to account default contact"),
+      admin_contact_id: z.number().optional().describe("Admin contact ID"),
+      tech_contact_id: z.number().optional().describe("Technical contact ID"),
+      billing_contact_id: z.number().optional().describe("Billing contact ID"),
+      nameservers: z.array(nameserverHostnameSchema).optional().describe("2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted."),
+      whois_privacy: whoisPrivacySchema,
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
+    },
+  },
+  async ({ idempotencyKey, ...input }) => {
+    const body = { ...input, idempotencyKey };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/register/quote",
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "quote_domain_transfer",
+  {
+    description: "Create a VPSNet-priced domain transfer quote. Auth code is hashed into the quote payload and not returned. Returns quoteToken; does not submit the domain action. Requires domains:read plus paid domains:transfer scope/caps for API keys.",
+    inputSchema: {
+      domain: z.string().describe("Domain to transfer"),
+      authCode: z.string().describe("Transfer auth/EPP code"),
+      registrant_contact_id: z.number().optional().describe("Registrant contact ID; defaults to account default contact"),
+      admin_contact_id: z.number().optional().describe("Admin contact ID"),
+      tech_contact_id: z.number().optional().describe("Technical contact ID"),
+      billing_contact_id: z.number().optional().describe("Billing contact ID"),
+      nameservers: z.array(nameserverHostnameSchema).optional().describe("2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted."),
+      whois_privacy: whoisPrivacySchema,
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
+    },
+  },
+  async ({ idempotencyKey, authCode, ...input }) => {
+    const body = { ...input, auth_code: authCode, idempotencyKey };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/transfer/quote",
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+const domainPaymentSchema = z
+  .object({
+    payment: z.number().describe("Payment method ID. Use 1 for balance payment"),
+    successUrl: z.string().describe("Redirect URL on success (use empty string '')"),
+    cancelUrl: z.string().describe("Redirect URL on cancel (use empty string '')"),
+  })
+  .passthrough()
+  .describe("Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }");
+
+server.registerTool(
+  "confirm_domain_register",
+  {
+    description: "Confirm a quoted domain registration and pay from the VPSNet account. Domain payments are non-refundable once confirmed and the domain action is queued only after payment succeeds. Requires the same idempotencyKey and quoteToken from quote_domain_register.",
+    inputSchema: {
+      domain: z.string().describe("Domain to register, exactly as quoted"),
+      years: z.number().optional().describe("Registration period in years, exactly as quoted"),
+      registrant_contact_id: z.number().optional().describe("Registrant contact ID used in quote"),
+      admin_contact_id: z.number().optional().describe("Admin contact ID used in quote"),
+      tech_contact_id: z.number().optional().describe("Technical contact ID used in quote"),
+      billing_contact_id: z.number().optional().describe("Billing contact ID used in quote"),
+      nameservers: z.array(nameserverHostnameSchema).optional().describe("Nameserver hostnames used in quote"),
+      whois_privacy: whoisPrivacySchema,
+      idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
+      quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_register"),
+      payment: domainPaymentSchema,
+    },
+  },
+  async ({ idempotencyKey, quoteToken, ...input }) => {
+    const body = { ...input, idempotencyKey, quoteToken };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/register/confirm",
+      body,
+      { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "confirm_domain_transfer",
+  {
+    description: "Confirm a quoted domain transfer and pay from the VPSNet account. Domain payments are non-refundable once confirmed and the transfer is queued only after payment succeeds. Requires the same idempotencyKey, quoteToken, and authCode used for quote.",
+    inputSchema: {
+      domain: z.string().describe("Domain to transfer, exactly as quoted"),
+      authCode: z.string().describe("Transfer auth/EPP code used in quote; stored encrypted server-side after confirm"),
+      registrant_contact_id: z.number().optional().describe("Registrant contact ID used in quote"),
+      admin_contact_id: z.number().optional().describe("Admin contact ID used in quote"),
+      tech_contact_id: z.number().optional().describe("Technical contact ID used in quote"),
+      billing_contact_id: z.number().optional().describe("Billing contact ID used in quote"),
+      nameservers: z.array(nameserverHostnameSchema).optional().describe("Nameserver hostnames used in quote"),
+      whois_privacy: whoisPrivacySchema,
+      idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
+      quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_transfer"),
+      payment: domainPaymentSchema,
+    },
+  },
+  async ({ idempotencyKey, quoteToken, authCode, ...input }) => {
+    const body = { ...input, auth_code: authCode, idempotencyKey, quoteToken };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/transfer/confirm",
+      body,
+      { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "quote_domain_renew",
+  {
+    description: "Create a VPSNet-priced renewal quote for an owned domain. Renewal pricing follows the existing domain record. Requires paid domains:renew scope/caps for API keys.",
+    inputSchema: {
+      domain_id: z.number().optional().describe("Owned domain ID"),
+      domain: z.string().optional().describe("Owned domain name if domain_id is not used"),
+      years: z.number().optional().describe("Renewal period in years"),
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
+    },
+  },
+  async ({ idempotencyKey, ...input }) => {
+    const body = { ...input, idempotencyKey };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/renew/quote",
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "confirm_domain_renew",
+  {
+    description: "Confirm a quoted domain renewal and pay from the VPSNet account. Domain renewal payments are non-refundable once confirmed and the renewal is queued only after payment succeeds. Requires the same idempotencyKey and quoteToken from quote_domain_renew.",
+    inputSchema: {
+      domain_id: z.number().optional().describe("Owned domain ID used in quote"),
+      domain: z.string().optional().describe("Owned domain name used in quote"),
+      years: z.number().optional().describe("Renewal period used in quote"),
+      idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
+      quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_renew"),
+      payment: domainPaymentSchema,
+    },
+  },
+  async ({ idempotencyKey, quoteToken, ...input }) => {
+    const body = { ...input, idempotencyKey, quoteToken };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/renew/confirm",
+      body,
+      { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "quote_domain_restore",
+  {
+    description: "Create a restore quote for an owned domain in redemption. The final price is returned before payment. Requires paid domains:renew scope/caps for API keys.",
+    inputSchema: {
+      domain_id: z.number().optional().describe("Owned domain ID"),
+      domain: z.string().optional().describe("Owned domain name if domain_id is not used"),
+      idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
+    },
+  },
+  async ({ idempotencyKey, ...input }) => {
+    const body = { ...input, idempotencyKey };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/restore/quote",
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "confirm_domain_restore",
+  {
+    description: "Confirm a quoted domain restore and pay from the VPSNet account. Domain restore payments are non-refundable once confirmed and the restore is queued only after payment succeeds. Requires the same idempotencyKey and quoteToken from quote_domain_restore.",
+    inputSchema: {
+      domain_id: z.number().optional().describe("Owned domain ID used in quote"),
+      domain: z.string().optional().describe("Owned domain name used in quote"),
+      idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
+      quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_restore"),
+      payment: domainPaymentSchema,
+    },
+  },
+  async ({ idempotencyKey, quoteToken, ...input }) => {
+    const body = { ...input, idempotencyKey, quoteToken };
+    const { data } = await apiRequest(
+      "POST",
+      "/account/domains/restore/confirm",
+      body,
+      { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "set_domain_auto_renew",
+  {
+    description: "Enable or disable automatic renewal for an owned domain. Auto-renew charges the VPSNet account; automatic domain renewal payments are non-refundable once confirmed.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      enabled: z.boolean().describe("Whether automatic renewal should be enabled"),
+      renewal_period_years: z.number().min(1).max(10).optional().describe("Renewal period in years; defaults to the current domain setting"),
+    },
+  },
+  async ({ domain_id, enabled, renewal_period_years }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/domains/${domain_id}/auto-renew`,
+      {
+        enabled,
+        ...(renewal_period_years ? { renewal_period_years } : {}),
+      }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_registrar_lock",
+  {
+    description:
+      "Get the registrar transfer-lock status for an owned domain (locked / unlocked / unsupported). A locked domain cannot be transferred away until unlocked. Changing the lock is intentionally not available via API key (use the control panel). Requires domains:read when using an API key.",
+    inputSchema: {
+      domain_id: z.number().describe("Owned domain ID from list_domains"),
+    },
+  },
+  async ({ domain_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/domains/${domain_id}/registrar-lock`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_dns_zones",
+  {
+    description: "List forward DNS zones on the account. Requires dns:read when using an API key.",
+    inputSchema: {},
+  },
+  async () => {
+    const { data } = await apiRequest("GET", "/account/dns/zones");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "create_dns_zone",
+  {
+    description:
+      "Create a forward DNS zone in pending verification state. Native zones are managed here; secondary zones AXFR from public primary DNS servers and require TSIG. Returns a one-time TXT verification value. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone: z.string().describe("Zone name, e.g. example.com"),
+      kind: dnsZoneKindSchema
+        .optional()
+        .describe("Zone kind. Defaults to native. Use secondary for AXFR-backed zones."),
+      secondary_masters: z
+        .array(z.string())
+        .optional()
+        .describe("Public primary DNS server IPs for a secondary zone. Non-public IPs are rejected by the API."),
+      secondary_tsig_key_name: z
+        .string()
+        .optional()
+        .describe("Required for secondary zones. TSIG key name configured on the primary DNS server."),
+      secondary_tsig_algorithm: z
+        .enum(["hmac-sha256", "hmac-sha384", "hmac-sha512", "hmac-sha224", "hmac-sha1", "hmac-md5"])
+        .optional()
+        .describe("TSIG algorithm. Defaults to hmac-sha256."),
+      secondary_tsig_secret: z
+        .string()
+        .optional()
+        .describe("Required for secondary zones. Base64 TSIG secret, 32-64 decoded bytes, e.g. openssl rand -base64 32. It is encrypted and never returned."),
+    },
+  },
+  async ({ zone, kind, secondary_masters, secondary_tsig_key_name, secondary_tsig_algorithm, secondary_tsig_secret }) => {
+    const body: Record<string, unknown> = {
+      zone_name: zone,
+    };
+    if (kind) body.kind = kind;
+    if (secondary_masters) body.secondary_masters = secondary_masters;
+    if (secondary_tsig_key_name) body.secondary_tsig_key_name = secondary_tsig_key_name;
+    if (secondary_tsig_algorithm) body.secondary_tsig_algorithm = secondary_tsig_algorithm;
+    if (secondary_tsig_secret) body.secondary_tsig_secret = secondary_tsig_secret;
+    const { data } = await apiRequest("POST", "/account/dns/zones", body);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_dns_zone",
+  {
+    description: "Get a DNS zone and desired records. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest("GET", `/account/dns/zones/${zone_id}`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_dns_zone_diagnostics",
+  {
+    description:
+      "Run customer-facing DNS health diagnostics for a zone: delegation, public SOA, DNSSEC signal, and common record hygiene checks. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/dns/zones/${zone_id}/diagnostics`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "export_dns_zone",
+  {
+    description:
+      "Export a native forward DNS zone's desired-state records as a BIND-style zone file. System-managed SOA/apex NS/DNSSEC wire records and PTR/reverse DNS are not exported here. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/dns/zones/${zone_id}/export`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "import_dns_zone",
+  {
+    description:
+      "Import BIND-style forward DNS records into a native zone. Set replace=true to replace non-system desired-state records; false upserts imported records. PTR/reverse DNS, SOA, DNSSEC wire records, apex NS, and LUA are skipped or rejected by the API. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      zonefile: z
+        .string()
+        .min(1)
+        .max(262144)
+        .describe("BIND-style zone file contents to import"),
+      replace: z
+        .boolean()
+        .optional()
+        .describe("If true, delete existing non-system desired-state records before importing. Defaults to false."),
+    },
+  },
+  async ({ zone_id, zonefile, replace }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/dns/zones/${zone_id}/import`,
+      {
+        zonefile,
+        ...(replace !== undefined ? { replace } : {}),
+      }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_dns_templates",
+  {
+    description:
+      "List backend-defined DNS record templates for a native forward zone, such as web service, Google Workspace, Microsoft 365, mail security, Null MX and CAA lockdown. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/dns/zones/${zone_id}/templates`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "apply_dns_template",
+  {
+    description:
+      "Apply a backend-defined DNS template to a native forward zone. Records still pass the same API validation, quotas and conflict rules as manual record writes. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      template: z
+        .string()
+        .describe("Template ID returned by list_dns_templates, e.g. web_service, null_mx, google_workspace, microsoft_365, mail_security, caa_letsencrypt"),
+      parameters: z
+        .record(z.union([z.string(), z.number(), z.boolean()]))
+        .optional()
+        .describe("Template parameters, e.g. { ipv4, ipv6, www, mx_target, ttl } depending on the template"),
+    },
+  },
+  async ({ zone_id, template, parameters }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/dns/zones/${zone_id}/templates/${encodeURIComponent(template)}`,
+      {
+        ...(parameters !== undefined ? { parameters } : {}),
+      }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_dns_zone",
+  {
+    description:
+      "Delete a forward DNS zone. Published zones are queued for removal from the managed DNS platform. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest("DELETE", `/account/dns/zones/${zone_id}`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "verify_dns_zone",
+  {
+    description:
+      "Check the zone ownership TXT record and publish the zone if it matches. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/verify`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_dnssec",
+  {
+    description:
+      "Get DNSSEC state and public DNSKEY/DS material for a native DNS zone. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest("GET", `/account/dns/zones/${zone_id}/dnssec`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "set_dnssec",
+  {
+    description:
+      "Enable or disable DNSSEC signing for a native DNS zone. If parent DS records still exist outside VPSNet, remove them first and set parent_ds_removed=true before disabling signing. Secondary-zone DNSSEC is controlled on the primary server. Requires dnssec:manage when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      enabled: z.boolean().describe("true to enable/sign the zone, false to disable/remove signing"),
+      parent_ds_removed: z
+        .boolean()
+        .optional()
+        .describe("When disabling DNSSEC for a zone whose parent DS is managed outside VPSNet, set true only after removing the parent DS records."),
+    },
+  },
+  async ({ zone_id, enabled, parent_ds_removed }) => {
+    const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/dnssec`, {
+      enabled,
+      parent_ds_removed,
+    });
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "upsert_dns_record",
+  {
+    description:
+      "Create or replace a forward DNS record in desired state for a native zone. PTR and *.arpa are rejected; use change_rdns for reverse DNS. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      name: z
+        .string()
+        .describe("Record name. Use @ for apex, or a relative name inside the zone."),
+      type: dnsRecordTypeSchema.describe("DNS record type. PTR is intentionally not supported here."),
+      content: z.string().describe("DNS record value for the selected type"),
+      ttl: z
+        .number()
+        .optional()
+        .describe("TTL in seconds, allowed range 60-604800. Defaults to 120."),
+      comment: z
+        .string()
+        .max(255)
+        .optional()
+        .describe("Optional note about this record, max 255 chars."),
+    },
+  },
+  async ({ zone_id, name, type, content, ttl, comment }) => {
+    const body: Record<string, unknown> = { name, type, content };
+    if (ttl !== undefined) body.ttl = ttl;
+    if (comment !== undefined) body.comment = comment;
+    const { data } = await apiRequest(
+      "POST",
+      `/account/dns/zones/${zone_id}/records`,
+      body
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "update_dns_record",
+  {
+    description:
+      "Edit an existing forward DNS record by its ID (PUT) — change value, TTL, or comment without replacing it. System-managed records cannot be edited. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      record_id: z.number().describe("DNS record ID to update"),
+      name: z
+        .string()
+        .describe("Record name. Use @ for apex, or a relative name inside the zone."),
+      type: dnsRecordTypeSchema.describe("DNS record type. PTR is intentionally not supported here."),
+      content: z.string().describe("DNS record value for the selected type"),
+      ttl: z
+        .number()
+        .optional()
+        .describe("TTL in seconds, allowed range 60-604800. Defaults to 120."),
+      comment: z
+        .string()
+        .max(255)
+        .optional()
+        .describe("Optional note about this record, max 255 chars."),
+    },
+  },
+  async ({ zone_id, record_id, name, type, content, ttl, comment }) => {
+    const body: Record<string, unknown> = { name, type, content };
+    if (ttl !== undefined) body.ttl = ttl;
+    if (comment !== undefined) body.comment = comment;
+    const { data } = await apiRequest(
+      "PUT",
+      `/account/dns/zones/${zone_id}/records/${record_id}`,
+      body
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_dns_record",
+  {
+    description:
+      "Delete a forward DNS record from desired state. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      record_id: z.number().describe("DNS record ID"),
+    },
+  },
+  async ({ zone_id, record_id }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/dns/zones/${zone_id}/records/${record_id}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_dns_service_status",
+  {
+    description:
+      "Get the VPSNet DNS cluster status: whether the anycast DNS service is operational, healthy node count, the public nameservers to delegate domains to, and the recursive resolver IPs to use on VPSNet servers. Requires dns:read when using an API key.",
+    inputSchema: {},
+  },
+  async () => {
+    const { data } = await apiRequest("GET", "/account/dns/service-status");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_dns_zone_history",
+  {
+    description:
+      "Get the recent change history for a DNS zone and its records (action, record, who, when). Useful for auditing what changed. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/dns/zones/${zone_id}/history`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_ddns_tokens",
+  {
+    description: "List DNS updater tokens for a DNS zone (DDNS A/AAAA and ACME DNS-01 TXT). Returned data never includes the full token value. Requires dns:read when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/dns/zones/${zone_id}/ddns-tokens`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "create_ddns_token",
+  {
+    description:
+      "Create a narrow DNS updater token for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updater use; purpose=acme allows TXT only under _acme-challenge for DNS-01. The full token is returned once. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      purpose: z
+        .enum(["ddns", "acme"])
+        .optional()
+        .describe("Token purpose. ddns allows A/AAAA updates; acme allows TXT-only DNS-01 updates under _acme-challenge. Defaults to ddns."),
+      name_pattern: z
+        .string()
+        .describe("Allowed hostname or wildcard pattern. For purpose=acme this must be _acme-challenge.<zone> or _acme-challenge.<host>.<zone>."),
+      record_types: z
+        .string()
+        .optional()
+        .describe("Allowed record types. For purpose=ddns: A, AAAA, or A,AAAA. For purpose=acme: TXT only."),
+      rate_limit_per_minute: z
+        .number()
+        .optional()
+        .describe("Per-token update limit, 1-120/min. Defaults to 10."),
+      expires_at: z
+        .string()
+        .optional()
+        .describe("Optional expiry date (YYYY-MM-DD or datetime)."),
+    },
+  },
+  async ({ zone_id, purpose, name_pattern, record_types, rate_limit_per_minute, expires_at }) => {
+    const body: Record<string, unknown> = { name_pattern };
+    if (purpose) body.purpose = purpose;
+    if (record_types) body.record_types = record_types;
+    if (rate_limit_per_minute !== undefined) body.rate_limit_per_minute = rate_limit_per_minute;
+    if (expires_at) body.expires_at = expires_at;
+    const { data } = await apiRequest(
+      "POST",
+      `/account/dns/zones/${zone_id}/ddns-tokens`,
+      body
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "revoke_ddns_token",
+  {
+    description: "Revoke a DNS updater token (DDNS or ACME). Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+      token_id: z.number().describe("DDNS token ID"),
+    },
+  },
+  async ({ zone_id, token_id }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/dns/zones/${zone_id}/ddns-tokens/${token_id}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
