@@ -1,14 +1,16 @@
 # vpsnet-mcp
 
-[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) virtual private servers. Gives AI assistants full control over your VPS infrastructure — order servers, manage plans, deploy SSH keys, and directly access your servers via SSH for software installation and configuration.
+[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) services. Gives AI assistants access to VPS lifecycle operations, DNS zones, domain registration and contacts, billing, API keys, SSH-key provisioning, and related account tooling through the VPSNet API.
 
 ## Features
 
-- **49 tools** covering the entire VPSnet.com API
+- **90+ tools** covering VPSNet service management, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades)
-- DNS (rDNS/PTR records)
+- Service reverse DNS (rDNS/PTR records)
+- Forward DNS zones, records, DNSSEC, templates, import/export, and DDNS tokens
+- Domain availability, contacts, register/transfer/renew/restore quotes, and paid confirmations
 - SSH key management — deploy keys and gain direct server access
 - API key management
 - Backups, billing, invoices
