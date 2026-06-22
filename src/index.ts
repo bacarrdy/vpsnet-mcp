@@ -87,7 +87,7 @@ const server = new McpServer(
       "Zone import/export uses BIND-style zone files for forward DNS desired-state records. Import skips/rejects system-managed reverse/PTR/SOA/DNSSEC wire/apex-NS records; PTR remains in the existing service rDNS flow.",
       "PTR / reverse DNS is NOT managed through DNS zones here. Use change_rdns for service reverse DNS.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
-      "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones.",
+      "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
       "",
       "## Domain registration",
       "Domain tools cover supported TLDs, availability checks, contacts, VPSNet-priced register/transfer/renewal quotes, and paid confirmations.",
@@ -2103,7 +2103,7 @@ server.registerTool(
   "create_ddns_token",
   {
     description:
-      "Create a narrow DNS updater token for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updater use; purpose=acme allows TXT only under _acme-challenge for DNS-01. The full token is returned once. Requires dns:write when using an API key.",
+      "Create a narrow DNS updater token for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updater use; purpose=acme allows TXT only under _acme-challenge for DNS-01. Set allow_from to restrict updater source IPs/CIDRs. The full token is returned once. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: z.number().describe("DNS zone ID"),
       purpose: z
@@ -2117,6 +2117,10 @@ server.registerTool(
         .string()
         .optional()
         .describe("Allowed record types. For purpose=ddns: A, AAAA, or A,AAAA. For purpose=acme: TXT only."),
+      allow_from: z
+        .string()
+        .optional()
+        .describe("Optional comma-separated source IP/CIDR allowlist for updater requests, e.g. 203.0.113.10,2001:db8::/64."),
       rate_limit_per_minute: z
         .number()
         .optional()
@@ -2127,10 +2131,11 @@ server.registerTool(
         .describe("Optional expiry date (YYYY-MM-DD or datetime)."),
     },
   },
-  async ({ zone_id, purpose, name_pattern, record_types, rate_limit_per_minute, expires_at }) => {
+  async ({ zone_id, purpose, name_pattern, record_types, allow_from, rate_limit_per_minute, expires_at }) => {
     const body: Record<string, unknown> = { name_pattern };
     if (purpose) body.purpose = purpose;
     if (record_types) body.record_types = record_types;
+    if (allow_from) body.allow_from = allow_from;
     if (rate_limit_per_minute !== undefined) body.rate_limit_per_minute = rate_limit_per_minute;
     if (expires_at) body.expires_at = expires_at;
     const { data } = await apiRequest(

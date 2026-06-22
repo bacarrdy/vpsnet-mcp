@@ -2,7 +2,7 @@
   "name": "vpsnet-mcp",
   "version": "1.0.9",
   "type": "module",
-  "description": "MCP server for managing VPSnet.com virtual private servers",
+  "description": "MCP server for managing VPSnet.com services, DNS, domains, billing, and server lifecycle operations",
   "bin": {
     "vpsnet-mcp": "./build/index.js"
   },
@@ -21,11 +21,14 @@
   "keywords": [
     "mcp",
     "vps",
+    "dns",
+    "domains",
     "vpsnet",
     "model-context-protocol",
     "claude",
     "server-management",
-    "hosting"
+    "hosting",
+    "domain-registration"
   ],
   "engines": {
     "node": ">=18"

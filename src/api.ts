@@ -19,12 +19,14 @@ function resolveApiTimeoutMs(): number {
 export async function apiRequest(
   method: string,
   path: string,
-  body?: Record<string, unknown>
+  body?: Record<string, unknown>,
+  extraHeaders?: Record<string, string>
 ): Promise<{ status: number; data: unknown }> {
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = {
     "X-API-KEY": API_KEY,
     Accept: "application/json",
+    ...(extraHeaders || {}),
   };
 
   const init: RequestInit = { method, headers };
