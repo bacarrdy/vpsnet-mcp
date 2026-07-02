@@ -87,6 +87,12 @@ const server = new McpServer(
       "Zone import/export uses BIND-style zone files for forward DNS desired-state records. Import skips/rejects system-managed reverse/PTR/SOA/DNSSEC wire/apex-NS records; PTR remains in the existing service rDNS flow.",
       "PTR / reverse DNS is NOT managed through DNS zones here. Use change_rdns for service reverse DNS.",
       "To point a domain/hostname at a VPSNet service, prefer list_service_dns_options → attach_service_dns_record (validates the IP belongs to the service and defaults A/AAAA to the service IP). Use upsert_dns_record only for arbitrary record content.",
+      "",
+      "## Snapshots, restore and Firecracker Functions",
+      "VPS product naming: 'VPS' services run on Firecracker microVMs; 'Cloud VPS' services are KVM/VDS. Cloud VPS snapshots use list/create/rollback/delete_snapshot; Firecracker VPS snapshots use the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire).",
+      "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
+      "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
+      "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
       "",
@@ -1761,6 +1767,408 @@ server.registerTool(
       "POST",
       `/account/services/${orderNo}/domains`,
       body
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_snapshots",
+  {
+    description:
+      "List disk snapshots for a Cloud VPS (KVM/VDS) service, with the snapshot billing policy (free window, then billed per GB while kept) and a usage summary. Firecracker VPS uses list_firecracker_snapshots instead.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number, e.g. VD12345"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/services/${orderNo}/snapshots`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "create_snapshot",
+  {
+    description:
+      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Only one snapshot action can run at a time; snapshot count is limited per service.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+      description: z.string().optional().describe("Optional snapshot description"),
+    },
+  },
+  async ({ orderNo, description }) => {
+    const body: Record<string, unknown> = {};
+    if (description !== undefined) body.description = description;
+    const { data } = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/snapshots`,
+      body
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "rollback_snapshot",
+  {
+    description:
+      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+      snapname: z.string().describe("Snapshot name from list_snapshots"),
+    },
+  },
+  async ({ orderNo, snapname }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/snapshots/${encodeURIComponent(snapname)}/rollback`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_snapshot",
+  {
+    description: "Delete a Cloud VPS (KVM/VDS) disk snapshot.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+      snapname: z.string().describe("Snapshot name from list_snapshots"),
+    },
+  },
+  async ({ orderNo, snapname }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/services/${orderNo}/snapshots/${encodeURIComponent(snapname)}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_firecracker_snapshots",
+  {
+    description:
+      "List temporary snapshots for a Firecracker VPS service, including billing state (free window, then a per-GB keep rate) and expiry.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number, e.g. VP57068"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/services/${orderNo}/firecracker/snapshots`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "create_firecracker_snapshot",
+  {
+    description:
+      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Check list_firecracker_snapshots for the policy fields.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/firecracker/snapshots`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "rollback_firecracker_snapshot",
+  {
+    description:
+      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+      snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
+    },
+  },
+  async ({ orderNo, snapshot_id }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/firecracker/snapshots/${snapshot_id}/rollback`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_firecracker_snapshot",
+  {
+    description: "Delete a Firecracker VPS temporary snapshot (stops its keep billing).",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+      snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
+    },
+  },
+  async ({ orderNo, snapshot_id }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/services/${orderNo}/firecracker/snapshots/${snapshot_id}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_restore_status",
+  {
+    description:
+      "Get the unified restore state for a service: retention days, restore price, and any restore request in progress. Cloud VPS and Firecracker VPS have automatic daily off-node backups restored through this flow.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/services/${orderNo}/restore/status`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_restore_points",
+  {
+    description:
+      "List available backup restore points for a service (automatic off-node backups). Use a point id with request_restore.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/services/${orderNo}/restore/points`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "request_restore",
+  {
+    description:
+      "PAID: restore a service from a backup point. Charges the restore price (+VAT) from the ACCOUNT BALANCE immediately and overwrites the service disk with the backup content. DESTRUCTIVE and billed — always confirm the point and price (get_restore_status) with the user first.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+      backup_point_id: z.number().describe("Restore point ID from list_restore_points"),
+    },
+  },
+  async ({ orderNo, backup_point_id }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/restore/requests`,
+      { backup_point_id }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_guest_agent_status",
+  {
+    description:
+      "Check whether the QEMU guest agent is running inside a Cloud VPS (KVM/VDS). Useful before OS-level operations that depend on the agent.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/services/${orderNo}/guest-agent`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+const functionBodyFromInput = (input: Record<string, unknown>) => {
+  const body: Record<string, unknown> = {};
+  for (const key of [
+    "name",
+    "runtime_os_id",
+    "entrypoint",
+    "description",
+    "code",
+    "environment",
+    "timeout_seconds",
+    "vcpus",
+    "memory_mb",
+    "enabled",
+    "webhook_enabled",
+    "rotate_webhook_secret",
+  ]) {
+    if (input[key] !== undefined) body[key] = input[key];
+  }
+  return body;
+};
+
+const functionFieldsSchema = {
+  name: z.string().optional().describe("Function name"),
+  runtime_os_id: z.number().optional().describe("Runtime OS ID (see list_functions response for available runtimes)"),
+  entrypoint: z.string().optional().describe("Entrypoint command/handler"),
+  description: z.string().optional().describe("Description (max 2000 chars)"),
+  code: z.string().optional().describe("Function source code"),
+  environment: z.string().optional().describe("Environment variables as JSON object string"),
+  timeout_seconds: z.number().optional().describe("1-300 seconds, default 30"),
+  vcpus: z.number().optional().describe("1-8 vCPUs, default 1"),
+  memory_mb: z.number().optional().describe("64-8192 MB, default 256"),
+  enabled: z.boolean().optional().describe("Whether the function can be invoked"),
+  webhook_enabled: z.boolean().optional().describe("Expose a public webhook URL for this function"),
+  rotate_webhook_secret: z.boolean().optional().describe("Rotate the webhook secret"),
+};
+
+server.registerTool(
+  "list_functions",
+  {
+    description:
+      "List Firecracker Functions (serverless-style code execution in microVMs) with runtimes, webhook URLs, and usage. Usage-billed from the account.",
+    inputSchema: {},
+  },
+  async () => {
+    const { data } = await apiRequest("GET", "/account/firecracker/functions");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_function",
+  {
+    description: "Get one Firecracker Function with code, config, and webhook details.",
+    inputSchema: {
+      function_id: z.number().describe("Function ID from list_functions"),
+    },
+  },
+  async ({ function_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/firecracker/functions/${function_id}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "create_function",
+  {
+    description:
+      "Create a Firecracker Function. Requires name, runtime_os_id, and code. Invocations are usage-billed (CPU + memory seconds) from the account balance.",
+    inputSchema: functionFieldsSchema,
+  },
+  async (input) => {
+    const { data } = await apiRequest(
+      "POST",
+      "/account/firecracker/functions",
+      functionBodyFromInput(input as Record<string, unknown>)
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "update_function",
+  {
+    description: "Update a Firecracker Function's code or configuration.",
+    inputSchema: {
+      function_id: z.number().describe("Function ID from list_functions"),
+      ...functionFieldsSchema,
+    },
+  },
+  async ({ function_id, ...input }) => {
+    const { data } = await apiRequest(
+      "POST",
+      `/account/firecracker/functions/${function_id}`,
+      functionBodyFromInput(input as Record<string, unknown>)
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "delete_function",
+  {
+    description: "Delete a Firecracker Function.",
+    inputSchema: {
+      function_id: z.number().describe("Function ID from list_functions"),
+    },
+  },
+  async ({ function_id }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      `/account/firecracker/functions/${function_id}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "invoke_function",
+  {
+    description:
+      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations.",
+    inputSchema: {
+      function_id: z.number().describe("Function ID from list_functions"),
+      input: z.string().optional().describe("Input payload passed to the function"),
+      wait: z.boolean().optional().describe("Wait synchronously for the result"),
+    },
+  },
+  async ({ function_id, input, wait }) => {
+    const body: Record<string, unknown> = {};
+    if (input !== undefined) body.input = input;
+    if (wait !== undefined) body.wait = wait;
+    const { data } = await apiRequest(
+      "POST",
+      `/account/firecracker/functions/${function_id}/invoke`,
+      body
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_function_invocations",
+  {
+    description: "List invocations of a Firecracker Function with status, duration, and cost.",
+    inputSchema: {
+      function_id: z.number().describe("Function ID from list_functions"),
+    },
+  },
+  async ({ function_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/firecracker/functions/${function_id}/invocations`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_function_invocation",
+  {
+    description: "Get one invocation of a Firecracker Function including output/logs and usage cost.",
+    inputSchema: {
+      function_id: z.number().describe("Function ID from list_functions"),
+      invocation_id: z.string().describe("Invocation ID from list_function_invocations"),
+    },
+  },
+  async ({ function_id, invocation_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/firecracker/functions/${function_id}/invocations/${encodeURIComponent(invocation_id)}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
