@@ -86,6 +86,7 @@ const server = new McpServer(
       "Zones can be native (records managed in VPSNet) or secondary (AXFR from public primary servers; records and DNSSEC stay read-only here). Secondary zones require TSIG; generate a Base64 secret with openssl rand -base64 32 and configure the same key on the primary.",
       "Zone import/export uses BIND-style zone files for forward DNS desired-state records. Import skips/rejects system-managed reverse/PTR/SOA/DNSSEC wire/apex-NS records; PTR remains in the existing service rDNS flow.",
       "PTR / reverse DNS is NOT managed through DNS zones here. Use change_rdns for service reverse DNS.",
+      "To point a domain/hostname at a VPSNet service, prefer list_service_dns_options → attach_service_dns_record (validates the IP belongs to the service and defaults A/AAAA to the service IP). Use upsert_dns_record only for arbitrary record content.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
       "",
@@ -1705,6 +1706,61 @@ server.registerTool(
     const { data } = await apiRequest(
       "GET",
       `/account/domains/${domain_id}/registrar-lock`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_service_dns_options",
+  {
+    description:
+      "List the DNS attach options for a service: its public IPv4/IPv6 addresses, the account's editable forward DNS zones, and DNS records already pointing at the service. Use before attach_service_dns_record. Requires dns:read when using an API key.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number, e.g. VP57068"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/services/${orderNo}/domains`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "attach_service_dns_record",
+  {
+    description:
+      "Point a DNS name at a service in one call: creates an A/AAAA/CNAME record in an owned forward DNS zone using the service's own IP (A/AAAA default to the service IP when ip is omitted; the ip, when given, must belong to the service). Not for secondary/suspended zones. For arbitrary record content use upsert_dns_record instead. Requires dns:write when using an API key.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number of the service, e.g. VP57068"),
+      zone_id: z.number().describe("Owned forward DNS zone ID from list_dns_zones"),
+      name: z
+        .string()
+        .describe("Record name inside the zone, e.g. 'www' or '@' for the apex"),
+      type: z.enum(["A", "AAAA", "CNAME"]).describe("Record type"),
+      ip: z
+        .string()
+        .optional()
+        .describe("Optional service IP for A/AAAA; defaults to the service's first matching IP"),
+      target: z
+        .string()
+        .optional()
+        .describe("CNAME target hostname (required when type=CNAME)"),
+      ttl: z.number().optional().describe("TTL in seconds (default 120)"),
+    },
+  },
+  async ({ orderNo, zone_id, name, type, ip, target, ttl }) => {
+    const body: Record<string, unknown> = { zone_id, name, type };
+    if (ip !== undefined) body.ip = ip;
+    if (target !== undefined) body.target = target;
+    if (ttl !== undefined) body.ttl = ttl;
+    const { data } = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/domains`,
+      body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
