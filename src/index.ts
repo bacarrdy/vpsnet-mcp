@@ -805,12 +805,12 @@ server.registerTool(
   "get_order_plans",
   {
     description:
-      "Get available plans for ordering a new service. Supported types: 'vps' (Firecracker VPS), 'vds' (Cloud VPS / KVM), 'ds' (Dedicated Server), 'firecracker' (Firecracker microVM plans), 'vps_storage' (Storage VPS).",
+      "Get available plans for ordering a new service. Supported types: 'vps' (Container VPS, legacy container-based plans), 'vds' (Cloud VPS / KVM), 'ds' (Dedicated Server), 'firecracker' (Firecracker microVM VPS — the modern 'VPS' product).",
     inputSchema: {
       type: z
-        .enum(["vps", "vds", "ds", "firecracker", "vps_storage"])
-        .default("vps")
-        .describe("Service type: vps, vds, ds, firecracker, or vps_storage"),
+        .enum(["vps", "vds", "ds", "firecracker"])
+        .default("vds")
+        .describe("Service type: vps (Container VPS), vds (Cloud VPS), ds (Dedicated), or firecracker (microVM VPS)"),
     },
   },
   async ({ type }) => {
@@ -2800,8 +2800,8 @@ server.registerTool(
     description: "Get public pricing for a service type",
     inputSchema: {
       type: z
-        .enum(["vps", "vds", "ds", "vps_storage"])
-        .describe("Service type"),
+        .enum(["vps", "vds", "ds", "firecracker"])
+        .describe("Service type: vps, vds, ds, or firecracker"),
     },
   },
   async ({ type }) => {
