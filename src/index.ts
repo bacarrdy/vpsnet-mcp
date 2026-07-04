@@ -7,11 +7,12 @@ import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
 
 const server = new McpServer(
-  { name: "vpsnet", version: "1.0.0" },
+  { name: "vpsnet", version: "1.1.0" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
+      "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
       "",
       "## Ordering a new VPS",
       "Flow: get_order_plans → get_order_options(plan) → order_service.",
@@ -90,6 +91,7 @@ const server = new McpServer(
       "",
       "## Snapshots, restore and Firecracker Functions",
       "VPS product naming: 'VPS' services run on Firecracker microVMs; 'Cloud VPS' services are KVM/VDS. Cloud VPS snapshots use list/create/rollback/delete_snapshot; Firecracker VPS snapshots use the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire).",
+      "Snapshot-first is a default habit: take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
@@ -346,6 +348,51 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "console_service",
+  {
+    description:
+      "Open VNC console access to a running VPS. Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest("POST", svc(orderNo, "console"));
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "suspend_service",
+  {
+    description:
+      "Suspend a running Cloud VPS (KVM/VDS) service. Changes service state to suspended. Returns a tracking event ID. VDS/Cloud VPS only; the service must be running.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest("POST", svc(orderNo, "suspend"));
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "resume_service",
+  {
+    description:
+      "Resume a suspended Cloud VPS (KVM/VDS) service. Changes service state back to running. Returns a tracking event ID. VDS/Cloud VPS only; the service must be suspended.",
+    inputSchema: {
+      orderNo: z.string().describe("Order number"),
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest("POST", svc(orderNo, "resume"));
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
 // --- Service Settings ---
 
 server.registerTool(
@@ -558,7 +605,7 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys all data! Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit.",
+      "Reinstall OS on VPS. WARNING: destroys all data! Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       osVersion: z
@@ -694,7 +741,7 @@ server.registerTool(
 server.registerTool(
   "set_auto_renew",
   {
-    description: "Enable or disable auto-renewal for a service",
+    description: "Enable or disable auto-renewal for a service. Note: enabling auto-renewal will automatically charge the account balance at each renewal (creating an invoice) without further confirmation.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       state: z.boolean().describe("true to enable, false to disable"),
@@ -720,7 +767,7 @@ server.registerTool(
   "renew_service",
   {
     description:
-      "Manually renew a service for a specific period. Payment object: { payment: 1, successUrl: '', cancelUrl: '' } for balance payment.",
+      "Manually renew a service for a specific period. COST WARNING: this charges the account balance / creates an invoice immediately, and renewal payments are NON-REFUNDABLE once confirmed. Verify the service and period with the user before calling. Payment object: { payment: 1, successUrl: '', cancelUrl: '' } for balance payment.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       period: z.number().describe("Period ID from get_period_options"),
@@ -757,12 +804,13 @@ server.registerTool(
 server.registerTool(
   "get_order_plans",
   {
-    description: "Get available plans for ordering a new VPS",
+    description:
+      "Get available plans for ordering a new service. Supported types: 'vps' (Firecracker VPS), 'vds' (Cloud VPS / KVM), 'ds' (Dedicated Server), 'firecracker' (Firecracker microVM plans), 'vps_storage' (Storage VPS).",
     inputSchema: {
       type: z
-        .enum(["vps"])
+        .enum(["vps", "vds", "ds", "firecracker", "vps_storage"])
         .default("vps")
-        .describe("Service type (vps)"),
+        .describe("Service type: vps, vds, ds, firecracker, or vps_storage"),
     },
   },
   async ({ type }) => {
@@ -1794,7 +1842,7 @@ server.registerTool(
   "create_snapshot",
   {
     description:
-      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Only one snapshot action can run at a time; snapshot count is limited per service.",
+      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. Only one snapshot action can run at a time; snapshot count is limited per service.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       description: z.string().optional().describe("Optional snapshot description"),
@@ -1816,7 +1864,7 @@ server.registerTool(
   "rollback_snapshot",
   {
     description:
-      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling.",
+      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapname: z.string().describe("Snapshot name from list_snapshots"),
@@ -1871,15 +1919,22 @@ server.registerTool(
   "create_firecracker_snapshot",
   {
     description:
-      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Check list_firecracker_snapshots for the policy fields.",
+      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. Check list_firecracker_snapshots for the policy fields.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
+      description: z
+        .string()
+        .optional()
+        .describe("Optional note/label for the snapshot (helps identify what it was taken before)"),
     },
   },
-  async ({ orderNo }) => {
+  async ({ orderNo, description }) => {
+    const body: Record<string, unknown> = {};
+    if (description !== undefined) body.description = description;
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/firecracker/snapshots`
+      `/account/services/${orderNo}/firecracker/snapshots`,
+      body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -1889,7 +1944,7 @@ server.registerTool(
   "rollback_firecracker_snapshot",
   {
     description:
-      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling.",
+      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
@@ -2708,6 +2763,30 @@ server.registerTool(
     const { data } = await apiRequest(
       "GET",
       "/account/history/management"
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_usage_statements",
+  {
+    description:
+      "Get itemized usage-billing statements for the account (per-period totals by family, e.g. Firecracker Functions usage, VDS snapshots, AI premium). This is where metered/usage-based charges show up, separate from invoices. Paginated.",
+    inputSchema: {
+      page: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Page number for pagination (default 1)"),
+    },
+  },
+  async ({ page }) => {
+    const query = page !== undefined ? `?page=${page}` : "";
+    const { data } = await apiRequest(
+      "GET",
+      `/account/history/usage-statements${query}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
