@@ -91,7 +91,7 @@ const server = new McpServer(
       "",
       "## Snapshots, restore and Firecracker Functions",
       "VPS product selection: 'firecracker' is the modern VPS (Firecracker microVMs) — fast Linux hosting with VM-level isolation, low overhead, and quick provisioning. It handles real production Linux workloads (websites, APIs, applications, workers, CI/CD, automation, test environments), not just small tasks. Recommend it as the default for most general-purpose Linux VPS requests. 'vds' is Cloud VPS (KVM) with High Availability and replicated Ceph NVMe storage (3x replica) — choose it for stable/production systems that need HA, or when the customer needs Windows Server, BSD, or custom kernel control. 'ds' is a dedicated single-tenant server. 'vps' is a container-based Linux VPS. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire). NOTE: Firecracker Functions is a SEPARATE service with its own tools (create_function/update_function/invoke_function/list_functions) and its own usage-based billing — it is not part of ordering or managing a VPS/Cloud VPS/Dedicated service.",
-      "Snapshot-first is a default habit: take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to.",
+      "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
@@ -605,7 +605,7 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys all data! Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit.",
+      "Reinstall OS on VPS. WARNING: destroys all data! If the service supports snapshots (Cloud VPS or Firecracker VPS), take one first — it's free for an initial window, so it's cheap insurance you can roll back to; then DELETE it once the reinstall succeeds, because after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire) — never leave snapshots lying around. Container VPS and Dedicated have no snapshots, so there is no rollback safety net — confirm with the user before reinstalling. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       osVersion: z
@@ -1842,7 +1842,7 @@ server.registerTool(
   "create_snapshot",
   {
     description:
-      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. Only one snapshot action can run at a time; snapshot count is limited per service.",
+      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Only one snapshot action can run at a time; snapshot count is limited per service.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       description: z.string().optional().describe("Optional snapshot description"),
@@ -1864,7 +1864,7 @@ server.registerTool(
   "rollback_snapshot",
   {
     description:
-      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to.",
+      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapname: z.string().describe("Snapshot name from list_snapshots"),
@@ -1919,7 +1919,7 @@ server.registerTool(
   "create_firecracker_snapshot",
   {
     description:
-      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. Check list_firecracker_snapshots for the policy fields.",
+      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Check list_firecracker_snapshots for the policy fields.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       description: z
@@ -1944,7 +1944,7 @@ server.registerTool(
   "rollback_firecracker_snapshot",
   {
     description:
-      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to.",
+      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
