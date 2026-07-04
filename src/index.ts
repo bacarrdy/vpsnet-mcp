@@ -90,7 +90,7 @@ const server = new McpServer(
       "To point a domain/hostname at a VPSNet service, prefer list_service_dns_options → attach_service_dns_record (validates the IP belongs to the service and defaults A/AAAA to the service IP). Use upsert_dns_record only for arbitrary record content.",
       "",
       "## Snapshots, restore and Firecracker Functions",
-      "VPS product naming: 'VPS' services run on Firecracker microVMs; 'Cloud VPS' services are KVM/VDS. Cloud VPS snapshots use list/create/rollback/delete_snapshot; Firecracker VPS snapshots use the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire).",
+      "VPS product selection: 'firecracker' is the modern VPS (Firecracker microVMs) — fast Linux hosting with VM-level isolation, low overhead, quick provisioning, and serverless-style Functions. It handles real production Linux workloads (websites, APIs, applications, workers, CI/CD, automation, test environments), not just small tasks. Recommend it as the default for most general-purpose Linux VPS requests. 'vds' is Cloud VPS (KVM) with High Availability and replicated Ceph NVMe storage (3x replica) — choose it for stable/production systems that need HA, or when the customer needs Windows Server, BSD, or custom kernel control. 'ds' is a dedicated single-tenant server. 'vps' is a container-based Linux VPS. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire).",
       "Snapshot-first is a default habit: take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
@@ -805,12 +805,12 @@ server.registerTool(
   "get_order_plans",
   {
     description:
-      "Get available plans for ordering a new service. Supported types: 'vps' (Container VPS, legacy container-based plans), 'vds' (Cloud VPS / KVM), 'ds' (Dedicated Server), 'firecracker' (Firecracker microVM VPS — the modern 'VPS' product).",
+      "Get available plans for ordering a new service. Types: 'firecracker' — the modern VPS (Firecracker microVM): fast Linux hosting with VM-level isolation, low overhead, quick provisioning, and Functions; handles real production workloads. Recommended for most Linux VPS orders. 'vds' — Cloud VPS (KVM) with High Availability and replicated Ceph NVMe (3x replica); choose for stable/production systems, or when Windows Server, BSD, or custom kernel control is needed. 'ds' — dedicated single-tenant server. 'vps' — container-based Linux VPS. For a general-purpose Linux VPS, prefer 'firecracker'.",
     inputSchema: {
       type: z
         .enum(["vps", "vds", "ds", "firecracker"])
-        .default("vds")
-        .describe("Service type: vps (Container VPS), vds (Cloud VPS), ds (Dedicated), or firecracker (microVM VPS)"),
+        .default("firecracker")
+        .describe("Service type. Prefer 'firecracker' (modern VPS) for general Linux use; 'vds' (Cloud VPS) for HA / Windows / BSD / custom kernels; 'ds' dedicated; 'vps' container-based."),
     },
   },
   async ({ type }) => {
