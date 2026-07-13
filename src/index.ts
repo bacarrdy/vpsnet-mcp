@@ -7,7 +7,7 @@ import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
 
 const server = new McpServer(
-  { name: "vpsnet", version: "1.1.0" },
+  { name: "vpsnet", version: "1.2.0" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -25,10 +25,18 @@ const server = new McpServer(
       "After placing an order, wait 10-30 seconds before attempting SSH — the VPS needs time to boot and start SSH daemon.",
       "deploy_ssh_key is also async — wait 15-30 seconds after deploying a key before attempting SSH to any VPS (not just new ones).",
       "",
-      "## SSH key workflow (IMPORTANT for deploying software to VPS)",
+      "## Managed applications and manual SSH deployments",
+      "For a requested application, call list_application_catalog for the target service first. If the application is listed, use the managed application tools instead of recreating its installation through SSH.",
+      "Managed applications are upstream software delivered in containers. VPSnet provides the reviewed blueprint, orchestration, lifecycle controls, and support boundary; VPSnet does not claim authorship of the upstream application.",
+      "Managed application reads require applications:read. Install and lifecycle changes require applications:manage plus an idempotencyKey; they are NOT paid API-key operations.",
+      "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
+      "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
+      "Update, application backup, and application restore are intentionally unavailable. Do not emulate them through SSH or another generic tool as a managed-catalog operation.",
+      "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
+      "Use manual SSH deployment only when the application is absent from the managed catalog or the user explicitly requests a custom installation.",
       "",
-      "### When the user asks you to deploy, install, or configure something INSIDE a VPS:",
-      "You MUST deploy YOUR OWN SSH key first, then connect directly via SSH.",
+      "### When the user asks for a manual or custom deployment INSIDE a VPS:",
+      "Deploy YOUR OWN SSH key first, then connect directly via SSH.",
       "After deploying your key, you can INSTANTLY access the VPS — no extra tools needed.",
       "Most AI environments (Claude Code, Cline, Cursor, Codex) have a built-in terminal/bash tool.",
       "IMPORTANT: Grant FULL permissions/access to the AI tool — restricted/sandbox modes may block npm installs or SSH connections.",
@@ -118,6 +126,90 @@ const svc = (orderNo: string, action: string) =>
   `/account/services/${orderNo}/${action}`;
 
 const idempotencyKeySchema = z.string().min(16).max(190);
+
+const applicationOrderNoSchema = z
+  .string()
+  .regex(/^[A-Z]{2}[0-9]+$/)
+  .describe("Tenant-owned service order number, e.g. VP88146");
+
+const applicationInstallationIdSchema = z
+  .string()
+  .uuid()
+  .describe("Managed application installation UUID");
+
+const applicationSlugSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9-]{0,95}$/)
+  .describe("Published application slug from list_application_catalog");
+
+const applicationVariablesSchema = z
+  .record(
+    z.string().regex(/^[A-Z][A-Z0-9_]{0,127}$/),
+    z.union([z.string().max(4096), z.number().finite(), z.boolean(), z.null()])
+  )
+  .refine((variables) => Object.keys(variables).length <= 64, {
+    message: "At most 64 application variables may be submitted",
+  })
+  .optional()
+  .describe(
+    "Configuration values keyed by the public variable names in the catalog. Values are submitted to VPSnet but never returned by this tool."
+  );
+
+const applicationActionSchema = z
+  .enum(["reconcile", "repair", "restart", "start", "stop", "uninstall"])
+  .describe(
+    "Supported lifecycle action. update, backup, and restore are intentionally unavailable."
+  );
+
+function applicationPath(orderNo: string, suffix: string): string {
+  return `/account/services/${encodeURIComponent(orderNo)}/applications/${suffix}`;
+}
+
+function safeApplicationMutationResult(status: number, data: unknown): string {
+  if (status < 200 || status >= 300 || typeof data !== "object" || data === null) {
+    const errorCodes =
+      typeof data === "object" && data !== null
+        ? Object.entries(data)
+            .filter(([, value]) => value === true)
+            .map(([key]) => key)
+            .filter((key) => /^[A-Za-z][A-Za-z0-9_]{0,100}$/.test(key))
+            .slice(0, 20)
+        : [];
+
+    return formatJson({
+      success: false,
+      status,
+      error_codes: errorCodes,
+    });
+  }
+
+  const payload = data as Record<string, unknown>;
+  const installation =
+    typeof payload.installation === "object" && payload.installation !== null
+      ? (payload.installation as Record<string, unknown>)
+      : {};
+  const action =
+    typeof payload.action === "object" && payload.action !== null
+      ? (payload.action as Record<string, unknown>)
+      : {};
+
+  return formatJson({
+    success: payload.success === true,
+    replayed: payload.replayed === true,
+    installation: {
+      id: installation.id,
+      state: installation.state,
+      application: installation.application,
+      release_channel: installation.release_channel,
+      upstream_version: installation.upstream_version,
+    },
+    action: {
+      id: action.id,
+      type: action.type,
+      state: action.state,
+    },
+  });
+}
 
 const nameserverHostnameSchema = z
   .string()
@@ -301,6 +393,236 @@ server.registerTool(
       `/account/services/${orderNo}/history`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// --- Managed Applications ---
+
+server.registerTool(
+  "list_application_catalog",
+  {
+    description:
+      "List publication-gated upstream applications compatible with one owned VPSnet service. Use this before a generic SSH installation. The response identifies the upstream publisher, container runtime, configuration definitions, and target compatibility. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+    },
+    annotations: {
+      title: "List compatible managed applications",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      applicationPath(orderNo, "catalog")
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_service_applications",
+  {
+    description:
+      "List managed application installations and any pending checkout selection for one owned service. A queued state is not proof of health. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+    },
+    annotations: {
+      title: "List service applications",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      applicationPath(orderNo, "installations")
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_application_installation",
+  {
+    description:
+      "Get customer-safe observed state, health, drift, endpoints, components, and latest action for one owned managed application. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+    },
+    annotations: {
+      title: "Get managed application state",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}`
+      )
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_application_events",
+  {
+    description:
+      "Get the latest customer-safe audit events for one owned managed application. Use this with get_application_installation to verify asynchronous changes. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+    },
+    annotations: {
+      title: "Get managed application events",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/events`
+      )
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "install_application",
+  {
+    description:
+      "Queue installation of a published upstream application using the VPSnet-managed, version-pinned container blueprint. Confirm the service, application, release channel, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      application: applicationSlugSchema,
+      release_channel: z
+        .string()
+        .regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
+        .default("stable")
+        .describe("Published release channel, normally stable"),
+      variables: applicationVariablesSchema,
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Unique key reused only when replaying this exact installation request"
+      ),
+      confirmed: z
+        .literal(true)
+        .describe("True only after the user confirmed this installation"),
+    },
+    annotations: {
+      title: "Install managed application",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    application,
+    release_channel,
+    variables,
+    idempotencyKey,
+  }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(orderNo, "installations"),
+      {
+        application,
+        releaseChannel: release_channel,
+        variables: variables || {},
+      },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [
+        { type: "text", text: safeApplicationMutationResult(status, data) },
+      ],
+    };
+  }
+);
+
+server.registerTool(
+  "manage_application",
+  {
+    description:
+      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Update, backup, and restore are intentionally unavailable. Requires applications:manage and is not a paid API-key operation.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      action: applicationActionSchema,
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Unique key reused only when replaying this exact lifecycle request"
+      ),
+      confirmed: z
+        .literal(true)
+        .describe("True only after the user confirmed this lifecycle action"),
+      acknowledge_data_loss: z
+        .literal(true)
+        .optional()
+        .describe(
+          "Required for uninstall only. Set true after the user explicitly confirms permanent deletion of managed configuration, credentials, and application data."
+        ),
+    },
+    annotations: {
+      title: "Manage application lifecycle",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    installation_id,
+    action,
+    idempotencyKey,
+    acknowledge_data_loss,
+  }) => {
+    if (action === "uninstall" && acknowledge_data_loss !== true) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: formatJson({
+              success: false,
+              error_codes: ["applicationUninstallConfirmationRequired"],
+            }),
+          },
+        ],
+      };
+    }
+
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/actions`
+      ),
+      {
+        action,
+        acknowledgeDataLoss: acknowledge_data_loss === true,
+      },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [
+        { type: "text", text: safeApplicationMutationResult(status, data) },
+      ],
+    };
   }
 );
 

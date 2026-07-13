@@ -1,16 +1,17 @@
 # vpsnet-mcp
 
-[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) services. Gives AI assistants access to VPS lifecycle operations, DNS zones, domain registration and contacts, billing, API keys, SSH-key provisioning, and related account tooling through the VPSNet API.
+[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) services. Gives AI assistants access to VPS lifecycle operations, managed applications, DNS zones, domain registration and contacts, billing, API keys, SSH-key provisioning, and related account tooling through the VPSNet API.
 
 ## Features
 
-- **90+ tools** covering VPSNet service management, DNS, domains, billing, API keys, and account operations
+- **125+ tools** covering VPSNet service management, managed applications, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades)
 - Service reverse DNS (rDNS/PTR records)
 - Forward DNS zones, records, DNSSEC, templates, import/export, and DDNS tokens
 - Domain availability, contacts, register/transfer/renew/restore quotes, and paid confirmations
+- Publication-gated managed applications with install, health, events, and typed lifecycle actions
 - SSH key management — deploy keys and gain direct server access
 - API key management
 - Backups, billing, invoices
@@ -32,6 +33,25 @@ Before installing, ensure you have:
    - Check: `claude --version`
 
 3. **Active [VPSnet.com](https://www.vpsnet.com) account** with an API key (see [Getting an API key](#getting-an-api-key))
+
+## Managed applications
+
+For software that is present in the VPSnet application catalog, use
+`list_application_catalog` and the managed application tools before considering
+a generic SSH installation. Catalog entries are upstream applications delivered
+in containers. VPSnet provides the reviewed blueprint, orchestration, lifecycle
+controls, and stated support boundary; it does not claim authorship of the
+upstream software.
+
+Application reads require `applications:read`. Installation and lifecycle
+changes require `applications:manage` and an idempotency key; they are not paid
+API-key operations. Changes are asynchronous, so verify them with
+`get_application_installation` and `get_application_events`. Update,
+application backup, and application restore are not exposed in this release.
+Uninstall permanently deletes the managed containers, configuration, saved
+credentials, and application data; existing server backups are retained. The
+`manage_application` call requires `acknowledge_data_loss=true` for uninstall,
+and it must only be set after explicit user confirmation.
 
 ## SSH access workflow
 
@@ -308,6 +328,16 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `get_service` | Get detailed info for a service |
 | `get_service_graphs` | Get performance graphs (CPU, RAM, disk, network) |
 | `get_service_history` | Get action history for a service |
+
+### Managed Applications
+| Tool | Description |
+|------|-------------|
+| `list_application_catalog` | List published applications compatible with a service |
+| `list_service_applications` | List installed applications and pending checkout selection |
+| `get_application_installation` | Get observed state, health, drift, endpoints, and components |
+| `get_application_events` | Get bounded customer-safe installation events |
+| `install_application` | Queue a confirmed, version-pinned managed installation |
+| `manage_application` | Queue a confirmed lifecycle action; uninstall also requires explicit data-loss acknowledgement |
 
 ### Service Actions
 | Tool | Description |
