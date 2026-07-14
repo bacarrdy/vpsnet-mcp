@@ -46,8 +46,12 @@ upstream software.
 Application reads require `applications:read`. Installation and lifecycle
 changes require `applications:manage` and an idempotency key; they are not paid
 API-key operations. Changes are asynchronous, so verify them with
-`get_application_installation` and `get_application_events`. Update,
-application backup, and application restore are not exposed in this release.
+`get_application_installation` and `get_application_events`. Use
+`get_application_health` for a fresh container-health inspection and
+`get_application_logs` for recent size-bounded troubleshooting logs. These two
+read-scoped inspections create short-lived inspection jobs, so the API key must
+permit POST requests. Update, application backup, and application restore are
+not exposed in this release.
 Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
 `manage_application` call requires `acknowledge_data_loss=true` for uninstall,
@@ -336,6 +340,8 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `list_service_applications` | List installed applications and pending checkout selection |
 | `get_application_installation` | Get observed state, health, drift, endpoints, and components |
 | `get_application_events` | Get bounded customer-safe installation events |
+| `get_application_health` | Run and poll a fresh container-health inspection |
+| `get_application_logs` | Run and poll a size-bounded recent-log inspection |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
 | `manage_application` | Queue a confirmed lifecycle action; uninstall also requires explicit data-loss acknowledgement |
 
