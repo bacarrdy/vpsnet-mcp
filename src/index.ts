@@ -7,7 +7,7 @@ import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
 
 const server = new McpServer(
-  { name: "vpsnet", version: "1.2.0" },
+  { name: "vpsnet", version: "1.2.1" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -31,6 +31,7 @@ const server = new McpServer(
       "Managed application reads require applications:read. Install and lifecycle changes require applications:manage plus an idempotencyKey; they are NOT paid API-key operations.",
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
+      "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
       "Update, application backup, and application restore are intentionally unavailable. Do not emulate them through SSH or another generic tool as a managed-catalog operation.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
       "Use manual SSH deployment only when the application is absent from the managed catalog or the user explicitly requests a custom installation.",
@@ -497,6 +498,134 @@ server.registerTool(
         orderNo,
         `installations/${encodeURIComponent(installation_id)}/events`
       )
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+const INSPECTION_TERMINAL_STATES = new Set(["succeeded", "failed", "expired"]);
+
+type InspectionEnvelope = { inspection?: { id?: string; state?: string } };
+
+async function inspectionSleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Queue an on-demand health/logs inspection and poll until it reaches a
+// terminal state or the poll budget (~30s) is exhausted. The backend dedupes an
+// already-active inspection of the same kind, so no idempotency key is needed.
+async function runApplicationInspection(
+  orderNo: string,
+  installationId: string,
+  kind: "health" | "logs",
+  body?: Record<string, unknown>
+): Promise<{ status: number; data: unknown }> {
+  const basePath = applicationPath(
+    orderNo,
+    `installations/${encodeURIComponent(installationId)}/inspections`
+  );
+  const created = await apiRequest("POST", `${basePath}/${kind}`, body);
+  if (created.status >= 400) {
+    return created;
+  }
+
+  const initial = (created.data as InspectionEnvelope)?.inspection;
+  const inspectionId = initial?.id;
+  if (!inspectionId || INSPECTION_TERMINAL_STATES.has(String(initial?.state))) {
+    return created;
+  }
+
+  let latest = created;
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    await inspectionSleep(2000);
+    latest = await apiRequest(
+      "GET",
+      `${basePath}/${encodeURIComponent(inspectionId)}`
+    );
+    if (latest.status >= 400) {
+      return latest;
+    }
+
+    const polled = (latest.data as InspectionEnvelope)?.inspection;
+    if (polled && INSPECTION_TERMINAL_STATES.has(String(polled.state))) {
+      break;
+    }
+  }
+
+  return latest;
+}
+
+server.registerTool(
+  "get_application_health",
+  {
+    description:
+      "Run an on-demand health inspection of one owned managed application and return the observed container/service health. Use this instead of trusting the last-reported health, which can be stale. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+    },
+    annotations: {
+      title: "Inspect managed application health",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id }) => {
+    const { data } = await runApplicationInspection(
+      orderNo,
+      installation_id,
+      "health"
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_application_logs",
+  {
+    description:
+      "Run an on-demand logs inspection of one owned managed application and return recent, size-bounded container logs for troubleshooting. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      tail_lines: z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .optional()
+        .describe("Maximum log lines to return; server applies a default bound"),
+      max_bytes: z
+        .number()
+        .int()
+        .min(1024)
+        .max(1048576)
+        .optional()
+        .describe("Maximum log size in bytes; server applies a default bound"),
+    },
+    annotations: {
+      title: "Inspect managed application logs",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id, tail_lines, max_bytes }) => {
+    const body: Record<string, unknown> = {};
+    if (typeof tail_lines === "number") {
+      body.tailLines = tail_lines;
+    }
+
+    if (typeof max_bytes === "number") {
+      body.maxBytes = max_bytes;
+    }
+
+    const { data } = await runApplicationInspection(
+      orderNo,
+      installation_id,
+      "logs",
+      Object.keys(body).length > 0 ? body : undefined
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
