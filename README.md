@@ -38,20 +38,37 @@ Before installing, ensure you have:
 
 For software that is present in the VPSnet application catalog, use
 `list_application_catalog` and the managed application tools before considering
-a generic SSH installation. Catalog entries are upstream applications delivered
-in containers. VPSnet provides the reviewed blueprint, orchestration, lifecycle
-controls, and stated support boundary; it does not claim authorship of the
-upstream software.
+a generic SSH installation. Catalog applications run as Docker containers in
+the customer's server and use the typed installation and lifecycle tools.
 
 Application reads require `applications:read`. Installation and lifecycle
 changes require `applications:manage` and an idempotency key; they are not paid
 API-key operations. Changes are asynchronous, so verify them with
 `get_application_installation` and `get_application_events`. Use
 `get_application_health` for a fresh container-health inspection and
-`get_application_logs` for recent size-bounded troubleshooting logs. These two
-read-scoped inspections create short-lived inspection jobs, so the API key must
-permit POST requests. Update, application backup, and application restore are
-not exposed in this release.
+`get_application_logs` for recent size-bounded troubleshooting logs. Log
+inspections accept at most 500 lines and 131,072 bytes. These two read-scoped
+inspections create short-lived inspection jobs, so the API key must permit POST
+requests.
+
+Use `configure_application_access` to change how an installed application is
+reached. Read the installation first and pass its current revision with a new
+idempotency key. `private` has no public listener, `public_http` uses the
+server's public IP over HTTP, and `managed_https` uses an eligible
+VPSnet-managed DNS zone. `external_https` records an existing customer-managed
+HTTPS address; VPSnet does not configure or validate its DNS, TLS certificate,
+or reverse proxy.
+
+An immutable update is available only when `get_application_installation`
+returns an `available_actions` entry with `type: "update"`. After explicit user
+confirmation, call `manage_application` with `action: "update"`, the exact
+advertised `expected_blueprint_version` and `expected_upstream_version`, and a
+new idempotency key. Keys are client-global: reuse a key only to replay the
+exact same request, never for another service or operation. The
+backend selects and freezes the eligible published release; the caller does not
+submit an image, tag, or target version. Application-scoped backup and restore
+are not exposed in this release; whole-service backup and restore remain
+separate service operations.
 Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
 `manage_application` call requires `acknowledge_data_loss=true` for uninstall,
@@ -343,7 +360,8 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `get_application_health` | Run and poll a fresh container-health inspection |
 | `get_application_logs` | Run and poll a size-bounded recent-log inspection |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
-| `manage_application` | Queue a confirmed lifecycle action; uninstall also requires explicit data-loss acknowledgement |
+| `configure_application_access` | Queue a confirmed private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
+| `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement |
 
 ### Service Actions
 | Tool | Description |
