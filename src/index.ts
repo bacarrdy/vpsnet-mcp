@@ -5,9 +5,26 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
+import {
+  applicationAccessConfigurationRequestBody,
+  applicationAccessSchema,
+  applicationActionCancellationIsAdvertised,
+  applicationActionCancellationRequestBody,
+  applicationActionIdSchema,
+  applicationActionSchema,
+  applicationExpectedVersionSchema,
+  applicationInstallRequestBody,
+  applicationLifecycleRequestBody,
+  applicationLogMaxBytesSchema,
+  applicationLogTailLinesSchema,
+  applicationRevisionSchema,
+  applicationUpdateCandidateMatches,
+  safeApplicationInspectionPayload,
+  safeApplicationMutationPayload,
+} from "./application-contract.js";
 
 const server = new McpServer(
-  { name: "vpsnet", version: "1.2.1" },
+  { name: "vpsnet", version: "1.3.0" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -27,12 +44,15 @@ const server = new McpServer(
       "",
       "## Managed applications and manual SSH deployments",
       "For a requested application, call list_application_catalog for the target service first. If the application is listed, use the managed application tools instead of recreating its installation through SSH.",
-      "Managed applications are upstream software delivered in containers. VPSnet provides the reviewed blueprint, orchestration, lifecycle controls, and support boundary; VPSnet does not claim authorship of the upstream application.",
+      "Managed applications run as Docker containers inside the customer's server and must be installed and managed through the typed application tools.",
       "Managed application reads require applications:read. Install and lifecycle changes require applications:manage plus an idempotencyKey; they are NOT paid API-key operations.",
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
+      "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. Private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
       "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
-      "Update, application backup, and application restore are intentionally unavailable. Do not emulate them through SSH or another generic tool as a managed-catalog operation.",
+      "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
+      "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
+      "Application backup and application restore are intentionally unavailable. Whole-service backup and restore remain separate service operations. Do not emulate application lifecycle operations through SSH or another generic tool as a managed-catalog operation.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
       "Use manual SSH deployment only when the application is absent from the managed catalog or the user explicitly requests a custom installation.",
       "",
@@ -126,7 +146,11 @@ const server = new McpServer(
 const svc = (orderNo: string, action: string) =>
   `/account/services/${orderNo}/${action}`;
 
-const idempotencyKeySchema = z.string().min(16).max(190);
+const idempotencyKeySchema = z
+  .string()
+  .min(8)
+  .max(190)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,189}$/);
 
 const applicationOrderNoSchema = z
   .string()
@@ -156,60 +180,30 @@ const applicationVariablesSchema = z
     "Configuration values keyed by the public variable names in the catalog. Values are submitted to VPSnet but never returned by this tool."
   );
 
-const applicationActionSchema = z
-  .enum(["reconcile", "repair", "restart", "start", "stop", "uninstall"])
-  .describe(
-    "Supported lifecycle action. update, backup, and restore are intentionally unavailable."
-  );
-
 function applicationPath(orderNo: string, suffix: string): string {
   return `/account/services/${encodeURIComponent(orderNo)}/applications/${suffix}`;
 }
 
-function safeApplicationMutationResult(status: number, data: unknown): string {
-  if (status < 200 || status >= 300 || typeof data !== "object" || data === null) {
-    const errorCodes =
-      typeof data === "object" && data !== null
-        ? Object.entries(data)
-            .filter(([, value]) => value === true)
-            .map(([key]) => key)
-            .filter((key) => /^[A-Za-z][A-Za-z0-9_]{0,100}$/.test(key))
-            .slice(0, 20)
-        : [];
-
-    return formatJson({
-      success: false,
+function safeApplicationMutationResult(
+  status: number,
+  data: unknown,
+  orderNo: string
+): string {
+  return formatJson(
+    safeApplicationMutationPayload(
       status,
-      error_codes: errorCodes,
-    });
-  }
+      data,
+      `/management/service/${encodeURIComponent(orderNo)}/applications`
+    )
+  );
+}
 
-  const payload = data as Record<string, unknown>;
-  const installation =
-    typeof payload.installation === "object" && payload.installation !== null
-      ? (payload.installation as Record<string, unknown>)
-      : {};
-  const action =
-    typeof payload.action === "object" && payload.action !== null
-      ? (payload.action as Record<string, unknown>)
-      : {};
-
-  return formatJson({
-    success: payload.success === true,
-    replayed: payload.replayed === true,
-    installation: {
-      id: installation.id,
-      state: installation.state,
-      application: installation.application,
-      release_channel: installation.release_channel,
-      upstream_version: installation.upstream_version,
-    },
-    action: {
-      id: action.id,
-      type: action.type,
-      state: action.state,
-    },
-  });
+function safeApplicationInspectionResult(
+  status: number,
+  data: unknown,
+  kind: "health" | "logs"
+): string {
+  return formatJson(safeApplicationInspectionPayload(status, data, kind));
 }
 
 const nameserverHostnameSchema = z
@@ -403,7 +397,7 @@ server.registerTool(
   "list_application_catalog",
   {
     description:
-      "List publication-gated upstream applications compatible with one owned VPSnet service. Use this before a generic SSH installation. The response identifies the upstream publisher, container runtime, configuration definitions, and target compatibility. Requires applications:read.",
+      "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation. The response includes the application details, container runtime, configuration fields, and target compatibility. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
     },
@@ -572,12 +566,14 @@ server.registerTool(
     },
   },
   async ({ orderNo, installation_id }) => {
-    const { data } = await runApplicationInspection(
+    const { status, data } = await runApplicationInspection(
       orderNo,
       installation_id,
       "health"
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    return {
+      content: [{ type: "text", text: safeApplicationInspectionResult(status, data, "health") }],
+    };
   }
 );
 
@@ -589,20 +585,8 @@ server.registerTool(
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
-      tail_lines: z
-        .number()
-        .int()
-        .min(1)
-        .max(1000)
-        .optional()
-        .describe("Maximum log lines to return; server applies a default bound"),
-      max_bytes: z
-        .number()
-        .int()
-        .min(1024)
-        .max(1048576)
-        .optional()
-        .describe("Maximum log size in bytes; server applies a default bound"),
+      tail_lines: applicationLogTailLinesSchema,
+      max_bytes: applicationLogMaxBytesSchema,
     },
     annotations: {
       title: "Inspect managed application logs",
@@ -621,13 +605,15 @@ server.registerTool(
       body.maxBytes = max_bytes;
     }
 
-    const { data } = await runApplicationInspection(
+    const { status, data } = await runApplicationInspection(
       orderNo,
       installation_id,
       "logs",
       Object.keys(body).length > 0 ? body : undefined
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    return {
+      content: [{ type: "text", text: safeApplicationInspectionResult(status, data, "logs") }],
+    };
   }
 );
 
@@ -635,7 +621,7 @@ server.registerTool(
   "install_application",
   {
     description:
-      "Queue installation of a published upstream application using the VPSnet-managed, version-pinned container blueprint. Confirm the service, application, release channel, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
+      "Queue installation of a catalog application using its version-pinned container blueprint. Confirm the service, application, release channel, access choice, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. For the first managed application on an existing server, acknowledge_runtime_restart may be true only after explicit consent to a possible one-time server restart. Generated credentials are revealed only in the VPSnet portal; this tool returns a portal handoff without handles or plaintext. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       application: applicationSlugSchema,
@@ -645,8 +631,19 @@ server.registerTool(
         .default("stable")
         .describe("Published release channel, normally stable"),
       variables: applicationVariablesSchema,
+      acknowledge_runtime_restart: z
+        .literal(true)
+        .optional()
+        .describe(
+          "Explicit consent for a possible one-time server restart while the managed runtime is prepared"
+        ),
+      access: applicationAccessSchema
+        .optional()
+        .describe(
+          "Exact access request using a mode and fields advertised by the selected catalog entry"
+        ),
       idempotencyKey: idempotencyKeySchema.describe(
-        "Unique key reused only when replaying this exact installation request"
+        "Client-global unique key. Reuse it only to replay this exact installation request; never reuse it for another service or request."
       ),
       confirmed: z
         .literal(true)
@@ -664,21 +661,81 @@ server.registerTool(
     application,
     release_channel,
     variables,
+    acknowledge_runtime_restart,
+    access,
     idempotencyKey,
   }) => {
     const { status, data } = await apiRequest(
       "POST",
       applicationPath(orderNo, "installations"),
-      {
+      applicationInstallRequestBody({
         application,
         releaseChannel: release_channel,
         variables: variables || {},
-      },
+        acknowledgeRuntimeRestart: acknowledge_runtime_restart === true,
+        access,
+      }),
       { "Idempotency-Key": idempotencyKey }
     );
     return {
       content: [
-        { type: "text", text: safeApplicationMutationResult(status, data) },
+        {
+          type: "text",
+          text: safeApplicationMutationResult(status, data, orderNo),
+        },
+      ],
+    };
+  }
+);
+
+server.registerTool(
+  "configure_application_access",
+  {
+    description:
+      "Queue an access change for one owned managed application. Read get_application_installation first and pass its current revision. Private removes the public listener. Public HTTP exposes the application through the server public IP. Managed HTTPS requires an eligible VPSnet-managed DNS zone, subdomain, and explicit DNS approval. External HTTPS only records the customer-managed URL; VPSnet does not configure or validate its DNS, TLS, or reverse proxy. Confirm the exact change with the user first. A queued response must be verified with get_application_installation and get_application_events. Requires applications:manage and is not a paid API-key operation.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      access: applicationAccessSchema.describe(
+        "Exact access mode and fields advertised by the installation access capabilities"
+      ),
+      expected_revision: applicationRevisionSchema,
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact access request; never reuse it for another service or request."
+      ),
+      confirmed: z
+        .literal(true)
+        .describe("True only after the user confirmed this access change"),
+    },
+    annotations: {
+      title: "Configure application access",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    installation_id,
+    access,
+    expected_revision,
+    idempotencyKey,
+  }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/configure-access`
+      ),
+      applicationAccessConfigurationRequestBody(access, expected_revision),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [
+        {
+          type: "text",
+          text: safeApplicationMutationResult(status, data, orderNo),
+        },
       ],
     };
   }
@@ -688,14 +745,24 @@ server.registerTool(
   "manage_application",
   {
     description:
-      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Update, backup, and restore are intentionally unavailable. Requires applications:manage and is not a paid API-key operation.",
+      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. For update, first read get_application_installation and copy the exact advertised blueprint_version and upstream_version as execution preconditions. The backend still selects and freezes the eligible immutable release; callers cannot choose an arbitrary target. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Application backup and restore are unavailable. Requires applications:manage and is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
       action: applicationActionSchema,
       idempotencyKey: idempotencyKeySchema.describe(
-        "Unique key reused only when replaying this exact lifecycle request"
+        "Client-global unique key. Reuse it only to replay this exact lifecycle request; never reuse it for another service or request."
       ),
+      expected_blueprint_version: applicationExpectedVersionSchema
+        .optional()
+        .describe(
+          "Required for update: exact blueprint_version from the current available_actions update capability"
+        ),
+      expected_upstream_version: applicationExpectedVersionSchema
+        .optional()
+        .describe(
+          "Required for update: exact upstream_version from the current available_actions update capability"
+        ),
       confirmed: z
         .literal(true)
         .describe("True only after the user confirmed this lifecycle action"),
@@ -718,6 +785,8 @@ server.registerTool(
     installation_id,
     action,
     idempotencyKey,
+    expected_blueprint_version,
+    expected_upstream_version,
     acknowledge_data_loss,
   }) => {
     if (action === "uninstall" && acknowledge_data_loss !== true) {
@@ -735,21 +804,145 @@ server.registerTool(
       };
     }
 
+    if (action === "update") {
+      if (!expected_blueprint_version || !expected_upstream_version) {
+        return {
+          isError: true,
+          content: [{
+            type: "text",
+            text: formatJson({
+              success: false,
+              error_codes: ["applicationUpdateExpectationRequired"],
+            }),
+          }],
+        };
+      }
+
+      const current = await apiRequest(
+        "GET",
+        applicationPath(
+          orderNo,
+          `installations/${encodeURIComponent(installation_id)}`
+        )
+      );
+      if (
+        current.status < 200
+        || current.status >= 300
+        || !applicationUpdateCandidateMatches(current.data, {
+          blueprintVersion: expected_blueprint_version,
+          upstreamVersion: expected_upstream_version,
+        })
+      ) {
+        return {
+          isError: true,
+          content: [{
+            type: "text",
+            text: formatJson({
+              success: false,
+              error_codes: ["applicationUpdateExpectationChanged"],
+            }),
+          }],
+        };
+      }
+    } else if (expected_blueprint_version || expected_upstream_version) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson({
+            success: false,
+            error_codes: ["applicationUpdateExpectationUnexpected"],
+          }),
+        }],
+      };
+    }
+
     const { status, data } = await apiRequest(
       "POST",
       applicationPath(
         orderNo,
         `installations/${encodeURIComponent(installation_id)}/actions`
       ),
-      {
+      applicationLifecycleRequestBody(
         action,
-        acknowledgeDataLoss: acknowledge_data_loss === true,
-      },
+        acknowledge_data_loss === true,
+        action === "update"
+          ? {
+              blueprintVersion: expected_blueprint_version!,
+              upstreamVersion: expected_upstream_version!,
+            }
+          : undefined
+      ),
       { "Idempotency-Key": idempotencyKey }
     );
     return {
       content: [
-        { type: "text", text: safeApplicationMutationResult(status, data) },
+        {
+          type: "text",
+          text: safeApplicationMutationResult(status, data, orderNo),
+        },
+      ],
+    };
+  }
+);
+
+server.registerTool(
+  "cancel_application_action",
+  {
+    description:
+      "Request pre-dispatch cancellation of the exact latest action for one owned managed application. This is available only while get_application_installation advertises latest_action.cancellable=true for the same action UUID. The tool re-reads the installation immediately before submitting the cancellation and refuses stale, different, or non-cancellable actions. Cancellation never stops or interrupts a running worker job. Requires applications:manage, the exact latest_action.id UUID, and a fresh client-global idempotencyKey that was not used for the original action or another request. Reuse that key only to replay this exact cancellation request. This is not a paid API-key operation.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      action_id: applicationActionIdSchema,
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Fresh client-global unique key for this cancellation request. Do not reuse the original action's key or a key from another request; reuse it only to replay this exact cancellation request."
+      ),
+    },
+    annotations: {
+      title: "Cancel queued application action",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id, action_id, idempotencyKey }) => {
+    const installationPath = applicationPath(
+      orderNo,
+      `installations/${encodeURIComponent(installation_id)}`
+    );
+    const current = await apiRequest("GET", installationPath);
+    if (
+      current.status < 200 ||
+      current.status >= 300 ||
+      !applicationActionCancellationIsAdvertised(current.data, action_id)
+    ) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: formatJson({
+              success: false,
+              error_codes: ["applicationActionCancellationNotAdvertised"],
+            }),
+          },
+        ],
+      };
+    }
+
+    const { status, data } = await apiRequest(
+      "POST",
+      `${installationPath}/actions/${encodeURIComponent(action_id)}/cancel`,
+      applicationActionCancellationRequestBody(),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [
+        {
+          type: "text",
+          text: safeApplicationMutationResult(status, data, orderNo),
+        },
       ],
     };
   }
