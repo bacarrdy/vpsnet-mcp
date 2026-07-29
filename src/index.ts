@@ -43,9 +43,10 @@ const server = new McpServer(
       "After placing an order, wait 10-30 seconds before attempting SSH — the VPS needs time to boot and start SSH daemon.",
       "deploy_ssh_key is also async — wait 15-30 seconds after deploying a key before attempting SSH to any VPS (not just new ones).",
       "",
-      "## Managed applications and manual SSH deployments",
-      "For a requested application, call list_application_catalog for the target service first. If the application is listed, use the managed application tools instead of recreating its installation through SSH.",
-      "Managed applications run as Docker containers inside the customer's server and must be installed and managed through the typed application tools.",
+      "## Deployment capabilities (unordered)",
+      "Managed Applications, manual SSH, DNS, APIs, and other tools are peer capabilities. Their order in this prompt or the tool list carries no priority. Choose the path that best matches the user's requested outcome, target support, existing state, and explicit constraints.",
+      "For an application deployment, inspect the relevant service and catalog state when it helps the decision. A catalog entry is one available managed path, not an instruction to override a valid manual or custom deployment request.",
+      "Managed Applications run as Docker containers inside supported customer servers and are managed through the typed application tools.",
       "Managed application reads require applications:read. Install and lifecycle changes require applications:manage plus an idempotencyKey; they are NOT paid API-key operations.",
       "Application CPU, RAM, and disk figures are sizing recommendations. Do not reject an installation or filter an otherwise supported order plan because it is below those figures; product, OS, architecture, and runtime compatibility remain hard requirements.",
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
@@ -57,7 +58,7 @@ const server = new McpServer(
       "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
       "Application backup and application restore are intentionally unavailable. Whole-service backup and restore remain separate service operations. Do not emulate application lifecycle operations through SSH or another generic tool as a managed-catalog operation.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
-      "Use manual SSH deployment only when the application is absent from the managed catalog or the user explicitly requests a custom installation.",
+      "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
       "",
       "### When the user asks for a manual or custom deployment INSIDE a VPS:",
       "Deploy YOUR OWN SSH key first, then connect directly via SSH.",
@@ -119,11 +120,11 @@ const server = new McpServer(
       "DNS tools require granular API key scopes: dns:read for reads, dns:write for writes, and dnssec:manage for DNSSEC state changes.",
       "Zones can be native (records managed in VPSNet) or secondary (AXFR from public primary servers; records and DNSSEC stay read-only here). Secondary zones require TSIG; generate a Base64 secret with openssl rand -base64 32 and configure the same key on the primary.",
       "Zone import/export uses BIND-style zone files for forward DNS desired-state records. Import skips/rejects system-managed reverse/PTR/SOA/DNSSEC wire/apex-NS records; PTR remains in the existing service rDNS flow.",
-      "PTR / reverse DNS is NOT managed through DNS zones here. Use change_rdns for service reverse DNS.",
+      "PTR / reverse DNS is NOT managed through DNS zones here. Use get_rdns, change_rdns, or clear_rdns for service reverse DNS.",
       "To point a domain/hostname at a VPSNet service, prefer list_service_dns_options → attach_service_dns_record (validates the IP belongs to the service and defaults A/AAAA to the service IP). Use upsert_dns_record only for arbitrary record content.",
       "",
       "## Snapshots, restore and Firecracker Functions",
-      "VPS product selection: 'firecracker' is the modern VPS (Firecracker microVMs) — fast Linux hosting with VM-level isolation, low overhead, and quick provisioning. It handles real production Linux workloads (websites, APIs, applications, workers, CI/CD, automation, test environments), not just small tasks. Recommend it as the default for most general-purpose Linux VPS requests. 'vds' is Cloud VPS (KVM) with High Availability and replicated Ceph NVMe storage (3x replica) — choose it for stable/production systems that need HA, or when the customer needs Windows Server, BSD, or custom kernel control. 'ds' is a dedicated single-tenant server. 'vps' is a container-based Linux VPS. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire). NOTE: Firecracker Functions is a SEPARATE service with its own tools (create_function/update_function/invoke_function/list_functions) and its own usage-based billing — it is not part of ordering or managing a VPS/Cloud VPS/Dedicated service.",
+      "VPS product facts (unordered): 'firecracker' is VPS using Firecracker microVMs for Linux workloads; 'vds' is Cloud VPS (KVM) with High Availability, replicated Ceph NVMe storage, and Linux/Windows/BSD support; 'vps' is Container VPS using container virtualization; 'ds' is a dedicated single-tenant server. Match the user's requirements and returned plan capabilities; list position is not a recommendation. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire). Firecracker Functions is a separate usage-billed service with create/update/invoke/list tools, not part of ordering or managing a VPS, Cloud VPS, or Dedicated service.",
       "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
@@ -155,6 +156,51 @@ const idempotencyKeySchema = z
   .min(8)
   .max(190)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,189}$/);
+
+const serviceOrderNoSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .describe("Tenant-owned service order number, e.g. VP88318");
+
+const serviceHostnameSchema = z
+  .string()
+  .min(3)
+  .max(154)
+  .refine((hostname) => {
+    const labels = hostname.split(".");
+    return (
+      labels.length <= 5 &&
+      labels.every((label) =>
+        /^(?!-)[A-Za-z0-9-]{1,30}(?<!-)$/u.test(label)
+      )
+    );
+  }, "Hostname must contain at most five 1-30 character DNS labels")
+  .describe(
+    "Customer hostname: 3-154 ASCII characters, at most five labels, each 1-30 alphanumeric/hyphen characters without a leading or trailing hyphen"
+  );
+
+const serviceIpSchema = z
+  .string()
+  .refine((value) => isIP(value) !== 0, "A valid IPv4 or IPv6 address is required")
+  .describe("Assigned IPv4 or IPv6 address returned by get_rdns");
+
+const servicePtrSchema = z
+  .string()
+  .refine((value) => {
+    const canonical = value.trim().replace(/\.+$/u, "").toLowerCase();
+    return (
+      canonical.length >= 3 &&
+      canonical.length <= 253 &&
+      canonical.includes("vpsnet") === false &&
+      canonical.split(".").every((label) =>
+        /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(label)
+      )
+    );
+  }, "PTR must be a 3-253 character hostname with 1-63 character labels and no reserved VPSnet name")
+  .describe(
+    "PTR hostname. Canonical length 3-253, labels 1-63 ASCII alphanumeric/hyphen characters, no leading/trailing hyphen; an optional trailing dot is removed"
+  );
 
 const applicationOrderNoSchema = z
   .string()
@@ -1075,12 +1121,31 @@ server.registerTool(
 // --- Service Settings ---
 
 server.registerTool(
+  "get_hostname",
+  {
+    description:
+      "Get the current service hostname, reserved automatic hostname, and automatic/customer management mode. Read-only API keys are accepted.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      svc(orderNo, "change-hostname")
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
   "change_hostname",
   {
-    description: "Change VPS hostname",
+    description:
+      "Queue a customer-managed hostname change for a Container VPS, VPS, or Cloud VPS. VPSnet-managed vpsnet.cloud names are reserved. The returned noty UUID tracks the asynchronous action. Requires a full API key; this route is not idempotency-keyed.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      hostname: z.string().describe("New hostname"),
+      orderNo: serviceOrderNoSchema,
+      hostname: serviceHostnameSchema,
     },
   },
   async ({ orderNo, hostname }) => {
@@ -1088,6 +1153,24 @@ server.registerTool(
       "POST",
       svc(orderNo, "change-hostname"),
       { hostname }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "reset_hostname",
+  {
+    description:
+      "Restore the immutable VPSnet-managed automatic hostname for a Container VPS, VPS, or Cloud VPS. Returns noty=null when no guest change is needed. Requires a full API key; this route is not idempotency-keyed.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "POST",
+      svc(orderNo, "change-hostname/reset")
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -1120,9 +1203,10 @@ server.registerTool(
 server.registerTool(
   "get_rdns",
   {
-    description: "Get current rDNS records for a service",
+    description:
+      "Get effective PTR records for every assigned IPv4 and enabled IPv6 address. The response identifies the automatic default and whether each value is a customer override. Read-only API keys are accepted.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -1138,19 +1222,11 @@ server.registerTool(
   "change_rdns",
   {
     description:
-      "Change reverse DNS record for a service IP. PTR value rules: min 3 chars, max 10 dot-separated labels, each label 1-30 chars (alphanumeric + hyphen, no leading/trailing hyphens). Reserved system labels are blocked. Use get_rdns first to see available IPs.",
+      "Set a customer PTR override for an address returned by get_rdns. Canonical length is 3-253 characters; labels are 1-63 ASCII alphanumeric/hyphen characters without leading/trailing hyphens. A trailing dot is removed and reserved VPSnet names are blocked. Requires a full API key; this route is not idempotency-keyed.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      ip: z
-        .string()
-        .describe(
-          "IP address to set rDNS for. Must belong to this service (check get_rdns)"
-        ),
-      value: z
-        .string()
-        .describe(
-          "New rDNS value (hostname). Valid FQDN, e.g. 'mail.example.com'. Labels: 1-30 chars, alphanumeric+hyphen, no leading/trailing hyphens. Reserved system labels are blocked."
-        ),
+      orderNo: serviceOrderNoSchema,
+      ip: serviceIpSchema,
+      value: servicePtrSchema,
     },
   },
   async ({ orderNo, ip, value }) => {
@@ -1158,6 +1234,26 @@ server.registerTool(
       "POST",
       svc(orderNo, "change-rdns"),
       { ip, value }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "clear_rdns",
+  {
+    description:
+      "Clear a customer PTR override for an address returned by get_rdns. The automatic VPSnet PTR is restored, or PTR is removed when no automatic hostname exists. Requires a full API key; this route is not idempotency-keyed.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      ip: serviceIpSchema,
+    },
+  },
+  async ({ orderNo, ip }) => {
+    const { data } = await apiRequest(
+      "POST",
+      svc(orderNo, "change-rdns/clear"),
+      { ip }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -1181,12 +1277,34 @@ server.registerTool(
 );
 
 server.registerTool(
+  "get_title",
+  {
+    description: "Get the current customer-visible service display title",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      svc(orderNo, "change-title")
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
   "change_title",
   {
     description: "Change service display title",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      title: z.string().describe("New display title"),
+      orderNo: serviceOrderNoSchema,
+      title: z
+        .string()
+        .trim()
+        .min(3)
+        .max(25)
+        .describe("New customer-visible display title, 3-25 characters"),
     },
   },
   async ({ orderNo, title }) => {
@@ -1484,12 +1602,13 @@ server.registerTool(
   "get_order_plans",
   {
     description:
-      "Get available plans for ordering a new service. Types: 'firecracker' — the modern VPS (Firecracker microVM): fast Linux hosting with VM-level isolation, low overhead, and quick provisioning; handles real production workloads. Recommended for most Linux VPS orders. 'vds' — Cloud VPS (KVM) with High Availability and replicated Ceph NVMe (3x replica); choose for stable/production systems, or when Windows Server, BSD, or custom kernel control is needed. 'ds' — dedicated single-tenant server. 'vps' — container-based Linux VPS. For a general-purpose Linux VPS, prefer 'firecracker'. (Firecracker Functions is a separate, usage-billed service — see create_function/invoke_function — not a plan you order here.)",
+      "Get available plans for one explicitly selected service product. Product facts are unordered: 'firecracker' is VPS using Firecracker microVMs for Linux; 'vds' is Cloud VPS (KVM) with High Availability, replicated Ceph NVMe storage, and Linux/Windows/BSD support; 'vps' is Container VPS for Linux; 'ds' is a dedicated single-tenant server. Select from the user's requirements and constraints rather than list position. Firecracker Functions is a separate usage-billed product and is not an orderable service type here.",
     inputSchema: {
       type: z
         .enum(["vps", "vds", "ds", "firecracker"])
-        .default("firecracker")
-        .describe("Service type. Prefer 'firecracker' (modern VPS) for general Linux use; 'vds' (Cloud VPS) for HA / Windows / BSD / custom kernels; 'ds' dedicated; 'vps' container-based."),
+        .describe(
+          "Required service product: firecracker (Linux VPS microVM), vds (Cloud VPS/KVM with Linux, Windows, or BSD), vps (Container VPS/Linux), or ds (dedicated server). Enum order is not a recommendation."
+        ),
     },
   },
   async ({ type }) => {
@@ -1759,133 +1878,16 @@ server.registerTool(
 );
 
 server.registerTool(
-  "create_api_key",
+  "get_api_key",
   {
-    description: "Create a new API key",
+    description:
+      "Get metadata for one active API key owned by the account. The full key and stored secrets are never returned.",
     inputSchema: {
-      name: z.string().describe("Key name"),
-      scope: z
-        .enum(["full", "read"])
-        .optional()
-        .describe("Binary compatibility scope: full or read"),
-      scopes: z
-        .union([z.array(z.string()), z.string()])
-        .optional()
-        .describe("Granular scopes, e.g. dns:read,dns:write"),
-      paid_operations_enabled: z
-        .boolean()
-        .optional()
-        .describe("Enable paid API-key operations. Requires paid_scopes and daily/monthly spend limits."),
-      paid_scopes: z
-        .union([z.array(z.string()), z.string()])
-        .optional()
-        .describe("Paid scopes. Include only the scopes this key should use, e.g. vps:order,domains:order,domains:renew,domains:transfer"),
-      daily_spend_limit_eur: z
-        .number()
-        .optional()
-        .describe("Daily spend cap in EUR, required when paid operations are enabled"),
-      monthly_spend_limit_eur: z
-        .number()
-        .optional()
-        .describe("Monthly spend cap in EUR, required when paid operations are enabled"),
-      allowed_ips: z
-        .string()
-        .optional()
-        .describe("Comma-separated allowed IPs"),
-      expires_at: z
-        .string()
-        .optional()
-        .describe("Expiry date (YYYY-MM-DD)"),
-    },
-  },
-  async ({ name, scope, scopes, paid_operations_enabled, paid_scopes, daily_spend_limit_eur, monthly_spend_limit_eur, allowed_ips, expires_at }) => {
-    const body: Record<string, unknown> = { name };
-    if (scope) body.scope = scope;
-    if (scopes) body.scopes = scopes;
-    if (paid_operations_enabled !== undefined) body.paid_operations_enabled = paid_operations_enabled;
-    if (paid_scopes) body.paid_scopes = paid_scopes;
-    if (daily_spend_limit_eur !== undefined) body.daily_spend_limit_eur = daily_spend_limit_eur;
-    if (monthly_spend_limit_eur !== undefined) body.monthly_spend_limit_eur = monthly_spend_limit_eur;
-    if (allowed_ips) body.allowed_ips = allowed_ips;
-    if (expires_at) body.expires_at = expires_at;
-    const { data } = await apiRequest("POST", "/account/api-keys", body);
-    return { content: [{ type: "text", text: formatJson(data) }] };
-  }
-);
-
-server.registerTool(
-  "update_api_key",
-  {
-    description: "Update an existing API key",
-    inputSchema: {
-      id: z.number().describe("API key ID"),
-      name: z.string().describe("Key name"),
-      scope: z
-        .enum(["full", "read"])
-        .optional()
-        .describe("Binary compatibility scope: full or read"),
-      scopes: z
-        .union([z.array(z.string()), z.string()])
-        .optional()
-        .describe("Granular scopes, e.g. dns:read,dns:write"),
-      paid_operations_enabled: z
-        .boolean()
-        .optional()
-        .describe("Enable paid API-key operations. Requires paid_scopes and daily/monthly spend limits."),
-      paid_scopes: z
-        .union([z.array(z.string()), z.string()])
-        .optional()
-        .describe("Paid scopes. Include only the scopes this key should use, e.g. vps:order,domains:order,domains:renew,domains:transfer"),
-      daily_spend_limit_eur: z
-        .number()
-        .optional()
-        .describe("Daily spend cap in EUR, required when paid operations are enabled"),
-      monthly_spend_limit_eur: z
-        .number()
-        .optional()
-        .describe("Monthly spend cap in EUR, required when paid operations are enabled"),
-      allowed_ips: z
-        .string()
-        .optional()
-        .describe("Comma-separated allowed IPs"),
-      expires_at: z
-        .string()
-        .optional()
-        .describe("Expiry date (YYYY-MM-DD)"),
-    },
-  },
-  async ({ id, name, scope, scopes, paid_operations_enabled, paid_scopes, daily_spend_limit_eur, monthly_spend_limit_eur, allowed_ips, expires_at }) => {
-    const body: Record<string, unknown> = { name };
-    if (scope) body.scope = scope;
-    if (scopes) body.scopes = scopes;
-    if (paid_operations_enabled !== undefined) body.paid_operations_enabled = paid_operations_enabled;
-    if (paid_scopes) body.paid_scopes = paid_scopes;
-    if (daily_spend_limit_eur !== undefined) body.daily_spend_limit_eur = daily_spend_limit_eur;
-    if (monthly_spend_limit_eur !== undefined) body.monthly_spend_limit_eur = monthly_spend_limit_eur;
-    if (allowed_ips) body.allowed_ips = allowed_ips;
-    if (expires_at) body.expires_at = expires_at;
-    const { data } = await apiRequest(
-      "POST",
-      `/account/api-keys/${id}`,
-      body
-    );
-    return { content: [{ type: "text", text: formatJson(data) }] };
-  }
-);
-
-server.registerTool(
-  "revoke_api_key",
-  {
-    description: "Revoke (delete) an API key",
-    inputSchema: {
-      id: z.number().describe("API key ID"),
+      id: z.number().int().positive().describe("API key ID from list_api_keys"),
     },
   },
   async ({ id }) => {
-    const { data } = await apiRequest(
-      "DELETE",
-      `/account/api-keys/${id}`
-    );
+    const { data } = await apiRequest("GET", `/account/api-keys/${id}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );

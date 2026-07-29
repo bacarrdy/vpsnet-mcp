@@ -1,6 +1,6 @@
 # vpsnet-mcp
 
-[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) services. Gives AI assistants access to VPS lifecycle operations, managed applications, DNS zones, domain registration and contacts, billing, API keys, SSH-key provisioning, and related account tooling through the VPSNet API.
+[Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing [VPSnet.com](https://www.vpsnet.com) services. Gives AI assistants access to VPS lifecycle operations, managed applications, DNS zones, domain registration and contacts, billing, API-key metadata, SSH-key provisioning, and related account tooling through the VPSNet API.
 
 ## Features
 
@@ -13,7 +13,7 @@
 - Domain availability, contacts, register/transfer/renew/restore quotes, and paid confirmations
 - Publication-gated managed applications with install, health, events, and typed lifecycle actions
 - SSH key management — deploy keys and gain direct server access
-- API key management
+- API-key metadata inspection (key creation, changes, and revocation remain session-only)
 - Backups, billing, invoices
 - Ordering new VPS instances
 - System status & pricing
@@ -36,10 +36,13 @@ Before installing, ensure you have:
 
 ## Managed applications
 
-For software that is present in the VPSnet application catalog, use
-`list_application_catalog` and the managed application tools before considering
-a generic SSH installation. Catalog applications run as Docker containers in
-the customer's server and use the typed installation and lifecycle tools.
+Managed Applications, manual SSH, DNS, APIs, and other deployment surfaces are
+peer capabilities. Their order in this document and in the tool list is not a
+recommendation. Choose the path that best matches the user's requested outcome,
+target support, existing state, and explicit constraints. A catalog entry is one
+available managed path, not a reason to override a valid manual or custom
+deployment request. Catalog applications run as Docker containers in the
+customer's server and use typed installation and lifecycle tools.
 
 Application reads require `applications:read`. Installation and lifecycle
 changes require `applications:manage` and an idempotency key; they are not paid
@@ -82,6 +85,13 @@ Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
 `manage_application` call requires `acknowledge_data_loss=true` for uninstall,
 and it must only be set after explicit user confirmation.
+
+The MCP surface is task-oriented rather than a one-to-one mirror of every REST
+route. Legacy SMS micro-payment and macro-payment callback integrations remain
+available through the documented REST API and control panel, but are
+intentionally not exposed as MCP tools. Public pre-login order and domain-search
+routes likewise have authenticated MCP equivalents where an account operation
+needs them.
 
 ## SSH access workflow
 
@@ -384,11 +394,15 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 ### Service Settings
 | Tool | Description |
 |------|-------------|
+| `get_hostname` | Get current and automatic service hostname state |
 | `change_hostname` | Change VPS hostname |
+| `reset_hostname` | Restore the VPSnet-managed automatic hostname |
 | `change_root_password` | Change VPS root password |
 | `get_rdns` | Get current rDNS records |
 | `change_rdns` | Change reverse DNS (PTR) record |
+| `clear_rdns` | Clear a PTR override and restore the automatic value |
 | `flush_iptables` | Flush iptables rules (useful when locked out) |
+| `get_title` | Get the current service display title |
 | `change_title` | Change service display title |
 | `toggle_ipv6` | Enable or disable IPv6 |
 | `toggle_extra_settings` | Toggle ppp, fuse, tuntap, or nfs |
@@ -421,7 +435,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 ### Ordering
 | Tool | Description |
 |------|-------------|
-| `get_order_plans` | Get available plans for new VPS |
+| `get_order_plans` | Get available plans for an explicitly selected service product |
 | `get_order_options` | Get configurable options for a plan |
 | `order_service` | Order a new VPS |
 
@@ -444,9 +458,10 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | Tool | Description |
 |------|-------------|
 | `list_api_keys` | List all API keys |
-| `create_api_key` | Create a new API key |
-| `update_api_key` | Update an existing API key |
-| `revoke_api_key` | Revoke (delete) an API key |
+| `get_api_key` | Get one active key's non-secret metadata |
+
+API-key creation, changes, and revocation require a browser/session login. They
+cannot be performed by an MCP connection authenticated with an API key.
 
 ### History
 | Tool | Description |
