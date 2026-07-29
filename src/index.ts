@@ -21,10 +21,11 @@ import {
   applicationUpdateCandidateMatches,
   safeApplicationInspectionPayload,
   safeApplicationMutationPayload,
+  safeApplicationRegistryCredentialPayload,
 } from "./application-contract.js";
 
 const server = new McpServer(
-  { name: "vpsnet", version: "1.3.0" },
+  { name: "vpsnet", version: "2.0.0" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -46,9 +47,11 @@ const server = new McpServer(
       "For a requested application, call list_application_catalog for the target service first. If the application is listed, use the managed application tools instead of recreating its installation through SSH.",
       "Managed applications run as Docker containers inside the customer's server and must be installed and managed through the typed application tools.",
       "Managed application reads require applications:read. Install and lifecycle changes require applications:manage plus an idempotencyKey; they are NOT paid API-key operations.",
+      "Application CPU, RAM, and disk figures are sizing recommendations. Do not reject an installation or filter an otherwise supported order plan because it is below those figures; product, OS, architecture, and runtime compatibility remain hard requirements.",
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
-      "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. Private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
+      "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
+      "Use list_application_registry_credentials only for non-secret Docker Hub/GHCR credential metadata. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
       "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
       "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
       "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
@@ -98,6 +101,7 @@ const server = new McpServer(
       "Get IDs from get_plan_resources: each resource type has a 'values' array, pick one value's 'id' per type.",
       "Use isDefault=1 values for plan defaults. Do NOT pass an empty array — it will fail silently.",
       "IP resources are typically disabled (managed by backend). Admin resources are auto-managed — do not include them.",
+      "KVM/Cloud VPS and Firecracker disks cannot be shrunk. A lower plan may reduce CPU or RAM only when its effective disk remains unchanged or grows; get_plan_options/get_plan_resources and backend validation reject smaller target disks.",
       "",
       "## Backups",
       "Creating a backup is a PAID operation. Flow: get_backup_status → create_backup.",
@@ -397,7 +401,7 @@ server.registerTool(
   "list_application_catalog",
   {
     description:
-      "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation. The response includes the application details, container runtime, configuration fields, and target compatibility. Requires applications:read.",
+      "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation. The response includes application details, container runtime, configuration fields, hard product/OS/architecture/runtime compatibility, and advisory CPU/RAM/disk sizing warnings. Resource guidance alone must not block installation. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
     },
@@ -414,6 +418,37 @@ server.registerTool(
       applicationPath(orderNo, "catalog")
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_application_registry_credentials",
+  {
+    description:
+      "List non-secret Docker Hub and GHCR credential metadata for one owned service. Token values, encrypted envelopes, fingerprints, and key versions are never returned. Registry token creation and rotation are intentionally unavailable through MCP; use the VPSnet panel or direct REST API so the token does not enter model context. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+    },
+    annotations: {
+      title: "List application registry credentials",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      applicationPath(orderNo, "registry-credentials")
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(
+          safeApplicationRegistryCredentialPayload(status, data)
+        ),
+      }],
+    };
   }
 );
 

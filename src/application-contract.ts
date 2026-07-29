@@ -92,6 +92,7 @@ const externalHttpsUrlSchema = z.string().max(500).refine((value) => {
 }, "External access must be a credential-free HTTPS URL without a query or fragment");
 
 export const applicationAccessSchema = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("platform_https") }).strict(),
   z.object({ mode: z.literal("private") }).strict(),
   z.object({ mode: z.literal("public_http") }).strict(),
   z.object({ mode: z.literal("external_https"), url: externalHttpsUrlSchema }).strict(),
@@ -286,6 +287,44 @@ export function safeApplicationMutationPayload(
       state: boundedString(action.state),
     },
     portal_handoff: portalHandoff,
+  };
+}
+
+export function safeApplicationRegistryCredentialPayload(
+  status: number,
+  data: unknown
+): Record<string, unknown> {
+  const payload = record(data);
+  if (status < 200 || status >= 300 || payload.success !== true) {
+    return {
+      success: false,
+      status,
+      error_codes: errorCodes(payload),
+    };
+  }
+
+  const credentials = Array.isArray(payload.credentials)
+    ? payload.credentials.slice(0, 2).map((value) => {
+        const credential = record(value);
+        const registry = credential.registry === "docker.io"
+          || credential.registry === "ghcr.io"
+          ? credential.registry
+          : null;
+        return {
+          id: boundedString(credential.id, 64),
+          registry,
+          username: boundedString(credential.username, 128),
+          created_at: boundedString(credential.created_at, 64),
+          updated_at: boundedString(credential.updated_at, 64),
+          rotated_at: boundedString(credential.rotated_at, 64),
+          token_present: credential.token_present === true,
+        };
+      })
+    : [];
+
+  return {
+    success: true,
+    credentials,
   };
 }
 
