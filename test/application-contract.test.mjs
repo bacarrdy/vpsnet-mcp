@@ -16,6 +16,7 @@ import {
   applicationExpectedVersionSchema,
   safeApplicationInspectionPayload,
   safeApplicationMutationPayload,
+  safeApplicationRegistryCredentialPayload,
 } from "../build/application-contract.js";
 
 const ACTION_ID = "1f3502fc-1177-4e3f-b867-b3f6d7b9846e";
@@ -198,6 +199,55 @@ test("managed application install preserves explicit access and restart consent"
   assert.deepEqual(applicationAccessSchema.parse({ mode: "public_http" }), {
     mode: "public_http",
   });
+  assert.deepEqual(applicationAccessSchema.parse({ mode: "platform_https" }), {
+    mode: "platform_https",
+  });
+});
+
+test("registry metadata output allowlists fields and drops every secret representation", () => {
+  assert.deepEqual(
+    safeApplicationRegistryCredentialPayload(200, {
+      success: true,
+      credentials: [{
+        id: "550e8400-e29b-41d4-a716-446655440040",
+        registry: "ghcr.io",
+        username: "customer",
+        created_at: "2026-07-29 10:00:00",
+        updated_at: "2026-07-29 11:00:00",
+        rotated_at: "2026-07-29 11:00:00",
+        token_present: true,
+        token: "ghp_must_never_reach_the_model",
+        ciphertext: "encrypted-secret",
+        fingerprint: "secret-fingerprint",
+        key_version: 7,
+      }],
+    }),
+    {
+      success: true,
+      credentials: [{
+        id: "550e8400-e29b-41d4-a716-446655440040",
+        registry: "ghcr.io",
+        username: "customer",
+        created_at: "2026-07-29 10:00:00",
+        updated_at: "2026-07-29 11:00:00",
+        rotated_at: "2026-07-29 11:00:00",
+        token_present: true,
+      }],
+    }
+  );
+  assert.deepEqual(
+    safeApplicationRegistryCredentialPayload(403, {
+      success: false,
+      apiKeyScopeMissing: true,
+      requiredScope: "applications:read",
+      token: "must-not-leak",
+    }),
+    {
+      success: false,
+      status: 403,
+      error_codes: ["apiKeyScopeMissing"],
+    }
+  );
 });
 
 test("managed application update versions match the backend printable ASCII contract", () => {

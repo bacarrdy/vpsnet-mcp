@@ -18,11 +18,14 @@ test("tools/list exposes the backend-compatible managed application contract", a
   });
 
   assert.equal(client.getServerVersion()?.name, "vpsnet");
-  assert.equal(client.getServerVersion()?.version, "1.3.0");
+  assert.equal(client.getServerVersion()?.version, "2.0.0");
 
   const { tools } = await client.listTools();
   const logs = tools.find((tool) => tool.name === "get_application_logs");
   const catalog = tools.find((tool) => tool.name === "list_application_catalog");
+  const registryCredentials = tools.find(
+    (tool) => tool.name === "list_application_registry_credentials"
+  );
   const install = tools.find((tool) => tool.name === "install_application");
   const configureAccess = tools.find(
     (tool) => tool.name === "configure_application_access"
@@ -38,6 +41,21 @@ test("tools/list exposes the backend-compatible managed application contract", a
 
   assert.ok(catalog);
   assert.doesNotMatch(catalog.description, /upstream publisher|support boundary|authorship/i);
+  assert.match(catalog.description, /advisory CPU\/RAM\/disk sizing/i);
+  assert.match(catalog.description, /must not block installation/i);
+
+  assert.ok(registryCredentials);
+  assert.deepEqual(
+    Object.keys(registryCredentials.inputSchema.properties || {}),
+    ["orderNo"]
+  );
+  assert.equal(registryCredentials.annotations?.readOnlyHint, true);
+  assert.match(registryCredentials.description, /non-secret/i);
+  assert.match(registryCredentials.description, /token creation and rotation.*unavailable through MCP/i);
+  assert.doesNotMatch(
+    JSON.stringify(registryCredentials.inputSchema),
+    /token|password|credential_id/i
+  );
 
   assert.ok(install);
   assert.equal(
@@ -52,6 +70,11 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.equal(configureAccess.inputSchema.properties?.confirmed.const, true);
   assert.ok(configureAccess.inputSchema.properties?.expected_revision);
   assert.ok(configureAccess.inputSchema.properties?.access);
+  assert.ok(
+    configureAccess.inputSchema.properties?.access.anyOf.some(
+      (candidate) => candidate.properties?.mode?.const === "platform_https"
+    )
+  );
   assert.match(configureAccess.description, /customer-managed URL/i);
   assert.match(configureAccess.description, /does not configure or validate/i);
 

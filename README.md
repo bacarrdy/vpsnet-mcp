@@ -7,7 +7,7 @@
 - **125+ tools** covering VPSNet service management, managed applications, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
-- Plan changes (free upgrades/downgrades)
+- Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
 - Service reverse DNS (rDNS/PTR records)
 - Forward DNS zones, records, DNSSEC, templates, import/export, and DDNS tokens
 - Domain availability, contacts, register/transfer/renew/restore quotes, and paid confirmations
@@ -22,7 +22,7 @@
 
 Before installing, ensure you have:
 
-1. **Node.js 18 or newer**
+1. **Node.js 20 or newer**
    - Check: `node --version`
    - Linux/macOS: [nodejs.org](https://nodejs.org) or your package manager
    - Windows: `winget install OpenJS.NodeJS.LTS` or download from [nodejs.org](https://nodejs.org)
@@ -43,8 +43,11 @@ the customer's server and use the typed installation and lifecycle tools.
 
 Application reads require `applications:read`. Installation and lifecycle
 changes require `applications:manage` and an idempotency key; they are not paid
-API-key operations. Changes are asynchronous, so verify them with
-`get_application_installation` and `get_application_events`. Use
+API-key operations. CPU, RAM, and disk figures are sizing recommendations, not
+installation gates: a supported application remains selectable during ordering
+and installable below those figures. Product, OS, architecture, and runtime
+compatibility remain hard requirements. Changes are asynchronous, so verify them
+with `get_application_installation` and `get_application_events`. Use
 `get_application_health` for a fresh container-health inspection and
 `get_application_logs` for recent size-bounded troubleshooting logs. Log
 inspections accept at most 500 lines and 131,072 bytes. These two read-scoped
@@ -53,11 +56,17 @@ requests.
 
 Use `configure_application_access` to change how an installed application is
 reached. Read the installation first and pass its current revision with a new
-idempotency key. `private` has no public listener, `public_http` uses the
-server's public IP over HTTP, and `managed_https` uses an eligible
+idempotency key. `platform_https` allocates an opaque VPSnet hostname with
+automatic DNS and HTTPS, `private` has no public listener, `public_http` uses
+the server's public IP over HTTP, and `managed_https` uses an eligible
 VPSnet-managed DNS zone. `external_https` records an existing customer-managed
 HTTPS address; VPSnet does not configure or validate its DNS, TLS certificate,
 or reverse proxy.
+
+`list_application_registry_credentials` exposes only Docker Hub/GHCR credential
+metadata. Registry token creation and rotation are intentionally not MCP tools:
+use the VPSnet panel or direct REST API so a token never enters a model prompt or
+tool argument.
 
 An immutable update is available only when `get_application_installation`
 returns an `available_actions` entry with `type: "update"`. After explicit user
@@ -243,7 +252,7 @@ args = ["-y", "vpsnet-mcp"]
 VPSNET_API_KEY = "your_api_key_here"
 ```
 
-**If your system's default Node.js is older than 18** (common with nvm — check with `node --version`), wrap the command so nvm loads the right version:
+**If your system's default Node.js is older than 20** (common with nvm — check with `node --version`), wrap the command so nvm loads the right version:
 
 ```bash
 codex mcp add vpsnet --env VPSNET_API_KEY=your_api_key_here -- bash -lc 'source ~/.nvm/nvm.sh >/dev/null 2>&1 && nvm use --silent 20 && npx -y vpsnet-mcp'
@@ -359,9 +368,11 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `get_application_events` | Get bounded customer-safe installation events |
 | `get_application_health` | Run and poll a fresh container-health inspection |
 | `get_application_logs` | Run and poll a size-bounded recent-log inspection |
+| `list_application_registry_credentials` | List non-secret Docker Hub/GHCR credential metadata |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
-| `configure_application_access` | Queue a confirmed private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
+| `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
 | `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement |
+| `cancel_application_action` | Cancel the exact latest queued action only while the backend advertises it as cancellable |
 
 ### Service Actions
 | Tool | Description |
@@ -392,7 +403,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 ### Plan Changes (free)
 | Tool | Description |
 |------|-------------|
-| `get_plan_options` | Get available plans for upgrade/downgrade |
+| `get_plan_options` | Get available plans for upgrade/downgrade; KVM/Firecracker targets that would shrink disk are unavailable |
 | `get_plan_resources` | Get configurable resources for a plan |
 | `calculate_plan_change` | Preview plan change cost and new expiry |
 | `change_plan` | Change VPS plan |
@@ -507,9 +518,9 @@ For Claude Code extension, environment variables **must** be in the `env` object
 
 ### `fetch is not defined` or unexpected errors
 
-This server requires **Node.js 18+** (uses the built-in `fetch` API). If your default `node` is older (common with nvm setups), either:
+This server requires **Node.js 20+**. If your default `node` is older (common with nvm setups), either:
 
-- Set Node 18+ as default: `nvm alias default 20`
+- Set Node 20+ as default: `nvm alias default 20`
 - Or use the nvm wrapper shown in the [Codex](#codex) section
 
 ## License
