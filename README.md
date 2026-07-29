@@ -71,6 +71,14 @@ metadata. Registry token creation and rotation are intentionally not MCP tools:
 use the VPSnet panel or direct REST API so a token never enters a model prompt or
 tool argument.
 
+Customer recipes are customer-owned Compose definitions, separate from VPSnet
+catalog blueprints. They can be validated on the target worker, saved as
+immutable revisions, installed through the managed lifecycle, and exported
+without secret values. VPSnet catalog recipes are never exportable. Container
+discovery is bounded and read-only: it reports customer and managed containers
+without returning environment values or mounts, and it never adopts or modifies
+detected containers.
+
 An immutable update is available only when `get_application_installation`
 returns an `available_actions` entry with `type: "update"`. After explicit user
 confirmation, call `manage_application` with `action: "update"`, the exact
@@ -379,6 +387,14 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `get_application_health` | Run and poll a fresh container-health inspection |
 | `get_application_logs` | Run and poll a size-bounded recent-log inspection |
 | `list_application_registry_credentials` | List non-secret Docker Hub/GHCR credential metadata |
+| `validate_application_recipe` | Validate customer Compose against the target worker policy |
+| `list_application_recipes` | List customer-owned immutable recipe projects |
+| `list_application_recipe_revisions` | List immutable revisions for a customer recipe |
+| `create_application_recipe` | Validate and save a new customer recipe without installing it |
+| `create_application_recipe_revision` | Validate and save a later immutable customer recipe revision |
+| `export_application_recipe` | Export only a customer-owned recipe without secret values |
+| `install_application_recipe` | Install an exact validated customer recipe revision |
+| `discover_service_containers` | Discover bounded read-only container metadata without adoption |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
 | `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement |

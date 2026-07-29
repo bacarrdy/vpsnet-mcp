@@ -23,6 +23,22 @@ import {
   safeApplicationMutationPayload,
   safeApplicationRegistryCredentialPayload,
 } from "./application-contract.js";
+import {
+  customProjectComposeSchema,
+  customProjectDefinitionRequestBody,
+  customProjectEnvironmentSchema,
+  customProjectIdSchema,
+  customProjectNameSchema,
+  customProjectRegistryCredentialIdsSchema,
+  customProjectRevisionSchema,
+  customProjectSecretNamesSchema,
+  customProjectSecretsSchema,
+  safeContainerDiscoveryPayload,
+  safeCustomProjectInstallPayload,
+  safeCustomProjectPayload,
+  safeCustomProjectReceiptPayload,
+  safeCustomProjectValidationPayload,
+} from "./custom-project-contract.js";
 
 const server = new McpServer(
   { name: "vpsnet", version: "2.0.0" },
@@ -53,6 +69,8 @@ const server = new McpServer(
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
       "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
       "Use list_application_registry_credentials only for non-secret Docker Hub/GHCR credential metadata. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
+      "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. validate_application_recipe checks the exact Compose document on the target worker; create_application_recipe and create_application_recipe_revision freeze immutable customer revisions; install_application_recipe installs an exact validated revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
+      "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery does not adopt, stop, remove, or otherwise manage customer-created containers.",
       "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
       "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
       "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
@@ -630,6 +648,68 @@ async function runApplicationInspection(
   return latest;
 }
 
+type ApplicationAsyncEnvelope = {
+  id?: string;
+  state?: string;
+};
+
+function applicationAsyncEnvelope(
+  data: unknown,
+  key: "validation" | "discovery"
+): ApplicationAsyncEnvelope {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  const value = (data as Record<string, unknown>)[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as ApplicationAsyncEnvelope)
+    : {};
+}
+
+async function runApplicationAsyncOperation(
+  createPath: string,
+  pollPath: (id: string) => string,
+  key: "validation" | "discovery",
+  body?: Record<string, unknown>
+): Promise<{ status: number; data: unknown }> {
+  const created = await apiRequest("POST", createPath, body);
+  if (created.status >= 400) return created;
+
+  const initial = applicationAsyncEnvelope(created.data, key);
+  if (
+    !initial.id
+    || INSPECTION_TERMINAL_STATES.has(String(initial.state))
+  ) {
+    return created;
+  }
+
+  let latest = created;
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    await inspectionSleep(2000);
+    latest = await apiRequest(
+      "GET",
+      pollPath(encodeURIComponent(initial.id))
+    );
+    if (latest.status >= 400) return latest;
+
+    const polled = applicationAsyncEnvelope(latest.data, key);
+    if (INSPECTION_TERMINAL_STATES.has(String(polled.state))) break;
+  }
+
+  return latest;
+}
+
+function applicationRecipeValidationPassed(data: unknown): boolean {
+  const validation = applicationAsyncEnvelope(data, "validation");
+  if (validation.state !== "succeeded") return false;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  const value = (data as Record<string, unknown>).validation;
+  return Boolean(
+    value
+    && typeof value === "object"
+    && !Array.isArray(value)
+    && (value as Record<string, unknown>).valid === true
+  );
+}
+
 server.registerTool(
   "get_application_health",
   {
@@ -694,6 +774,401 @@ server.registerTool(
     );
     return {
       content: [{ type: "text", text: safeApplicationInspectionResult(status, data, "logs") }],
+    };
+  }
+);
+
+server.registerTool(
+  "validate_application_recipe",
+  {
+    description:
+      "Validate an exact customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      compose_yaml: customProjectComposeSchema,
+    },
+    annotations: {
+      title: "Validate customer application recipe",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, compose_yaml }) => {
+    const basePath = applicationPath(orderNo, "custom-projects");
+    const { status, data } = await runApplicationAsyncOperation(
+      `${basePath}/validate`,
+      (id) => `${basePath}/validations/${id}`,
+      "validation",
+      { compose_yaml }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCustomProjectValidationPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "list_application_recipes",
+  {
+    description:
+      "List immutable customer-owned application recipe projects for one supported service. These are separate from VPSnet catalog blueprints. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+    },
+    annotations: {
+      title: "List customer application recipes",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      applicationPath(orderNo, "custom-projects")
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCustomProjectPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "list_application_recipe_revisions",
+  {
+    description:
+      "List immutable revision metadata for one customer-owned application recipe. No Compose content or secret values are returned. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      project_id: customProjectIdSchema,
+    },
+    annotations: {
+      title: "List customer recipe revisions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, project_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      applicationPath(
+        orderNo,
+        `custom-projects/${encodeURIComponent(project_id)}/revisions`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCustomProjectPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "create_application_recipe",
+  {
+    description:
+      "Validate and freeze the first immutable revision of a customer-owned Compose recipe. This saves a definition only and does not install or start containers. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      name: customProjectNameSchema,
+      compose_yaml: customProjectComposeSchema,
+      env: customProjectEnvironmentSchema,
+      secret_names: customProjectSecretNamesSchema,
+      registry_credential_ids: customProjectRegistryCredentialIdsSchema,
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact recipe creation request."
+      ),
+      confirmed: z.literal(true).describe(
+        "True only after the user confirmed this immutable recipe definition"
+      ),
+    },
+    annotations: {
+      title: "Create customer application recipe",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    name,
+    compose_yaml,
+    env,
+    secret_names,
+    registry_credential_ids,
+    idempotencyKey,
+  }) => {
+    const basePath = applicationPath(orderNo, "custom-projects");
+    const validation = await runApplicationAsyncOperation(
+      `${basePath}/validate`,
+      (id) => `${basePath}/validations/${id}`,
+      "validation",
+      { compose_yaml }
+    );
+    if (
+      validation.status >= 400
+      || !applicationRecipeValidationPassed(validation.data)
+    ) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson(
+            safeCustomProjectValidationPayload(
+              validation.status,
+              validation.data
+            )
+          ),
+        }],
+      };
+    }
+
+    const { status, data } = await apiRequest(
+      "POST",
+      basePath,
+      {
+        name,
+        ...customProjectDefinitionRequestBody({
+          compose_yaml,
+          env,
+          secret_names,
+          registry_credential_ids,
+        }),
+      },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCustomProjectPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "create_application_recipe_revision",
+  {
+    description:
+      "Validate and freeze a later immutable revision of a customer-owned Compose recipe. This does not update the running installation. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      project_id: customProjectIdSchema,
+      compose_yaml: customProjectComposeSchema,
+      env: customProjectEnvironmentSchema,
+      secret_names: customProjectSecretNamesSchema,
+      registry_credential_ids: customProjectRegistryCredentialIdsSchema,
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact immutable revision request."
+      ),
+      confirmed: z.literal(true).describe(
+        "True only after the user confirmed this immutable recipe revision"
+      ),
+    },
+    annotations: {
+      title: "Create customer recipe revision",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    project_id,
+    compose_yaml,
+    env,
+    secret_names,
+    registry_credential_ids,
+    idempotencyKey,
+  }) => {
+    const basePath = applicationPath(orderNo, "custom-projects");
+    const validation = await runApplicationAsyncOperation(
+      `${basePath}/validate`,
+      (id) => `${basePath}/validations/${id}`,
+      "validation",
+      { compose_yaml }
+    );
+    if (
+      validation.status >= 400
+      || !applicationRecipeValidationPassed(validation.data)
+    ) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson(
+            safeCustomProjectValidationPayload(
+              validation.status,
+              validation.data
+            )
+          ),
+        }],
+      };
+    }
+
+    const { status, data } = await apiRequest(
+      "POST",
+      `${basePath}/${encodeURIComponent(project_id)}/revisions`,
+      customProjectDefinitionRequestBody({
+        compose_yaml,
+        env,
+        secret_names,
+        registry_credential_ids,
+      }),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCustomProjectPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "export_application_recipe",
+  {
+    description:
+      "Export one immutable customer-owned recipe revision. Secret values are never returned. VPSnet catalog recipes are not exportable through this or any other MCP tool. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      project_id: customProjectIdSchema,
+      revision: customProjectRevisionSchema.optional().describe(
+        "Exact revision to export; omit for the current revision"
+      ),
+    },
+    annotations: {
+      title: "Export customer application recipe",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, project_id, revision }) => {
+    const query = revision === undefined
+      ? ""
+      : `?revision=${encodeURIComponent(String(revision))}`;
+    const { status, data } = await apiRequest(
+      "GET",
+      `${applicationPath(
+        orderNo,
+        `custom-projects/${encodeURIComponent(project_id)}/export`
+      )}${query}`
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCustomProjectReceiptPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "install_application_recipe",
+  {
+    description:
+      "Queue installation of one exact validated customer-owned recipe revision. Confirm the service, project, revision, secret NAMES, and possible first-runtime restart first; never repeat secret values in confirmation text. The result omits secret values and hands status/reveal work to the VPSnet portal. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      project_id: customProjectIdSchema,
+      revision: customProjectRevisionSchema,
+      secrets: customProjectSecretsSchema,
+      acknowledge_runtime_restart: z.literal(true).optional().describe(
+        "Explicit consent for a possible one-time service restart while the application runtime is prepared"
+      ),
+      acknowledge_recipe_risks: z.literal(true).describe(
+        "Explicit acknowledgement that this is a customer-owned recipe"
+      ),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact recipe installation."
+      ),
+      confirmed: z.literal(true).describe(
+        "True only after the user confirmed this exact installation"
+      ),
+    },
+    annotations: {
+      title: "Install customer application recipe",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    project_id,
+    revision,
+    secrets,
+    acknowledge_runtime_restart,
+    idempotencyKey,
+  }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(
+        orderNo,
+        `custom-projects/${encodeURIComponent(project_id)}/install`
+      ),
+      {
+        revision,
+        secrets,
+        acknowledgeCustomRecipeRisks: true,
+        acknowledgeRuntimeRestart: acknowledge_runtime_restart === true,
+      },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(
+          safeCustomProjectInstallPayload(
+            status,
+            data,
+            `/management/service/${encodeURIComponent(orderNo)}/applications`
+          )
+        ),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "discover_service_containers",
+  {
+    description:
+      "Run a bounded read-only Docker discovery on one supported Firecracker service. Returns container names, images, state, health, published ports, Compose labels, and whether each container is VPSnet-managed. It never returns environment values or mounts and does not adopt or modify containers. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+    },
+    annotations: {
+      title: "Discover service containers",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const basePath = applicationPath(orderNo, "container-discoveries");
+    const { status, data } = await runApplicationAsyncOperation(
+      basePath,
+      (id) => `${basePath}/${id}`,
+      "discovery"
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeContainerDiscoveryPayload(status, data)),
+      }],
     };
   }
 );
