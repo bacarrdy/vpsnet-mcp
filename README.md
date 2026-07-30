@@ -67,10 +67,11 @@ VPSnet-managed DNS zone. `external_https` records an existing customer-managed
 HTTPS address; VPSnet does not configure or validate its DNS, TLS certificate,
 or reverse proxy.
 
-`list_application_registry_credentials` exposes only Docker Hub/GHCR credential
+`list_application_registry_credentials` exposes only private registry credential
 metadata. Registry token creation and rotation are intentionally not MCP tools:
 use the VPSnet panel or direct REST API so a token never enters a model prompt or
-tool argument.
+tool argument. Metadata can identify Docker Hub, GHCR, or an exact custom HTTPS
+registry hostname.
 
 Customer recipes are customer-owned Compose definitions, separate from VPSnet
 catalog blueprints. They can be validated on the target worker, saved as
@@ -408,7 +409,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `quote_application_data_restore` | Freeze the exact selective-restore balance charge without payment |
 | `restore_application_data` | Pay and queue confirmed selective replacement of declared application data |
 | `get_application_data_restore` | Poll one tenant-bound selective data restore |
-| `list_application_registry_credentials` | List non-secret Docker Hub/GHCR credential metadata |
+| `list_application_registry_credentials` | List non-secret private registry credential metadata |
 | `validate_application_recipe` | Validate customer Compose against the target worker policy |
 | `list_application_recipes` | List customer-owned immutable recipe projects |
 | `list_application_recipe_revisions` | List immutable revisions for a customer recipe |
