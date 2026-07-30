@@ -52,10 +52,10 @@ and installable below those figures. Product, OS, architecture, and runtime
 compatibility remain hard requirements. Changes are asynchronous, so verify them
 with `get_application_installation` and `get_application_events`. Use
 `get_application_health` for a fresh container-health inspection and
-`get_application_logs` for recent size-bounded troubleshooting logs. Log
-inspections accept at most 500 lines and 131,072 bytes. These two read-scoped
-inspections create short-lived inspection jobs, so the API key must permit POST
-requests.
+`get_application_logs` for recent size-bounded troubleshooting logs, optionally
+limited to one exact Compose service. Log inspections accept at most 500 lines
+and 131,072 bytes. These two read-scoped inspections create short-lived
+inspection jobs, so the API key must permit POST requests.
 
 Use `configure_application_access` to change how an installed application is
 reached. Read the installation first and pass its current revision with a new

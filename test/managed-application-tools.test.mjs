@@ -38,6 +38,10 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.ok(logs);
   assert.equal(logs.inputSchema.properties?.tail_lines.maximum, 500);
   assert.equal(logs.inputSchema.properties?.max_bytes.maximum, 131072);
+  assert.equal(
+    logs.inputSchema.properties?.service.pattern,
+    "^[a-z0-9][a-z0-9_-]{0,62}$"
+  );
 
   assert.ok(catalog);
   assert.doesNotMatch(catalog.description, /upstream publisher|support boundary|authorship/i);
