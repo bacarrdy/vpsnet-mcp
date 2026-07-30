@@ -18,6 +18,12 @@ export const applicationLogMaxBytesSchema = z
     "Maximum log size in bytes; defaults to 65536 and cannot exceed 131072"
   );
 
+export const applicationLogServiceSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9_-]{0,62}$/)
+  .optional()
+  .describe("Optional exact Compose service whose recent logs should be returned");
+
 export const applicationActionSchema = z
   .enum([
     "reconcile",
@@ -198,6 +204,11 @@ function boundedInteger(value: unknown, max: number): number | null {
 function timestamp(value: unknown): string | null {
   const text = boundedString(value, 64);
   return text && Number.isFinite(Date.parse(text)) ? text : null;
+}
+
+function composeServiceName(value: unknown): string | null {
+  const name = boundedString(value, 63);
+  return name && /^[a-z0-9][a-z0-9_-]{0,62}$/.test(name) ? name : null;
 }
 
 const PRIVATE_KEY_BLOCK = /-----BEGIN ([A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?)-----[\s\S]*?-----END \1-----/gi;
@@ -446,6 +457,7 @@ export function safeApplicationInspectionPayload(
       parameters: {
         tail_lines: boundedInteger(parameters.tail_lines, 500),
         max_bytes: boundedInteger(parameters.max_bytes, 131072),
+        service: composeServiceName(parameters.service),
       },
       result: safeInspectionResult(result, expectedKind),
       error_code: boundedString(inspection.error_code, 128),

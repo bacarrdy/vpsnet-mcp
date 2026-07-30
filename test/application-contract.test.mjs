@@ -12,6 +12,7 @@ import {
   applicationInstallRequestBody,
   applicationLifecycleRequestBody,
   applicationLogMaxBytesSchema,
+  applicationLogServiceSchema,
   applicationLogTailLinesSchema,
   applicationExpectedVersionSchema,
   safeApplicationInspectionPayload,
@@ -29,6 +30,9 @@ test("managed application log inspection limits match the backend contract", () 
   assert.equal(applicationLogMaxBytesSchema.parse(1024), 1024);
   assert.equal(applicationLogMaxBytesSchema.parse(131072), 131072);
   assert.equal(applicationLogMaxBytesSchema.safeParse(131073).success, false);
+
+  assert.equal(applicationLogServiceSchema.parse("web-1"), "web-1");
+  assert.equal(applicationLogServiceSchema.safeParse("../web").success, false);
 });
 
 test("managed application lifecycle supports immutable update only", () => {
@@ -307,6 +311,11 @@ test("inspection output preserves the backend logs result envelope", () => {
       installation_id: "installation-1",
       kind: "logs",
       state: "succeeded",
+      parameters: {
+        tail_lines: 200,
+        max_bytes: 65536,
+        service: "web",
+      },
       result: {
         logs: {
           content: `service ready\npassword=${secret}\nrelay=${relayToken}`,
@@ -331,6 +340,7 @@ test("inspection output preserves the backend logs result envelope", () => {
   assert.match(projected.inspection.result.logs.content, /password=\[redacted\]/);
   assert.equal(projected.inspection.result.worker_node, "worker-1");
   assert.equal(projected.inspection.result.worker_release, "runner-1.2.3");
+  assert.equal(projected.inspection.parameters.service, "web");
   assert.equal(projected.inspection.worker_node, undefined);
   assert.equal(projected.inspection.worker_release, undefined);
 });

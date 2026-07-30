@@ -16,6 +16,7 @@ import {
   applicationInstallRequestBody,
   applicationLifecycleRequestBody,
   applicationLogMaxBytesSchema,
+  applicationLogServiceSchema,
   applicationLogTailLinesSchema,
   applicationRevisionSchema,
   applicationUpdateCandidateMatches,
@@ -742,12 +743,13 @@ server.registerTool(
   "get_application_logs",
   {
     description:
-      "Run an on-demand logs inspection of one owned managed application and return recent, size-bounded container logs for troubleshooting. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
+      "Run an on-demand logs inspection of one owned managed application and return recent, size-bounded container logs for troubleshooting. Optionally select one exact Compose service; omit it to inspect all services. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
       tail_lines: applicationLogTailLinesSchema,
       max_bytes: applicationLogMaxBytesSchema,
+      service: applicationLogServiceSchema,
     },
     annotations: {
       title: "Inspect managed application logs",
@@ -756,7 +758,7 @@ server.registerTool(
       idempotentHint: true,
     },
   },
-  async ({ orderNo, installation_id, tail_lines, max_bytes }) => {
+  async ({ orderNo, installation_id, tail_lines, max_bytes, service }) => {
     const body: Record<string, unknown> = {};
     if (typeof tail_lines === "number") {
       body.tailLines = tail_lines;
@@ -764,6 +766,10 @@ server.registerTool(
 
     if (typeof max_bytes === "number") {
       body.maxBytes = max_bytes;
+    }
+
+    if (typeof service === "string") {
+      body.service = service;
     }
 
     const { status, data } = await runApplicationInspection(
