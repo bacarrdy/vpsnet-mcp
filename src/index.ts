@@ -33,6 +33,8 @@ import {
   safeApplicationRegistryCredentialPayload,
 } from "./application-contract.js";
 import {
+  composeAdoptionIdSchema,
+  composeProjectLabelSchema,
   customProjectComposeSchema,
   customProjectDefinitionRequestBody,
   customProjectEnvironmentSchema,
@@ -42,6 +44,8 @@ import {
   customProjectRevisionSchema,
   customProjectSecretNamesSchema,
   customProjectSecretsSchema,
+  safeComposeAdoptionConfirmationPayload,
+  safeComposeAdoptionPayload,
   safeContainerDiscoveryPayload,
   safeCustomProjectInstallPayload,
   safeCustomProjectPayload,
@@ -79,7 +83,7 @@ const server = new McpServer(
       "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
       "Use list_application_registry_credentials only for non-secret Docker Hub/GHCR credential metadata. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
       "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. validate_application_recipe checks the exact Compose document on the target worker; create_application_recipe and create_application_recipe_revision freeze immutable customer revisions; install_application_recipe installs an exact validated revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
-      "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery does not adopt, stop, remove, or otherwise manage customer-created containers.",
+      "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery never modifies containers. Compose adoption is a separate prepare → inspect → explicit confirm flow; only confirm_application_compose_adoption stops source containers, and only after the user approves the exact candidate and source-stop acknowledgement.",
       "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
       "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
       "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
@@ -670,7 +674,7 @@ type ApplicationAsyncEnvelope = {
 
 function applicationAsyncEnvelope(
   data: unknown,
-  key: "validation" | "discovery"
+  key: "validation" | "discovery" | "adoption"
 ): ApplicationAsyncEnvelope {
   if (!data || typeof data !== "object" || Array.isArray(data)) return {};
   const value = (data as Record<string, unknown>)[key];
@@ -682,7 +686,7 @@ function applicationAsyncEnvelope(
 async function runApplicationAsyncOperation(
   createPath: string,
   pollPath: (id: string) => string,
-  key: "validation" | "discovery",
+  key: "validation" | "discovery" | "adoption",
   body?: Record<string, unknown>
 ): Promise<{ status: number; data: unknown }> {
   const created = await apiRequest("POST", createPath, body);
@@ -1368,6 +1372,158 @@ server.registerTool(
       content: [{
         type: "text",
         text: formatJson(safeContainerDiscoveryPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "prepare_application_compose_adoption",
+  {
+    description:
+      "Prepare and poll a short-lived, read-only takeover candidate for one exact unmanaged Compose project from a fresh discovery. The worker verifies container identity, immutable image identity, restart policy, Compose safety, and exclusive local named-volume ownership. Returns only a scrubbed Compose file, variable names, and bounded counts; never variable values, source paths, commands, or unrestricted labels. This tool does not stop or replace containers. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      discovery_id: z.string().uuid().describe(
+        "Fresh discovery UUID returned by discover_service_containers"
+      ),
+      compose_project: composeProjectLabelSchema,
+    },
+    annotations: {
+      title: "Prepare Compose project adoption",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, discovery_id, compose_project }) => {
+    const discoveryPath = applicationPath(
+      orderNo,
+      `container-discoveries/${encodeURIComponent(discovery_id)}`
+    );
+    const { status, data } = await runApplicationAsyncOperation(
+      `${discoveryPath}/adoptions`,
+      (id) => applicationPath(
+        orderNo,
+        `compose-adoptions/${id}`
+      ),
+      "adoption",
+      { compose_project }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeComposeAdoptionPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_application_compose_adoption",
+  {
+    description:
+      "Poll one tenant-bound Compose adoption candidate. Inspect eligibility, the reconstructed Compose file, all variable names, container count, and data-volume count before requesting destructive confirmation. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      adoption_id: composeAdoptionIdSchema,
+    },
+    annotations: {
+      title: "Get Compose project adoption",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, adoption_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      applicationPath(
+        orderNo,
+        `compose-adoptions/${encodeURIComponent(adoption_id)}`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeComposeAdoptionPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "confirm_application_compose_adoption",
+  {
+    description:
+      "Confirm the one-time takeover of an eligible unexpired Compose candidate. Re-enter every declared variable because VPSnet never reads or copies existing values. This destructive operation revalidates the exact source, stops its containers, and starts a managed replacement with the same verified local named volumes; a startup failure restores the original restart policies and containers. Confirm the exact service, candidate, reconstructed recipe, variable NAMES, container/volume counts, and source-stop impact with the user first. Never repeat secret values in approval text or results. Requires applications:manage.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      adoption_id: composeAdoptionIdSchema,
+      name: customProjectNameSchema,
+      env: customProjectEnvironmentSchema,
+      secrets: customProjectSecretsSchema,
+      registry_credential_ids: customProjectRegistryCredentialIdsSchema,
+      acknowledge_source_stop: z.literal(true).describe(
+        "True only after the user approved stopping the exact source containers during takeover"
+      ),
+      acknowledge_recipe_risks: z.literal(true).describe(
+        "True only after the user approved the reconstructed customer-owned recipe"
+      ),
+      acknowledge_runtime_restart: z.literal(true).optional().describe(
+        "Explicit consent for a possible one-time service restart while the application runtime is prepared"
+      ),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact adoption confirmation."
+      ),
+      confirmed: z.literal(true).describe(
+        "True only after the user confirmed this exact destructive takeover"
+      ),
+    },
+    annotations: {
+      title: "Confirm Compose project adoption",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    adoption_id,
+    name,
+    env,
+    secrets,
+    registry_credential_ids,
+    acknowledge_runtime_restart,
+    idempotencyKey,
+  }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(
+        orderNo,
+        `compose-adoptions/${encodeURIComponent(adoption_id)}/confirm`
+      ),
+      {
+        name,
+        env,
+        secrets,
+        registry_credential_ids,
+        acknowledgeSourceStop: true,
+        acknowledgeCustomRecipeRisks: true,
+        acknowledgeRuntimeRestart: acknowledge_runtime_restart === true,
+      },
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(
+          safeComposeAdoptionConfirmationPayload(
+            status,
+            data,
+            `/management/service/${encodeURIComponent(orderNo)}/applications`
+          )
+        ),
       }],
     };
   }

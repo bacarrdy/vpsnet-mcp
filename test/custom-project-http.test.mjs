@@ -7,6 +7,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const INSTALLATION_ID = "b7ea0c2a-e6e4-4c25-87ca-c0cdf7e4ca42";
+const ADOPTION_ID = "650e8400-e29b-41d4-a716-446655440000";
 const COMPOSE = "services:\n  web:\n    image: docker.io/library/nginx@sha256:" + "a".repeat(64);
 
 test("customer recipe tools preserve exact HTTP contracts and redact results", async (t) => {
@@ -86,6 +87,77 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
             registry_credential_ids: [],
             secret_values: { DATABASE_PASSWORD: "must-not-leak" },
           },
+        },
+      };
+    } else if (
+      req.url.endsWith(`/container-discoveries/${PROJECT_ID}/adoptions`)
+    ) {
+      status = 202;
+      response = {
+        success: true,
+        replayed: false,
+        adoption: {
+          id: ADOPTION_ID,
+          state: "succeeded",
+          compose_project: "customer-stack",
+          eligible: true,
+          candidate: {
+            digest: "d".repeat(64),
+            compose_yaml: COMPOSE,
+            services: [{
+              name: "web",
+              environment_names: ["APP_MODE", "DATABASE_PASSWORD"],
+              environment_values: {
+                DATABASE_PASSWORD: "must-not-leak",
+              },
+            }],
+            container_count: 1,
+            volume_count: 1,
+          },
+          error_codes: [],
+          error_code: null,
+          confirmed: null,
+          timestamps: {},
+        },
+      };
+    } else if (
+      req.url.endsWith(`/compose-adoptions/${ADOPTION_ID}/confirm`)
+    ) {
+      status = 202;
+      response = {
+        success: true,
+        replayed: false,
+        adoption: { id: ADOPTION_ID, state: "confirmed" },
+        project: { id: PROJECT_ID },
+        installation: {
+          id: INSTALLATION_ID,
+          state: "queued",
+          secrets: { DATABASE_PASSWORD: "must-not-leak" },
+        },
+        action: { id: PROJECT_ID, state: "created" },
+      };
+    } else if (req.url.endsWith(`/compose-adoptions/${ADOPTION_ID}`)) {
+      response = {
+        success: true,
+        adoption: {
+          id: ADOPTION_ID,
+          state: "succeeded",
+          compose_project: "customer-stack",
+          eligible: true,
+          candidate: {
+            digest: "d".repeat(64),
+            compose_yaml: COMPOSE,
+            services: [{
+              name: "web",
+              environment_names: ["APP_MODE", "DATABASE_PASSWORD"],
+            }],
+            container_count: 1,
+            volume_count: 1,
+          },
+          error_codes: [],
+          error_code: null,
+          confirmed: null,
+          timestamps: {},
         },
       };
     } else if (req.url.endsWith("/container-discoveries")) {
@@ -222,4 +294,70 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
   );
   assert.equal(discovered.content[0].text.includes("must-not-leak"), false);
   assert.match(discovered.content[0].text, /manual-web/);
+
+  const prepared = await client.callTool({
+    name: "prepare_application_compose_adoption",
+    arguments: {
+      orderNo: "VP123",
+      discovery_id: PROJECT_ID,
+      compose_project: "customer-stack",
+    },
+  });
+  assert.equal(
+    requests[5].url,
+    `/account/services/VP123/applications/container-discoveries/${PROJECT_ID}/adoptions`
+  );
+  assert.deepEqual(requests[5].body, {
+    compose_project: "customer-stack",
+  });
+  assert.equal(prepared.content[0].text.includes("must-not-leak"), false);
+  assert.match(prepared.content[0].text, /DATABASE_PASSWORD/);
+
+  const polled = await client.callTool({
+    name: "get_application_compose_adoption",
+    arguments: {
+      orderNo: "VP123",
+      adoption_id: ADOPTION_ID,
+    },
+  });
+  assert.equal(
+    requests[6].url,
+    `/account/services/VP123/applications/compose-adoptions/${ADOPTION_ID}`
+  );
+  assert.match(polled.content[0].text, /customer-stack/);
+
+  const confirmed = await client.callTool({
+    name: "confirm_application_compose_adoption",
+    arguments: {
+      orderNo: "VP123",
+      adoption_id: ADOPTION_ID,
+      name: "managed-stack",
+      env: { APP_MODE: "production" },
+      secrets: { DATABASE_PASSWORD: "secret-from-user" },
+      registry_credential_ids: [],
+      acknowledge_source_stop: true,
+      acknowledge_recipe_risks: true,
+      idempotencyKey: "compose-adoption-key-0001",
+      confirmed: true,
+    },
+  });
+  assert.equal(
+    requests[7].url,
+    `/account/services/VP123/applications/compose-adoptions/${ADOPTION_ID}/confirm`
+  );
+  assert.deepEqual(requests[7].body, {
+    name: "managed-stack",
+    env: { APP_MODE: "production" },
+    secrets: { DATABASE_PASSWORD: "secret-from-user" },
+    registry_credential_ids: [],
+    acknowledgeSourceStop: true,
+    acknowledgeCustomRecipeRisks: true,
+    acknowledgeRuntimeRestart: false,
+  });
+  assert.equal(
+    requests[7].headers["idempotency-key"],
+    "compose-adoption-key-0001"
+  );
+  assert.equal(confirmed.content[0].text.includes("secret-from-user"), false);
+  assert.equal(confirmed.content[0].text.includes("must-not-leak"), false);
 });
