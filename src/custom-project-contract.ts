@@ -5,6 +5,16 @@ export const customProjectIdSchema = z
   .uuid()
   .describe("Customer-owned recipe project UUID returned by list_application_recipes");
 
+export const composeAdoptionIdSchema = z
+  .string()
+  .uuid()
+  .describe("Opaque Compose adoption UUID returned by the prepare operation");
+
+export const composeProjectLabelSchema = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9_-]{0,127}$/)
+  .describe("Exact unmanaged Compose project label returned by discovery");
+
 export const customProjectNameSchema = z
   .string()
   .regex(/^[a-z][a-z0-9-]{1,40}$/)
@@ -422,6 +432,128 @@ export function safeContainerDiscoveryPayload(
           }
         : null,
       timestamps: safeTimestamps(discovery.timestamps),
+    },
+  };
+}
+
+function safeComposeAdoption(value: unknown): Record<string, unknown> {
+  const adoption = record(value);
+  const candidate = record(adoption.candidate);
+  const confirmed = record(adoption.confirmed);
+  const services = Array.isArray(candidate.services)
+    ? candidate.services.slice(0, 128).map((value) => {
+        const service = record(value);
+        return {
+          name: boundedString(service.name, 128),
+          environment_names: Array.isArray(service.environment_names)
+            ? service.environment_names
+                .filter((name) =>
+                  typeof name === "string"
+                  && /^[A-Z][A-Z0-9_]{0,62}$/.test(name)
+                )
+                .slice(0, 256)
+            : [],
+        };
+      })
+    : [];
+  const errors = Array.isArray(adoption.error_codes)
+    ? adoption.error_codes
+        .filter((code) =>
+          typeof code === "string"
+          && /^[a-z][a-z0-9_]{0,95}$/.test(code)
+        )
+        .slice(0, 32)
+    : [];
+
+  return {
+    id: boundedString(adoption.id, 64),
+    state: boundedString(adoption.state, 32),
+    compose_project: boundedString(adoption.compose_project, 128),
+    eligible: typeof adoption.eligible === "boolean"
+      ? adoption.eligible
+      : null,
+    candidate: Object.keys(candidate).length > 0
+      ? {
+          digest: boundedString(candidate.digest, 64),
+          compose_yaml: typeof candidate.compose_yaml === "string"
+            ? candidate.compose_yaml.slice(0, 262144)
+            : "",
+          services,
+          container_count: boundedInteger(candidate.container_count, 128),
+          volume_count: boundedInteger(candidate.volume_count, 256),
+        }
+      : null,
+    error_codes: errors,
+    error_code: boundedString(adoption.error_code, 128),
+    confirmed: Object.keys(confirmed).length > 0
+      ? {
+          project_id: boundedString(confirmed.project_id, 64),
+          installation_id: boundedString(confirmed.installation_id, 64),
+        }
+      : null,
+    timestamps: safeTimestamps(adoption.timestamps),
+  };
+}
+
+export function safeComposeAdoptionPayload(
+  status: number,
+  data: unknown
+): Record<string, unknown> {
+  const payload = record(data);
+  if (status < 200 || status >= 300 || payload.success !== true) {
+    return {
+      success: false,
+      status,
+      error_codes: errorCodes(payload),
+    };
+  }
+
+  return {
+    success: true,
+    replayed: payload.replayed === true,
+    adoption: safeComposeAdoption(payload.adoption),
+  };
+}
+
+export function safeComposeAdoptionConfirmationPayload(
+  status: number,
+  data: unknown,
+  portalPath: string
+): Record<string, unknown> {
+  const payload = record(data);
+  if (status < 200 || status >= 300 || payload.success !== true) {
+    return {
+      success: false,
+      status,
+      error_codes: errorCodes(payload),
+    };
+  }
+
+  const adoption = record(payload.adoption);
+  const project = record(payload.project);
+  const installation = record(payload.installation);
+  const action = record(payload.action);
+  return {
+    success: true,
+    replayed: payload.replayed === true,
+    adoption: {
+      id: boundedString(adoption.id, 64),
+      state: adoption.state === "confirmed" ? "confirmed" : null,
+    },
+    project: {
+      id: boundedString(project.id, 64),
+    },
+    installation: {
+      id: boundedString(installation.id, 64),
+      state: boundedString(installation.state, 32),
+    },
+    action: {
+      id: boundedString(action.id, 64),
+      state: boundedString(action.state, 32),
+    },
+    portal_handoff: {
+      access_path: portalPath,
+      reason: "application_status_and_secret_reveal",
     },
   };
 }

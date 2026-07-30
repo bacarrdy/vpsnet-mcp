@@ -26,6 +26,9 @@ test("tools/list exposes customer recipe and read-only discovery contracts", asy
     "export_application_recipe",
     "install_application_recipe",
     "discover_service_containers",
+    "prepare_application_compose_adoption",
+    "get_application_compose_adoption",
+    "confirm_application_compose_adoption",
   ]) {
     assert.ok(byName.has(name), `${name} must be registered`);
   }
@@ -57,4 +60,20 @@ test("tools/list exposes customer recipe and read-only discovery contracts", asy
   const discover = byName.get("discover_service_containers");
   assert.match(discover.description, /never returns environment values or mounts/i);
   assert.match(discover.description, /does not adopt or modify containers/i);
+
+  const prepareAdoption = byName.get("prepare_application_compose_adoption");
+  assert.equal(prepareAdoption.annotations?.destructiveHint, false);
+  assert.match(prepareAdoption.description, /does not stop or replace containers/i);
+
+  const getAdoption = byName.get("get_application_compose_adoption");
+  assert.equal(getAdoption.annotations?.readOnlyHint, true);
+
+  const confirmAdoption = byName.get("confirm_application_compose_adoption");
+  assert.equal(confirmAdoption.annotations?.destructiveHint, true);
+  assert.equal(
+    confirmAdoption.inputSchema.properties?.acknowledge_source_stop.const,
+    true
+  );
+  assert.equal(confirmAdoption.inputSchema.properties?.confirmed.const, true);
+  assert.match(confirmAdoption.description, /never repeat secret values/i);
 });

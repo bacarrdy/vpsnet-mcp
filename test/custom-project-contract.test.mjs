@@ -6,6 +6,8 @@ import {
   customProjectDefinitionRequestBody,
   customProjectEnvironmentSchema,
   customProjectSecretNamesSchema,
+  safeComposeAdoptionConfirmationPayload,
+  safeComposeAdoptionPayload,
   safeContainerDiscoveryPayload,
   safeCustomProjectInstallPayload,
   safeCustomProjectReceiptPayload,
@@ -143,4 +145,66 @@ test("container discovery exposes bounded status only", () => {
   assert.equal(safe.discovery.result.containers[0].name, "customer-web");
   assert.equal(JSON.stringify(safe).includes("must-not-leak"), false);
   assert.equal(JSON.stringify(safe).includes("/host:/guest"), false);
+});
+
+test("compose adoption exposes only scrubbed candidate metadata", () => {
+  const safe = safeComposeAdoptionPayload(200, {
+    success: true,
+    adoption: {
+      id: PROJECT_ID,
+      state: "succeeded",
+      compose_project: "customer-stack",
+      eligible: true,
+      candidate: {
+        digest: "a".repeat(64),
+        compose_yaml: "services:\n  web:\n    image: nginx\n",
+        services: [{
+          name: "web",
+          environment_names: ["TOKEN"],
+          environment_values: { TOKEN: "must-not-leak" },
+        }],
+        container_count: 1,
+        volume_count: 1,
+        source_paths: ["/srv/private"],
+      },
+      error_codes: [],
+      error_code: null,
+      confirmed: null,
+      timestamps: {},
+    },
+  });
+
+  assert.equal(safe.success, true);
+  assert.deepEqual(
+    safe.adoption.candidate.services[0].environment_names,
+    ["TOKEN"]
+  );
+  assert.equal(JSON.stringify(safe).includes("must-not-leak"), false);
+  assert.equal(JSON.stringify(safe).includes("/srv/private"), false);
+});
+
+test("compose adoption confirmation result omits submitted and backend secrets", () => {
+  const safe = safeComposeAdoptionConfirmationPayload(
+    202,
+    {
+      success: true,
+      replayed: false,
+      adoption: { id: PROJECT_ID, state: "confirmed" },
+      project: { id: PROJECT_ID, secret: "must-not-leak" },
+      installation: {
+        id: INSTALLATION_ID,
+        state: "queued",
+        secrets: { TOKEN: "must-not-leak" },
+      },
+      action: { id: PROJECT_ID, state: "created" },
+    },
+    "/management/service/VP123/applications"
+  );
+
+  assert.equal(safe.success, true);
+  assert.equal(JSON.stringify(safe).includes("must-not-leak"), false);
+  assert.equal(
+    safe.portal_handoff.access_path,
+    "/management/service/VP123/applications"
+  );
 });
