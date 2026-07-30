@@ -79,7 +79,11 @@ immutable revisions, installed through the managed lifecycle, and exported
 without secret values. VPSnet catalog recipes are never exportable. Container
 discovery is bounded and read-only: it reports customer and managed containers
 without returning environment values or mounts, and it never adopts or modifies
-detected containers.
+detected containers. Controlled adoption is a separate prepare, inspect, and
+explicit-confirm flow for an eligible Compose project. The initial takeover is
+one-time, but its exact external-volume binding remains signed into later
+lifecycle actions. Recovery restarts the source only after the managed
+replacement is conclusively contained; uncertain outcomes fail closed.
 
 An immutable update is available only when `get_application_installation`
 returns an `available_actions` entry with `type: "update"`. After explicit user
@@ -417,7 +421,10 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `create_application_recipe_revision` | Validate and save a later immutable customer recipe revision |
 | `export_application_recipe` | Export only a customer-owned recipe without secret values |
 | `install_application_recipe` | Install an exact validated customer recipe revision |
-| `discover_service_containers` | Discover bounded read-only container metadata without adoption |
+| `discover_service_containers` | Discover bounded read-only container metadata |
+| `prepare_application_compose_adoption` | Prepare and poll a scrubbed candidate for one discovered Compose project |
+| `get_application_compose_adoption` | Poll one tenant-bound Compose adoption candidate |
+| `confirm_application_compose_adoption` | Confirm the exact source takeover after explicit approval |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
 | `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement |
