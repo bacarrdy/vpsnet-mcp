@@ -12,7 +12,7 @@ export const composeAdoptionIdSchema = z
 
 export const composeProjectLabelSchema = z
   .string()
-  .regex(/^[a-z0-9][a-z0-9_-]{0,127}$/)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/)
   .describe("Exact unmanaged Compose project label returned by discovery");
 
 export const customProjectNameSchema = z
@@ -441,17 +441,17 @@ function safeComposeAdoption(value: unknown): Record<string, unknown> {
   const candidate = record(adoption.candidate);
   const confirmed = record(adoption.confirmed);
   const services = Array.isArray(candidate.services)
-    ? candidate.services.slice(0, 128).map((value) => {
+    ? candidate.services.slice(0, 16).map((value) => {
         const service = record(value);
         return {
-          name: boundedString(service.name, 128),
+          name: boundedString(service.name, 63),
           environment_names: Array.isArray(service.environment_names)
             ? service.environment_names
                 .filter((name) =>
                   typeof name === "string"
                   && /^[A-Z][A-Z0-9_]{0,62}$/.test(name)
                 )
-                .slice(0, 256)
+                .slice(0, 64)
             : [],
         };
       })
@@ -462,7 +462,7 @@ function safeComposeAdoption(value: unknown): Record<string, unknown> {
           typeof code === "string"
           && /^[a-z][a-z0-9_]{0,95}$/.test(code)
         )
-        .slice(0, 32)
+        .slice(0, 16)
     : [];
 
   return {
@@ -479,8 +479,8 @@ function safeComposeAdoption(value: unknown): Record<string, unknown> {
             ? candidate.compose_yaml.slice(0, 262144)
             : "",
           services,
-          container_count: boundedInteger(candidate.container_count, 128),
-          volume_count: boundedInteger(candidate.volume_count, 256),
+          container_count: boundedInteger(candidate.container_count, 16),
+          volume_count: boundedInteger(candidate.volume_count, 32),
         }
       : null,
     error_codes: errors,

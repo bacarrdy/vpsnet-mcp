@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  composeProjectLabelSchema,
   customProjectComposeSchema,
   customProjectDefinitionRequestBody,
   customProjectEnvironmentSchema,
@@ -31,6 +32,12 @@ test("customer recipe input limits match the backend contract", () => {
     customProjectSecretNamesSchema.safeParse(["TOKEN", "TOKEN"]).success,
     false
   );
+});
+
+test("compose adoption accepts exact Docker Compose project labels", () => {
+  assert.equal(composeProjectLabelSchema.safeParse("Customer.Stack_1").success, true);
+  assert.equal(composeProjectLabelSchema.safeParse("-customer").success, false);
+  assert.equal(composeProjectLabelSchema.safeParse("customer stack").success, false);
 });
 
 test("customer recipe definition body contains names but never secret values", () => {
