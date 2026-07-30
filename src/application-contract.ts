@@ -35,7 +35,7 @@ export const applicationActionSchema = z
     "update",
   ])
   .describe(
-    "Supported lifecycle action. Update applies the backend-selected newer immutable release; application backup and restore are unavailable."
+    "Supported lifecycle action. Update applies the backend-selected newer immutable release. Selective data restore is a separate revision-bound operation."
   );
 
 export type ApplicationLifecycleAction = z.infer<
@@ -126,6 +126,29 @@ export const applicationRevisionSchema = z
     "Current installation revision returned by get_application_installation"
   );
 
+export const applicationDataRestorePointIdSchema = z
+  .string()
+  .uuid()
+  .describe(
+    "Opaque eligible backup-point UUID returned by list_application_restore_points"
+  );
+
+export const applicationDataRestoreIdSchema = z
+  .string()
+  .uuid()
+  .describe(
+    "Opaque selective restore UUID returned by restore_application_data"
+  );
+
+export const applicationDataRestoreQuoteTokenSchema = z
+  .string()
+  .min(32)
+  .max(190)
+  .regex(/^[A-Za-z0-9_.:-]+$/)
+  .describe(
+    "Exact short-lived quote token returned by quote_application_data_restore"
+  );
+
 export function applicationAccessConfigurationRequestBody(
   access: ApplicationAccess,
   expectedRevision: number
@@ -175,6 +198,34 @@ export function applicationLifecycleRequestBody(
     : { action };
 }
 
+export function applicationDataRestoreRequestBody(params: {
+  orderNo: string;
+  backupPointId: string;
+  expectedRevision: number;
+  quoteToken: string;
+}): Record<string, unknown> {
+  return {
+    orderNo: params.orderNo,
+    backupPointId: params.backupPointId,
+    expectedRevision: params.expectedRevision,
+    acknowledgeDataReplacement: true,
+    acknowledgeRestoreCharge: true,
+    quoteToken: params.quoteToken,
+  };
+}
+
+export function applicationDataRestoreQuoteRequestBody(params: {
+  orderNo: string;
+  backupPointId: string;
+  expectedRevision: number;
+}): Record<string, unknown> {
+  return {
+    orderNo: params.orderNo,
+    backupPointId: params.backupPointId,
+    expectedRevision: params.expectedRevision,
+  };
+}
+
 export function applicationActionCancellationRequestBody(): Record<
   string,
   never
@@ -204,6 +255,255 @@ function boundedInteger(value: unknown, max: number): number | null {
 function timestamp(value: unknown): string | null {
   const text = boundedString(value, 64);
   return text && Number.isFinite(Date.parse(text)) ? text : null;
+}
+
+function uuidV4(value: unknown): string | null {
+  const id = boundedString(value, 36);
+  return id
+    && /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(id)
+    ? id
+    : null;
+}
+
+const APPLICATION_DATA_RESTORE_STATES = new Set([
+  "awaiting_payment",
+  "queued",
+  "running",
+  "awaiting_reply",
+  "needs_attention",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
+
+const APPLICATION_DATA_RESTORE_STAGES = new Set([
+  "awaiting_payment",
+  "queued",
+  "verifying",
+  "restoring",
+  "retrying",
+  "needs_attention",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+
+function safeApplicationDataRestore(value: unknown): Record<string, unknown> | null {
+  const restore = record(value);
+  const id = uuidV4(restore.id);
+  const installationId = uuidV4(restore.installationId);
+  const backupPointId = uuidV4(restore.backupPointId);
+  const state = boundedString(restore.state, 32);
+  const progress = record(restore.progress);
+  const percent = boundedInteger(progress.percent, 100);
+  const stage = boundedString(progress.stage, 32);
+  const createdAt = timestamp(restore.createdAt);
+  if (
+    !id
+    || !installationId
+    || !backupPointId
+    || !state
+    || !APPLICATION_DATA_RESTORE_STATES.has(state)
+    || percent === null
+    || !stage
+    || !APPLICATION_DATA_RESTORE_STAGES.has(stage)
+    || !createdAt
+  ) {
+    return null;
+  }
+
+  const restoreMode = boundedString(restore.restoreMode, 16);
+  const restoredBytes = restore.restoredBytes === null
+    ? null
+    : boundedInteger(restore.restoredBytes, Number.MAX_SAFE_INTEGER);
+  const restoredItems = restore.restoredItems === null
+    ? null
+    : boundedInteger(restore.restoredItems, 100000);
+
+  return {
+    id,
+    installation_id: installationId,
+    backup_point_id: backupPointId,
+    state,
+    progress: { percent, stage },
+    restore_mode: restoreMode === "direct" || restoreMode === "staged"
+      ? restoreMode
+      : null,
+    restored_bytes: restoredBytes,
+    restored_items: restoredItems,
+    health_status: boundedString(restore.healthStatus, 64),
+    error_code: boundedString(restore.errorCode, 96),
+    restore_request_id: boundedInteger(
+      restore.restoreRequestId,
+      Number.MAX_SAFE_INTEGER
+    ),
+    price_ex_vat: boundedMoney(restore.priceExVat),
+    total_charged: boundedMoney(restore.totalCharged),
+    created_at: createdAt,
+    completed_at: timestamp(restore.completedAt),
+  };
+}
+
+function boundedMoney(value: unknown): number | null {
+    const amount = Number(value);
+    return Number.isFinite(amount) && amount >= 0 && amount <= 1_000_000
+      ? Math.round(amount * 100) / 100
+      : null;
+}
+
+function boundedBalance(value: unknown): number | null {
+  const amount = Number(value);
+  return Number.isFinite(amount)
+    && amount >= -1_000_000
+    && amount <= 1_000_000
+    ? Math.round(amount * 100) / 100
+    : null;
+}
+
+function safeApplicationDataRestoreQuote(
+  value: unknown
+): Record<string, unknown> | null {
+  const quote = record(value);
+  const priceExVat = boundedMoney(quote.price_ex_vat);
+  const vatRate = Number(quote.vat_rate);
+  const totalCharged = boundedMoney(quote.total_charged);
+  const balance = boundedBalance(quote.balance);
+  if (
+    priceExVat === null
+    || !Number.isFinite(vatRate)
+    || vatRate < 0
+    || vatRate > 100
+    || totalCharged === null
+    || balance === null
+    || typeof quote.balance_sufficient !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    price_ex_vat: priceExVat,
+    vat_rate: Math.round(vatRate * 100) / 100,
+    total_charged: totalCharged,
+    balance,
+    balance_sufficient: quote.balance_sufficient,
+  };
+}
+
+export function safeApplicationDataRestorePointsPayload(
+  status: number,
+  data: unknown
+): Record<string, unknown> {
+  const payload = record(data);
+  if (status < 200 || status >= 300 || payload.success !== true) {
+    return {
+      success: false,
+      status,
+      error_codes: errorCodes(payload),
+    };
+  }
+
+  const points = Array.isArray(payload.points)
+    ? payload.points.slice(0, 100).flatMap((value) => {
+        const point = record(value);
+        const id = uuidV4(point.id);
+        const capturedAt = timestamp(point.capturedAt);
+        const expiresAt = timestamp(point.expiresAt);
+        const sizeBytes = boundedInteger(
+          point.sizeBytes,
+          Number.MAX_SAFE_INTEGER
+        );
+        return id
+          && capturedAt
+          && expiresAt
+          && sizeBytes !== null
+          && point.consistency === "application"
+          ? [{
+              id,
+              captured_at: capturedAt,
+              expires_at: expiresAt,
+              size_bytes: sizeBytes,
+              consistency: "application",
+            }]
+          : [];
+      })
+    : [];
+  const quote = safeApplicationDataRestoreQuote(payload.quote);
+  if (quote === null) {
+    return {
+      success: false,
+      status,
+      error_codes: ["applicationDataRestoreQuoteInvalid"],
+    };
+  }
+
+  return {
+    success: true,
+    points,
+    quote,
+    active_restore: payload.activeRestore === null
+      ? null
+      : safeApplicationDataRestore(payload.activeRestore),
+  };
+}
+
+export function safeApplicationDataRestoreQuotePayload(
+  status: number,
+  data: unknown
+): Record<string, unknown> {
+  const payload = record(data);
+  const quote = safeApplicationDataRestoreQuote(payload.quote);
+  const quoteToken = boundedString(payload.quoteToken, 190);
+  const quoteExpiresAt = timestamp(payload.quoteExpiresAt);
+  if (
+    status < 200
+    || status >= 300
+    || payload.success !== true
+    || quote === null
+    || !quoteToken
+    || !/^[A-Za-z0-9_.:-]{32,190}$/.test(quoteToken)
+    || !quoteExpiresAt
+  ) {
+    return {
+      success: false,
+      status,
+      error_codes: errorCodes(payload),
+    };
+  }
+
+  return {
+    success: true,
+    quote,
+    quote_token: quoteToken,
+    quote_expires_at: quoteExpiresAt,
+  };
+}
+
+export function safeApplicationDataRestorePayload(
+  status: number,
+  data: unknown
+): Record<string, unknown> {
+  const payload = record(data);
+  const restore = safeApplicationDataRestore(payload.restore);
+  if (
+    status < 200
+    || status >= 300
+    || payload.success !== true
+    || restore === null
+  ) {
+    return {
+      success: false,
+      status,
+      error_codes: errorCodes(payload),
+    };
+  }
+
+  return {
+    success: true,
+    ...(typeof payload.replayed === "boolean"
+      ? { replayed: payload.replayed }
+      : {}),
+    restore,
+  };
 }
 
 function composeServiceName(value: unknown): string | null {

@@ -34,6 +34,18 @@ test("tools/list exposes the backend-compatible managed application contract", a
   const cancelAction = tools.find(
     (tool) => tool.name === "cancel_application_action"
   );
+  const listRestorePoints = tools.find(
+    (tool) => tool.name === "list_application_restore_points"
+  );
+  const quoteRestore = tools.find(
+    (tool) => tool.name === "quote_application_data_restore"
+  );
+  const restoreData = tools.find(
+    (tool) => tool.name === "restore_application_data"
+  );
+  const getRestore = tools.find(
+    (tool) => tool.name === "get_application_data_restore"
+  );
 
   assert.ok(logs);
   assert.equal(logs.inputSchema.properties?.tail_lines.maximum, 500);
@@ -90,10 +102,38 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.equal(actions.includes("restore"), false);
   assert.equal(lifecycle.inputSchema.properties?.confirmed.const, true);
   assert.ok(cancelAction);
+  assert.ok(listRestorePoints);
+  assert.ok(quoteRestore);
+  assert.ok(restoreData);
+  assert.ok(getRestore);
+  assert.equal(listRestorePoints.annotations?.readOnlyHint, true);
+  assert.equal(restoreData.annotations?.destructiveHint, true);
+  assert.equal(getRestore.annotations?.readOnlyHint, true);
+  assert.equal(
+    restoreData.inputSchema.properties?.acknowledge_data_replacement.const,
+    true
+  );
+  assert.ok(restoreData.inputSchema.properties?.expected_revision);
+  assert.ok(restoreData.inputSchema.properties?.backup_point_id);
+  assert.doesNotMatch(
+    JSON.stringify(restoreData.inputSchema),
+    /pbs|archive|filesystem|device|path/i
+  );
   const idempotencyPattern = "^[A-Za-z0-9][A-Za-z0-9._:-]{7,189}$";
-  for (const tool of [install, configureAccess, lifecycle, cancelAction]) {
+  for (const tool of [
+    install,
+    configureAccess,
+    lifecycle,
+    cancelAction,
+  ]) {
     const schema = tool.inputSchema.properties?.idempotencyKey;
     assert.equal(schema.minLength, 8);
+    assert.equal(schema.maxLength, 190);
+    assert.equal(schema.pattern, idempotencyPattern);
+  }
+  for (const tool of [quoteRestore, restoreData]) {
+    const schema = tool.inputSchema.properties?.idempotencyKey;
+    assert.equal(schema.minLength, 16);
     assert.equal(schema.maxLength, 190);
     assert.equal(schema.pattern, idempotencyPattern);
   }
