@@ -45,7 +45,8 @@ deployment request. Catalog applications run as Docker containers in the
 customer's server and use typed installation and lifecycle tools.
 
 Application reads require `applications:read`. Installation and lifecycle
-changes require `applications:manage` and an idempotency key; they are not paid
+changes require `applications:manage` and an idempotency key; ordinary
+application lifecycle changes are not paid
 API-key operations. CPU, RAM, and disk figures are sizing recommendations, not
 installation gates: a supported application remains selectable during ordering
 and installable below those figures. Product, OS, architecture, and runtime
@@ -86,9 +87,26 @@ advertised `expected_blueprint_version` and `expected_upstream_version`, and a
 new idempotency key. Keys are client-global: reuse a key only to replay the
 exact same request, never for another service or operation. The
 backend selects and freezes the eligible published release; the caller does not
-submit an image, tag, or target version. Application-scoped backup and restore
-are not exposed in this release; whole-service backup and restore remain
-separate service operations.
+submit an image, tag, or target version.
+
+No separate application backup is created. On supported Firecracker services,
+`list_application_restore_points` returns opaque application-consistent nightly
+whole-VM points for the exact current installation revision.
+Viewing points is free, but API keys require `applications:manage`, paid
+operations enabled, `applications:restore` paid scope, and full access because
+the response includes the account balance.
+`quote_application_data_restore` freezes the exact
+charge without debiting the account. `restore_application_data` requires the
+returned quote token, the same idempotency key, and explicit confirmation of
+both payment and data replacement. Paid API keys also require
+`applications:restore`, paid operations enabled, and daily/monthly spend caps.
+It replaces only
+worker-derived declared application data, excludes secrets and unrelated
+Docker/server data, and requires rollback capacity. Poll
+`get_application_data_restore`; `needs_attention` remains locked and must not
+be treated as success. These tools never accept or expose PBS credentials,
+archive names, devices, or filesystem paths.
+
 Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
 `manage_application` call requires `acknowledge_data_loss=true` for uninstall,
@@ -386,6 +404,10 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `get_application_events` | Get bounded customer-safe installation events |
 | `get_application_health` | Run and poll a fresh container-health inspection |
 | `get_application_logs` | Run and poll a size-bounded recent-log inspection |
+| `list_application_restore_points` | List eligible nightly points for the exact application revision |
+| `quote_application_data_restore` | Freeze the exact selective-restore balance charge without payment |
+| `restore_application_data` | Pay and queue confirmed selective replacement of declared application data |
+| `get_application_data_restore` | Poll one tenant-bound selective data restore |
 | `list_application_registry_credentials` | List non-secret Docker Hub/GHCR credential metadata |
 | `validate_application_recipe` | Validate customer Compose against the target worker policy |
 | `list_application_recipes` | List customer-owned immutable recipe projects |

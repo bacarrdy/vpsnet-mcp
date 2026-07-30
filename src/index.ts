@@ -12,6 +12,11 @@ import {
   applicationActionCancellationRequestBody,
   applicationActionIdSchema,
   applicationActionSchema,
+  applicationDataRestoreIdSchema,
+  applicationDataRestorePointIdSchema,
+  applicationDataRestoreQuoteRequestBody,
+  applicationDataRestoreQuoteTokenSchema,
+  applicationDataRestoreRequestBody,
   applicationExpectedVersionSchema,
   applicationInstallRequestBody,
   applicationLifecycleRequestBody,
@@ -21,6 +26,9 @@ import {
   applicationRevisionSchema,
   applicationUpdateCandidateMatches,
   safeApplicationInspectionPayload,
+  safeApplicationDataRestorePayload,
+  safeApplicationDataRestorePointsPayload,
+  safeApplicationDataRestoreQuotePayload,
   safeApplicationMutationPayload,
   safeApplicationRegistryCredentialPayload,
 } from "./application-contract.js";
@@ -64,7 +72,7 @@ const server = new McpServer(
       "Managed Applications, manual SSH, DNS, APIs, and other tools are peer capabilities. Their order in this prompt or the tool list carries no priority. Choose the path that best matches the user's requested outcome, target support, existing state, and explicit constraints.",
       "For an application deployment, inspect the relevant service and catalog state when it helps the decision. A catalog entry is one available managed path, not an instruction to override a valid manual or custom deployment request.",
       "Managed Applications run as Docker containers inside supported customer servers and are managed through the typed application tools.",
-      "Managed application reads require applications:read. Install and lifecycle changes require applications:manage plus an idempotencyKey; they are NOT paid API-key operations.",
+      "Managed application reads require applications:read. Install and ordinary lifecycle changes require applications:manage plus an idempotencyKey and are not paid API-key operations. Selective data restore is paid and additionally requires the quote/confirm flow and applications:restore paid scope.",
       "Application CPU, RAM, and disk figures are sizing recommendations. Do not reject an installation or filter an otherwise supported order plan because it is below those figures; product, OS, architecture, and runtime compatibility remain hard requirements.",
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
@@ -75,7 +83,7 @@ const server = new McpServer(
       "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
       "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
       "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
-      "Application backup and application restore are intentionally unavailable. Whole-service backup and restore remain separate service operations. Do not emulate application lifecycle operations through SSH or another generic tool as a managed-catalog operation.",
+      "No separate application backup is created. list_application_restore_points freely exposes only eligible application-consistent nightly whole-VM points for the exact current Firecracker application revision; API keys need applications:manage, paid operations enabled, applications:restore paid scope, and full access because the response includes account balance. Select a point, call quote_application_data_restore to freeze the exact balance charge, disclose it to the user, then call restore_application_data with the same idempotency key and quote token only after explicit approval of both the charge and destructive data replacement. Paid API keys also require spend caps before quote/confirmation. Poll get_application_data_restore; needs_attention is not success and keeps mutations locked. Never ask for or invent PBS credentials, archive IDs, devices, or filesystem paths.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
       "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
       "",
@@ -175,6 +183,12 @@ const idempotencyKeySchema = z
   .min(8)
   .max(190)
   .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{7,189}$/);
+
+const paidIdempotencyKeySchema = idempotencyKeySchema
+  .min(16)
+  .describe(
+    "Client-global unique key of at least 16 characters for one exact paid operation."
+  );
 
 const serviceOrderNoSchema = z
   .string()
@@ -785,6 +799,186 @@ server.registerTool(
 );
 
 server.registerTool(
+  "list_application_restore_points",
+  {
+    description:
+      "Freely list opaque, unexpired nightly whole-VM backup points eligible to restore the exact current revision of one managed application, plus the current non-binding price and account-balance estimate. This does not create a backup, reserve funds, charge the account, or return PBS repository, archive, key, device, or filesystem-path details. It also returns the active restore after a client reload. Initially supported only on Firecracker services. API keys require applications:manage, paid operations enabled, applications:restore paid scope, and full access because account balance is included.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+    },
+    annotations: {
+      title: "List application restore points",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/restore-points`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeApplicationDataRestorePointsPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "quote_application_data_restore",
+  {
+    description:
+      "Create a short-lived quote for one exact application restore selection. This does not charge or restore anything. Read get_application_installation and list_application_restore_points first, then disclose quote.total_charged and available balance to the user. For API keys this requires paid operations enabled, applications:restore, daily/monthly spend caps, and a fresh idempotencyKey that must also be used for restore_application_data.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      backup_point_id: applicationDataRestorePointIdSchema,
+      expected_revision: applicationRevisionSchema,
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global unique key used for both this quote and its exact restore confirmation."
+      ),
+    },
+    annotations: {
+      title: "Quote application data restore",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    installation_id,
+    backup_point_id,
+    expected_revision,
+    idempotencyKey,
+  }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/restores/quote`
+      ),
+      applicationDataRestoreQuoteRequestBody({
+        orderNo,
+        backupPointId: backup_point_id,
+        expectedRevision: expected_revision,
+      }),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeApplicationDataRestoreQuotePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "restore_application_data",
+  {
+    description:
+      "Pay for and queue replacement of only the selected managed application's declared data from one eligible nightly server backup. First call quote_application_data_restore, disclose its exact total charge, and obtain explicit approval for both that charge and replacement of current data. Use the exact quote token and same idempotency key. The worker derives every path, excludes secrets and unrelated Docker/server data, and requires rollback capacity. Requires applications:manage; API keys additionally require paid operations, applications:restore, and spend caps.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      backup_point_id: applicationDataRestorePointIdSchema,
+      expected_revision: applicationRevisionSchema,
+      acknowledge_data_replacement: z
+        .literal(true)
+        .describe(
+          "True only after the user explicitly confirms replacement of the current declared application data"
+        ),
+      acknowledge_restore_charge: z
+        .literal(true)
+        .describe(
+          "True only after the user explicitly approves the exact total_charged returned by quote_application_data_restore"
+        ),
+      quote_token: applicationDataRestoreQuoteTokenSchema,
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact restore request."
+      ),
+    },
+    annotations: {
+      title: "Restore managed application data",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    installation_id,
+    backup_point_id,
+    expected_revision,
+    quote_token,
+    idempotencyKey,
+  }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/restores`
+      ),
+      applicationDataRestoreRequestBody({
+        orderNo,
+        backupPointId: backup_point_id,
+        expectedRevision: expected_revision,
+        quoteToken: quote_token,
+      }),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeApplicationDataRestorePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_application_data_restore",
+  {
+    description:
+      "Poll one tenant-bound selective application data restore. queued, running, and awaiting_reply remain active. needs_attention is not success and keeps application/service mutations locked until a signed worker result or operator verification resolves it. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      restore_id: applicationDataRestoreIdSchema,
+    },
+    annotations: {
+      title: "Get application data restore",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, installation_id, restore_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/restores/${encodeURIComponent(restore_id)}`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeApplicationDataRestorePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
   "validate_application_recipe",
   {
     description:
@@ -1307,7 +1501,7 @@ server.registerTool(
   "manage_application",
   {
     description:
-      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. For update, first read get_application_installation and copy the exact advertised blueprint_version and upstream_version as execution preconditions. The backend still selects and freezes the eligible immutable release; callers cannot choose an arbitrary target. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Application backup and restore are unavailable. Requires applications:manage and is not a paid API-key operation.",
+      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. For update, first read get_application_installation and copy the exact advertised blueprint_version and upstream_version as execution preconditions. The backend still selects and freezes the eligible immutable release; callers cannot choose an arbitrary target. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Selective data restore is a separate operation exposed by list_application_restore_points and restore_application_data. Requires applications:manage and is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
