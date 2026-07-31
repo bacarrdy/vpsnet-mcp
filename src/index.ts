@@ -53,6 +53,12 @@ import {
   safeCustomProjectReceiptPayload,
   safeCustomProjectValidationPayload,
 } from "./custom-project-contract.js";
+import {
+  parseServiceRescueStatus,
+  safeServiceRescuePayload,
+  serviceRescueEnterRequestBody,
+  serviceRescueImageIdSchema,
+} from "./service-rescue-contract.js";
 
 const server = new McpServer(
   { name: "vpsnet", version: "2.0.0" },
@@ -91,6 +97,7 @@ const server = new McpServer(
       "No separate application backup is created. list_application_restore_points freely exposes only eligible application-consistent nightly whole-VM points for the exact current Firecracker application revision; API keys need applications:manage, paid operations enabled, applications:restore paid scope, and full access because the response includes account balance. Select a point, call quote_application_data_restore to freeze the exact balance charge, disclose it to the user, then call restore_application_data with the same idempotency key and quote token only after explicit approval of both the charge and destructive data replacement. Paid API keys also require spend caps before quote/confirmation. Poll get_application_data_restore; needs_attention is not success and keeps mutations locked. Never ask for or invent PBS credentials, archive IDs, devices, or filesystem paths.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
       "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
+      "Service rescue is a separate recovery path for Firecracker VPS and Cloud VPS. Always call get_service_rescue first. Entering rescue restarts the service; call enter_service_rescue only after the user explicitly approves the restart and exact image returned by the capability response. Firecracker exposes the customer filesystem at /mnt/customer; Cloud VPS uses the operator recovery ISO and noVNC. Exit restores the exact original boot and running/stopped state. If exit returns needs_attention, retry exit_service_rescue with the same idempotency key. Never ask for or invent provider nodes, VM IDs, ISO paths, operation nonces, or rollback configuration.",
       "",
       "### When the user asks for a manual or custom deployment INSIDE a VPS:",
       "Deploy YOUR OWN SSH key first, then connect directly via SSH.",
@@ -476,6 +483,178 @@ server.registerTool(
       `/account/services/${orderNo}/history`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_service_rescue",
+  {
+    description:
+      "Get operator rescue capability and the current durable rescue session for one owned Firecracker VPS or Cloud VPS. Requires services:read. Provider identifiers, ISO paths, nonces, and rollback state are never returned.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+    },
+    annotations: {
+      title: "Get service rescue status",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      svc(encodeURIComponent(orderNo), "rescue")
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeServiceRescuePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "enter_service_rescue",
+  {
+    description:
+      "Restart one owned active Firecracker VPS or Cloud VPS into an operator-owned rescue system. Read get_service_rescue first and use an exact advertised image ID. This interrupts every running service. Call only after the user explicitly confirms the target service, rescue image, and reboot. Requires services:rescue, full API-key access, and a fresh idempotencyKey.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      image: serviceRescueImageIdSchema,
+      acknowledge_reboot: z
+        .literal(true)
+        .describe("Explicit user approval that rescue entry restarts the service"),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Fresh stable key for this exact rescue-entry request"
+      ),
+    },
+    annotations: {
+      title: "Enter service rescue mode",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, image, acknowledge_reboot, idempotencyKey }) => {
+    if (acknowledge_reboot !== true) {
+      throw new Error("Explicit reboot acknowledgement is required.");
+    }
+
+    const current = await apiRequest(
+      "GET",
+      svc(encodeURIComponent(orderNo), "rescue")
+    );
+    const statusPayload = parseServiceRescueStatus(current.data);
+    const advertised = statusPayload?.rescue.capability.images.some(
+      (candidate) => candidate.id === image
+    );
+    if (
+      current.status < 200 ||
+      current.status >= 300 ||
+      statusPayload?.rescue.capability.enabled !== true ||
+      advertised !== true
+    ) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson({
+            success: false,
+            error_codes: ["serviceRescueImageNotAdvertised"],
+          }),
+        }],
+      };
+    }
+
+    const { status, data } = await apiRequest(
+      "POST",
+      svc(encodeURIComponent(orderNo), "rescue"),
+      serviceRescueEnterRequestBody(image),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeServiceRescuePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "exit_service_rescue",
+  {
+    description:
+      "Restore the exact pre-rescue boot configuration and original running or stopped state for one owned service. Read get_service_rescue first and pass its exact session UUID. This may restart the service. Call only after explicit user confirmation. Requires services:rescue, full API-key access, and a stable idempotencyKey. If the same exit reaches needs_attention, retry this tool with the same key.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      rescue_session_id: z
+        .string()
+        .uuid()
+        .describe("Exact current session UUID from get_service_rescue"),
+      acknowledge_restart: z
+        .literal(true)
+        .describe("Explicit user approval to restore normal boot state"),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Stable key for this exact rescue exit; reuse it for a needs_attention retry"
+      ),
+    },
+    annotations: {
+      title: "Exit service rescue mode",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    rescue_session_id,
+    acknowledge_restart,
+    idempotencyKey,
+  }) => {
+    if (acknowledge_restart !== true) {
+      throw new Error("Explicit restart acknowledgement is required.");
+    }
+
+    const current = await apiRequest(
+      "GET",
+      svc(encodeURIComponent(orderNo), "rescue")
+    );
+    const statusPayload = parseServiceRescueStatus(current.data);
+    const currentSession = statusPayload?.rescue.session;
+    if (
+      current.status < 200 ||
+      current.status >= 300 ||
+      !currentSession ||
+      currentSession.id !== rescue_session_id ||
+      !["active", "needs_attention"].includes(currentSession.state)
+    ) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson({
+            success: false,
+            error_codes: ["serviceRescueSessionNotCurrent"],
+          }),
+        }],
+      };
+    }
+
+    const { status, data } = await apiRequest(
+      "DELETE",
+      svc(encodeURIComponent(orderNo), "rescue"),
+      undefined,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeServiceRescuePayload(status, data)),
+      }],
+    };
   }
 );
 
