@@ -8,6 +8,7 @@ import { apiRequest, formatJson } from "./api.js";
 import {
   applicationAccessConfigurationRequestBody,
   applicationAccessSchema,
+  applicationSingleAccessSchema,
   applicationActionCancellationIsAdvertised,
   applicationActionCancellationRequestBody,
   applicationActionIdSchema,
@@ -80,7 +81,7 @@ const server = new McpServer(
       "Application CPU, RAM, and disk figures are sizing recommendations. Do not reject an installation or filter an otherwise supported order plan because it is below those figures; product, OS, architecture, and runtime compatibility remain hard requirements.",
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
-      "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
+      "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. When access.request.schema_version=2, submit every exact access.endpoints key once and match the user's requested service by endpoint service and port; array order and primary=true are metadata, not a recommendation. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
       "Use list_application_registry_credentials only for non-secret private registry credential metadata. Exact custom HTTPS registry hostnames are supported. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
       "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. validate_application_recipe checks the exact Compose document on the target worker; create_application_recipe and create_application_recipe_revision freeze immutable customer revisions; install_application_recipe installs an exact validated revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
       "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery never modifies containers. Compose adoption is a separate prepare → inspect → explicit confirm flow; only confirm_application_compose_adoption stops source containers, and only after the user approves the exact candidate and source-stop acknowledgement. The initial takeover is one-time, while the exact external-volume binding remains signed into later lifecycle actions. If managed startup fails, source containers resume only after the managed replacement is conclusively contained; an uncertain outcome fails closed for operator recovery.",
@@ -1549,7 +1550,7 @@ server.registerTool(
         .describe(
           "Explicit consent for a possible one-time server restart while the managed runtime is prepared"
         ),
-      access: applicationAccessSchema
+      access: applicationSingleAccessSchema
         .optional()
         .describe(
           "Exact access request using a mode and fields advertised by the selected catalog entry"
@@ -1604,12 +1605,12 @@ server.registerTool(
   "configure_application_access",
   {
     description:
-      "Queue an access change for one owned managed application. Read get_application_installation first and pass its current revision. Private removes the public listener. Public HTTP exposes the application through the server public IP. Managed HTTPS requires an eligible VPSnet-managed DNS zone, subdomain, and explicit DNS approval. External HTTPS only records the customer-managed URL; VPSnet does not configure or validate its DNS, TLS, or reverse proxy. Confirm the exact change with the user first. A queued response must be verified with get_application_installation and get_application_events. Requires applications:manage and is not a paid API-key operation.",
+      "Queue an access change for one owned managed application. Read get_application_installation first and pass its current revision. If access.request.schema_version=2, preserve every exact endpoint key and configure each endpoint independently; use service and port metadata to match the user's intent instead of prioritizing array order or primary=true. Private removes that route's public listener. Public HTTP exposes it through the server public IP. Managed HTTPS requires an eligible VPSnet-managed DNS zone, subdomain, and explicit DNS approval. External HTTPS only records the customer-managed URL; VPSnet does not configure or validate its DNS, TLS, or reverse proxy. Confirm the exact change with the user first. A queued response must be verified with get_application_installation and get_application_events. Requires applications:manage and is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
       access: applicationAccessSchema.describe(
-        "Exact access mode and fields advertised by the installation access capabilities"
+        "One access choice, or schema_version=2 with every exact endpoint key and its independent access choice"
       ),
       expected_revision: applicationRevisionSchema,
       idempotencyKey: idempotencyKeySchema.describe(

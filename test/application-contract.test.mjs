@@ -206,6 +206,32 @@ test("managed application install preserves explicit access and restart consent"
   assert.deepEqual(applicationAccessSchema.parse({ mode: "platform_https" }), {
     mode: "platform_https",
   });
+  assert.deepEqual(
+    applicationAccessSchema.parse({
+      schema_version: 2,
+      endpoints: [
+        { key: "admin-19000-9000-tcp", access: { mode: "private" } },
+        { key: "web-18080-8080-tcp", access: { mode: "public_http" } },
+      ],
+    }),
+    {
+      schema_version: 2,
+      endpoints: [
+        { key: "admin-19000-9000-tcp", access: { mode: "private" } },
+        { key: "web-18080-8080-tcp", access: { mode: "public_http" } },
+      ],
+    }
+  );
+  assert.equal(
+    applicationAccessSchema.safeParse({
+      schema_version: 2,
+      endpoints: [
+        { key: "web-18080-8080-tcp", access: { mode: "private" } },
+        { key: "web-18080-8080-tcp", access: { mode: "public_http" } },
+      ],
+    }).success,
+    false
+  );
 });
 
 test("registry metadata output allowlists fields and drops every secret representation", () => {
