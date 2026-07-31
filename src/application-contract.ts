@@ -97,7 +97,7 @@ const externalHttpsUrlSchema = z.string().max(500).refine((value) => {
   }
 }, "External access must be a credential-free HTTPS URL without a query or fragment");
 
-export const applicationAccessSchema = z.discriminatedUnion("mode", [
+export const applicationSingleAccessSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("platform_https") }).strict(),
   z.object({ mode: z.literal("private") }).strict(),
   z.object({ mode: z.literal("public_http") }).strict(),
@@ -115,7 +115,42 @@ export const applicationAccessSchema = z.discriminatedUnion("mode", [
   }).strict(),
 ]);
 
+const applicationAccessEndpointSchema = z.object({
+  key: z
+    .string()
+    .max(96)
+    .regex(/^[a-z0-9][a-z0-9_-]{0,95}$/),
+  access: applicationSingleAccessSchema,
+}).strict();
+
+export const applicationAccessSchema = z.union([
+  applicationSingleAccessSchema,
+  z.object({
+    schema_version: z.literal(2),
+    endpoints: z
+      .array(applicationAccessEndpointSchema)
+      .min(1)
+      .max(64)
+      .superRefine((endpoints, context) => {
+        const keys = new Set<string>();
+        endpoints.forEach((endpoint, index) => {
+          if (keys.has(endpoint.key)) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: "Every endpoint key must occur exactly once",
+              path: [index, "key"],
+            });
+          }
+          keys.add(endpoint.key);
+        });
+      }),
+  }).strict(),
+]);
+
 export type ApplicationAccess = z.infer<typeof applicationAccessSchema>;
+export type ApplicationSingleAccess = z.infer<
+  typeof applicationSingleAccessSchema
+>;
 
 export const applicationRevisionSchema = z
   .number()
@@ -161,7 +196,7 @@ export function applicationInstallRequestBody(params: {
   releaseChannel: string;
   variables: Record<string, unknown>;
   acknowledgeRuntimeRestart: boolean;
-  access?: ApplicationAccess;
+  access?: ApplicationSingleAccess;
 }): Record<string, unknown> {
   return {
     application: params.application,

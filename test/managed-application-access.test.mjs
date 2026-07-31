@@ -7,7 +7,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 const INSTALLATION_ID = "b7ea0c2a-e6e4-4c25-87ca-c0cdf7e4ca42";
 
-test("configure application access posts only the typed access contract", async (t) => {
+test("configure application access posts every typed publication", async (t) => {
   const requests = [];
   const api = createServer(async (req, res) => {
     let body = "";
@@ -48,7 +48,19 @@ test("configure application access posts only the typed access contract", async 
     arguments: {
       orderNo: "VP123",
       installation_id: INSTALLATION_ID,
-      access: { mode: "public_http" },
+      access: {
+        schema_version: 2,
+        endpoints: [
+          {
+            key: "admin-19000-9000-tcp",
+            access: { mode: "private" },
+          },
+          {
+            key: "web-18080-8080-tcp",
+            access: { mode: "public_http" },
+          },
+        ],
+      },
       expected_revision: 12,
       idempotencyKey: "access-contract-key-0001",
       confirmed: true,
@@ -63,7 +75,19 @@ test("configure application access posts only the typed access contract", async 
     `/account/services/VP123/applications/installations/${INSTALLATION_ID}/configure-access`
   );
   assert.deepEqual(requests[0].body, {
-    access: { mode: "public_http" },
+    access: {
+      schema_version: 2,
+      endpoints: [
+        {
+          key: "admin-19000-9000-tcp",
+          access: { mode: "private" },
+        },
+        {
+          key: "web-18080-8080-tcp",
+          access: { mode: "public_http" },
+        },
+      ],
+    },
     expectedRevision: 12,
   });
   assert.equal(requests[0].headers["idempotency-key"], "access-contract-key-0001");

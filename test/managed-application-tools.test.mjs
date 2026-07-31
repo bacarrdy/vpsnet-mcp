@@ -86,11 +86,13 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.equal(configureAccess.inputSchema.properties?.confirmed.const, true);
   assert.ok(configureAccess.inputSchema.properties?.expected_revision);
   assert.ok(configureAccess.inputSchema.properties?.access);
-  assert.ok(
-    configureAccess.inputSchema.properties?.access.anyOf.some(
-      (candidate) => candidate.properties?.mode?.const === "platform_https"
-    )
+  const accessSchema = JSON.stringify(
+    configureAccess.inputSchema.properties?.access
   );
+  assert.match(accessSchema, /"const":"platform_https"/);
+  assert.match(accessSchema, /"schema_version"/);
+  assert.match(accessSchema, /"const":2/);
+  assert.match(accessSchema, /"endpoints"/);
   assert.match(configureAccess.description, /customer-managed URL/i);
   assert.match(configureAccess.description, /does not configure or validate/i);
 
