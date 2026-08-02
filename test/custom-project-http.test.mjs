@@ -8,6 +8,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
 const INSTALLATION_ID = "b7ea0c2a-e6e4-4c25-87ca-c0cdf7e4ca42";
 const ADOPTION_ID = "650e8400-e29b-41d4-a716-446655440000";
+const SOURCE_COMPOSE = "services:\n  web:\n    image: nginx:1.27";
 const COMPOSE = "services:\n  web:\n    image: docker.io/library/nginx@sha256:" + "a".repeat(64);
 
 test("customer recipe tools preserve exact HTTP contracts and redact results", async (t) => {
@@ -25,6 +26,23 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     let status = 200;
     let response;
     if (req.url.endsWith("/custom-projects/validate")) {
+      response = {
+        success: true,
+        validation: {
+          id: PROJECT_ID,
+          state: "queued",
+          valid: null,
+          errors: [],
+          source_compose_digest: "c".repeat(64),
+          resolved_compose_yaml: COMPOSE,
+          image_resolutions: [{
+            service: "web",
+            source: "docker.io/library/nginx:1.27",
+            resolved: "docker.io/library/nginx@sha256:" + "a".repeat(64),
+          }],
+        },
+      };
+    } else if (req.url.endsWith(`/validations/${PROJECT_ID}`)) {
       response = {
         success: true,
         validation: {
@@ -217,7 +235,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     arguments: {
       orderNo: "VP123",
       name: "billing-api",
-      compose_yaml: COMPOSE,
+      compose_yaml: SOURCE_COMPOSE,
       env: { APP_MODE: "production" },
       secret_names: ["DATABASE_PASSWORD"],
       registry_credential_ids: [],
@@ -226,17 +244,20 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     },
   });
 
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 3);
   assert.equal(
     requests[0].url,
     "/account/services/VP123/applications/custom-projects/validate"
   );
-  assert.deepEqual(requests[0].body, { compose_yaml: COMPOSE });
+  assert.deepEqual(requests[0].body, {
+    compose_yaml: SOURCE_COMPOSE,
+    registry_credential_ids: [],
+  });
   assert.equal(
-    requests[1].url,
+    requests[2].url,
     "/account/services/VP123/applications/custom-projects"
   );
-  assert.deepEqual(requests[1].body, {
+  assert.deepEqual(requests[2].body, {
     name: "billing-api",
     compose_yaml: COMPOSE,
     env: { APP_MODE: "production" },
@@ -244,7 +265,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     registry_credential_ids: [],
   });
   assert.equal(
-    requests[1].headers["idempotency-key"],
+    requests[2].headers["idempotency-key"],
     "recipe-create-key-0001"
   );
 
@@ -260,7 +281,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
       confirmed: true,
     },
   });
-  assert.deepEqual(requests[2].body, {
+  assert.deepEqual(requests[3].body, {
     revision: 1,
     secrets: { DATABASE_PASSWORD: "secret-from-user" },
     acknowledgeCustomRecipeRisks: true,
@@ -278,7 +299,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     },
   });
   assert.equal(
-    requests[3].url,
+    requests[4].url,
     `/account/services/VP123/applications/custom-projects/${PROJECT_ID}/export?revision=1`
   );
   assert.equal(exported.content[0].text.includes("must-not-leak"), false);
@@ -289,7 +310,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     arguments: { orderNo: "VP123" },
   });
   assert.equal(
-    requests[4].url,
+    requests[5].url,
     "/account/services/VP123/applications/container-discoveries"
   );
   assert.equal(discovered.content[0].text.includes("must-not-leak"), false);
@@ -304,10 +325,10 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     },
   });
   assert.equal(
-    requests[5].url,
+    requests[6].url,
     `/account/services/VP123/applications/container-discoveries/${PROJECT_ID}/adoptions`
   );
-  assert.deepEqual(requests[5].body, {
+  assert.deepEqual(requests[6].body, {
     compose_project: "customer-stack",
   });
   assert.equal(prepared.content[0].text.includes("must-not-leak"), false);
@@ -321,7 +342,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     },
   });
   assert.equal(
-    requests[6].url,
+    requests[7].url,
     `/account/services/VP123/applications/compose-adoptions/${ADOPTION_ID}`
   );
   assert.match(polled.content[0].text, /customer-stack/);
@@ -342,10 +363,10 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     },
   });
   assert.equal(
-    requests[7].url,
+    requests[8].url,
     `/account/services/VP123/applications/compose-adoptions/${ADOPTION_ID}/confirm`
   );
-  assert.deepEqual(requests[7].body, {
+  assert.deepEqual(requests[8].body, {
     name: "managed-stack",
     env: { APP_MODE: "production" },
     secrets: { DATABASE_PASSWORD: "secret-from-user" },
@@ -355,7 +376,7 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     acknowledgeRuntimeRestart: false,
   });
   assert.equal(
-    requests[7].headers["idempotency-key"],
+    requests[8].headers["idempotency-key"],
     "compose-adoption-key-0001"
   );
   assert.equal(confirmed.content[0].text.includes("secret-from-user"), false);

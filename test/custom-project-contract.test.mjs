@@ -12,6 +12,7 @@ import {
   safeContainerDiscoveryPayload,
   safeCustomProjectInstallPayload,
   safeCustomProjectReceiptPayload,
+  safeCustomProjectValidationPayload,
 } from "../build/custom-project-contract.js";
 
 const PROJECT_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -55,6 +56,30 @@ test("customer recipe definition body contains names but never secret values", (
       registry_credential_ids: [PROJECT_ID],
     }
   );
+});
+
+test("successful validation exposes only the immutable resolved recipe", () => {
+  const resolved = "services:\n  web:\n    image: docker.io/library/nginx@sha256:" + "a".repeat(64);
+  const safe = safeCustomProjectValidationPayload(200, {
+    success: true,
+    validation: {
+      id: PROJECT_ID,
+      state: "succeeded",
+      valid: true,
+      errors: [],
+      resolved_compose_yaml: resolved,
+      image_resolutions: [{
+        service: "web",
+        source: "docker.io/library/nginx:1.27",
+        resolved: "docker.io/library/nginx@sha256:" + "a".repeat(64),
+      }],
+      ignored_secret: "must-not-leak",
+    },
+  });
+
+  assert.equal(safe.validation.resolved_compose_yaml, resolved);
+  assert.equal(safe.validation.image_resolutions.length, 1);
+  assert.equal(JSON.stringify(safe).includes("must-not-leak"), false);
 });
 
 test("customer recipe export accepts only customer-owned receipts", () => {

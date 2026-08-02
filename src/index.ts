@@ -89,7 +89,7 @@ const server = new McpServer(
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
       "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. When access.request.schema_version=2, submit every exact access.endpoints key once and match the user's requested service by endpoint service and port; array order and primary=true are metadata, not a recommendation. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
       "Use list_application_registry_credentials only for non-secret private registry credential metadata. Exact custom HTTPS registry hostnames are supported. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
-      "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. validate_application_recipe checks the exact Compose document on the target worker; create_application_recipe and create_application_recipe_revision freeze immutable customer revisions; install_application_recipe installs an exact validated revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
+      "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. Validation resolves mutable image tags once and returns an immutable digest-pinned Compose definition before checking it on the target worker. Recipe creation and revision tools freeze that exact validated definition; installation runs an exact revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
       "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery never modifies containers. Compose adoption is a separate prepare → inspect → explicit confirm flow; only confirm_application_compose_adoption stops source containers, and only after the user approves the exact candidate and source-stop acknowledgement. The initial takeover is one-time, while the exact external-volume binding remains signed into later lifecycle actions. If managed startup fails, source containers resume only after the managed replacement is conclusively contained; an uncertain outcome fails closed for operator recovery.",
       "To check the real, current state of an installed application, run get_application_health (observed container health, not the possibly-stale last-reported value) and get_application_logs (recent size-bounded logs) for troubleshooting. Both queue a short inspection, so they require an API key that permits write operations even though the underlying scope is applications:read.",
       "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
@@ -893,7 +893,40 @@ async function runApplicationAsyncOperation(
     if (INSPECTION_TERMINAL_STATES.has(String(polled.state))) break;
   }
 
-  return latest;
+  if (key !== "validation" || latest.status >= 400) return latest;
+
+  const createdPayload = created.data && typeof created.data === "object"
+    && !Array.isArray(created.data)
+    ? created.data as Record<string, unknown>
+    : {};
+  const latestPayload = latest.data && typeof latest.data === "object"
+    && !Array.isArray(latest.data)
+    ? latest.data as Record<string, unknown>
+    : {};
+  const createdValidation = createdPayload.validation
+    && typeof createdPayload.validation === "object"
+    && !Array.isArray(createdPayload.validation)
+    ? createdPayload.validation as Record<string, unknown>
+    : {};
+  const latestValidation = latestPayload.validation
+    && typeof latestPayload.validation === "object"
+    && !Array.isArray(latestPayload.validation)
+    ? latestPayload.validation as Record<string, unknown>
+    : {};
+
+  return {
+    status: latest.status,
+    data: {
+      ...latestPayload,
+      replayed: createdPayload.replayed === true,
+      validation: {
+        ...latestValidation,
+        source_compose_digest: createdValidation.source_compose_digest,
+        resolved_compose_yaml: createdValidation.resolved_compose_yaml,
+        image_resolutions: createdValidation.image_resolutions,
+      },
+    },
+  };
 }
 
 function applicationRecipeValidationPassed(data: unknown): boolean {
@@ -907,6 +940,18 @@ function applicationRecipeValidationPassed(data: unknown): boolean {
     && !Array.isArray(value)
     && (value as Record<string, unknown>).valid === true
   );
+}
+
+function applicationRecipeResolvedCompose(data: unknown): string | null {
+  if (!applicationRecipeValidationPassed(data)) return null;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const value = (data as Record<string, unknown>).validation;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const compose = (value as Record<string, unknown>).resolved_compose_yaml;
+  return typeof compose === "string" && compose.length > 0
+    && compose.length <= 262144
+    ? compose
+    : null;
 }
 
 server.registerTool(
@@ -1166,10 +1211,11 @@ server.registerTool(
   "validate_application_recipe",
   {
     description:
-      "Validate an exact customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Requires applications:manage.",
+      "Resolve image tags to immutable digests, then validate the resulting customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. The successful result includes the exact digest-pinned definition to store. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       compose_yaml: customProjectComposeSchema,
+      registry_credential_ids: customProjectRegistryCredentialIdsSchema,
     },
     annotations: {
       title: "Validate customer application recipe",
@@ -1178,13 +1224,13 @@ server.registerTool(
       idempotentHint: true,
     },
   },
-  async ({ orderNo, compose_yaml }) => {
+  async ({ orderNo, compose_yaml, registry_credential_ids }) => {
     const basePath = applicationPath(orderNo, "custom-projects");
     const { status, data } = await runApplicationAsyncOperation(
       `${basePath}/validate`,
       (id) => `${basePath}/validations/${id}`,
       "validation",
-      { compose_yaml }
+      { compose_yaml, registry_credential_ids }
     );
     return {
       content: [{
@@ -1261,7 +1307,7 @@ server.registerTool(
   "create_application_recipe",
   {
     description:
-      "Validate and freeze the first immutable revision of a customer-owned Compose recipe. This saves a definition only and does not install or start containers. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
+      "Resolve image tags, validate the resulting digest-pinned Compose definition, and freeze that exact definition as the first immutable customer-owned recipe revision. This saves a definition only and does not install or start containers. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       name: customProjectNameSchema,
@@ -1297,12 +1343,28 @@ server.registerTool(
       `${basePath}/validate`,
       (id) => `${basePath}/validations/${id}`,
       "validation",
-      { compose_yaml }
+      { compose_yaml, registry_credential_ids }
     );
     if (
       validation.status >= 400
       || !applicationRecipeValidationPassed(validation.data)
     ) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson(
+            safeCustomProjectValidationPayload(
+              validation.status,
+              validation.data
+            )
+          ),
+        }],
+      };
+    }
+
+    const resolvedCompose = applicationRecipeResolvedCompose(validation.data);
+    if (resolvedCompose === null) {
       return {
         isError: true,
         content: [{
@@ -1323,7 +1385,7 @@ server.registerTool(
       {
         name,
         ...customProjectDefinitionRequestBody({
-          compose_yaml,
+          compose_yaml: resolvedCompose,
           env,
           secret_names,
           registry_credential_ids,
@@ -1344,7 +1406,7 @@ server.registerTool(
   "create_application_recipe_revision",
   {
     description:
-      "Validate and freeze a later immutable revision of a customer-owned Compose recipe. This does not update the running installation. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
+      "Resolve image tags, validate the resulting digest-pinned Compose definition, and freeze that exact definition as a later immutable customer-owned recipe revision. This does not update the running installation. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       project_id: customProjectIdSchema,
@@ -1380,7 +1442,7 @@ server.registerTool(
       `${basePath}/validate`,
       (id) => `${basePath}/validations/${id}`,
       "validation",
-      { compose_yaml }
+      { compose_yaml, registry_credential_ids }
     );
     if (
       validation.status >= 400
@@ -1400,11 +1462,27 @@ server.registerTool(
       };
     }
 
+    const resolvedCompose = applicationRecipeResolvedCompose(validation.data);
+    if (resolvedCompose === null) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson(
+            safeCustomProjectValidationPayload(
+              validation.status,
+              validation.data
+            )
+          ),
+        }],
+      };
+    }
+
     const { status, data } = await apiRequest(
       "POST",
       `${basePath}/${encodeURIComponent(project_id)}/revisions`,
       customProjectDefinitionRequestBody({
-        compose_yaml,
+        compose_yaml: resolvedCompose,
         env,
         secret_names,
         registry_credential_ids,

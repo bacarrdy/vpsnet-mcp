@@ -39,6 +39,11 @@ test("tools/list exposes customer recipe and read-only discovery contracts", asy
   assert.ok(create.inputSchema.properties?.secret_names);
   assert.equal(create.annotations?.destructiveHint, false);
   assert.match(create.description, /does not install or start containers/i);
+  assert.match(create.description, /digest-pinned/i);
+
+  const validate = byName.get("validate_application_recipe");
+  assert.ok(validate.inputSchema.properties?.registry_credential_ids);
+  assert.match(validate.description, /resolve image tags/i);
 
   const revision = byName.get("create_application_recipe_revision");
   assert.equal(revision.inputSchema.properties?.project_id.format, "uuid");

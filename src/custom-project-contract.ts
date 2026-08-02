@@ -31,7 +31,9 @@ export const customProjectComposeSchema = z
   .string()
   .min(1)
   .max(262144)
-  .describe("Docker Compose YAML validated by the target Firecracker worker");
+  .describe(
+    "Docker Compose YAML. Mutable image tags are resolved once and replaced with immutable sha256 digests before worker validation."
+  );
 
 const customProjectVariableNameSchema = z
   .string()
@@ -342,6 +344,26 @@ export function safeCustomProjectValidationPayload(
     };
   }
 
+  const valid = validation.valid === true;
+  const resolvedCompose = valid && typeof validation.resolved_compose_yaml === "string"
+    ? validation.resolved_compose_yaml.slice(0, 262144)
+    : null;
+  const resolutions = valid && Array.isArray(validation.image_resolutions)
+    ? validation.image_resolutions
+        .slice(0, 64)
+        .map((value) => record(value))
+        .map((value) => ({
+          service: boundedString(value.service, 128),
+          source: boundedString(value.source, 512),
+          resolved: boundedString(value.resolved, 512),
+        }))
+        .filter((value) =>
+          value.service !== null
+          && value.source !== null
+          && value.resolved !== null
+        )
+    : [];
+
   return {
     success: true,
     replayed: payload.replayed === true,
@@ -356,6 +378,8 @@ export function safeCustomProjectValidationPayload(
             .map((error) => error.slice(0, 512))
         : [],
       timestamps: safeTimestamps(validation.timestamps),
+      resolved_compose_yaml: resolvedCompose,
+      image_resolutions: resolutions,
     },
   };
 }
