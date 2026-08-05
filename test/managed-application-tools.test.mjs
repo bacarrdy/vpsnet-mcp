@@ -30,6 +30,9 @@ test("tools/list exposes the backend-compatible managed application contract", a
   const configureAccess = tools.find(
     (tool) => tool.name === "configure_application_access"
   );
+  const configureResourceThresholds = tools.find(
+    (tool) => tool.name === "configure_application_resource_thresholds"
+  );
   const lifecycle = tools.find((tool) => tool.name === "manage_application");
   const cancelAction = tools.find(
     (tool) => tool.name === "cancel_application_action"
@@ -95,6 +98,31 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.match(accessSchema, /"endpoints"/);
   assert.match(configureAccess.description, /customer-managed URL/i);
   assert.match(configureAccess.description, /does not configure or validate/i);
+
+  assert.ok(configureResourceThresholds);
+  assert.equal(
+    configureResourceThresholds.inputSchema.properties?.confirmed.const,
+    true
+  );
+  assert.equal(
+    configureResourceThresholds.inputSchema.properties?.cpu_percent.anyOf?.find(
+      (schema) => schema.type === "integer"
+    )?.maximum,
+    6400
+  );
+  assert.equal(
+    configureResourceThresholds.inputSchema.properties?.restart_delta.anyOf?.find(
+      (schema) => schema.type === "integer"
+    )?.maximum,
+    1000
+  );
+  assert.equal(configureResourceThresholds.annotations?.idempotentHint, true);
+  assert.match(configureResourceThresholds.description, /display-threshold/i);
+  assert.match(configureResourceThresholds.description, /do not.*affect billing/i);
+  assert.match(
+    configureResourceThresholds.description,
+    /not a paid API-key operation/i
+  );
 
   assert.ok(lifecycle);
   const actions = lifecycle.inputSchema.properties?.action.enum;

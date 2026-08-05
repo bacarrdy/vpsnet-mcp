@@ -15,12 +15,40 @@ import {
   applicationLogServiceSchema,
   applicationLogTailLinesSchema,
   applicationExpectedVersionSchema,
+  applicationResourceCpuPercentSchema,
+  applicationResourceMemoryMiBSchema,
+  applicationResourceNetworkMiBPerMinuteSchema,
+  applicationResourceRestartDeltaSchema,
+  applicationResourceThresholdRequestBody,
   safeApplicationInspectionPayload,
   safeApplicationMutationPayload,
   safeApplicationRegistryCredentialPayload,
 } from "../build/application-contract.js";
 
 const ACTION_ID = "1f3502fc-1177-4e3f-b867-b3f6d7b9846e";
+
+test("application resource thresholds match the bounded replacement contract", () => {
+  assert.equal(applicationResourceCpuPercentSchema.parse(6400), 6400);
+  assert.equal(applicationResourceCpuPercentSchema.safeParse(6401).success, false);
+  assert.equal(applicationResourceMemoryMiBSchema.parse(null), null);
+  assert.equal(
+    applicationResourceNetworkMiBPerMinuteSchema.parse(1048576),
+    1048576
+  );
+  assert.equal(applicationResourceRestartDeltaSchema.safeParse(0).success, false);
+  assert.deepEqual(
+    applicationResourceThresholdRequestBody({
+      cpuPercent: 80,
+      restartDelta: 2,
+    }),
+    {
+      cpuPercent: 80,
+      memoryMiB: null,
+      networkMiBPerMinute: null,
+      restartDelta: 2,
+    }
+  );
+});
 
 test("managed application log inspection limits match the backend contract", () => {
   assert.equal(applicationLogTailLinesSchema.parse(1), 1);
