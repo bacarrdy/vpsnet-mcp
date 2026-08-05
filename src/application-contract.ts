@@ -161,6 +161,56 @@ export const applicationRevisionSchema = z
     "Current installation revision returned by get_application_installation"
   );
 
+export const applicationResourceCpuPercentSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(6400)
+  .nullable()
+  .optional()
+  .describe("Optional display threshold as a percentage of one CPU core");
+
+export const applicationResourceMemoryMiBSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(1048576)
+  .nullable()
+  .optional()
+  .describe("Optional application memory display threshold in MiB");
+
+export const applicationResourceNetworkMiBPerMinuteSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(1048576)
+  .nullable()
+  .optional()
+  .describe("Optional combined RX and TX display threshold in MiB per minute");
+
+export const applicationResourceRestartDeltaSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(1000)
+  .nullable()
+  .optional()
+  .describe("Optional restart display threshold between comparable samples");
+
+export function applicationResourceThresholdRequestBody(input: {
+  cpuPercent?: number | null;
+  memoryMiB?: number | null;
+  networkMiBPerMinute?: number | null;
+  restartDelta?: number | null;
+}): Record<string, number | null> {
+  return {
+    cpuPercent: input.cpuPercent ?? null,
+    memoryMiB: input.memoryMiB ?? null,
+    networkMiBPerMinute: input.networkMiBPerMinute ?? null,
+    restartDelta: input.restartDelta ?? null,
+  };
+}
+
 export const applicationDataRestorePointIdSchema = z
   .string()
   .uuid()

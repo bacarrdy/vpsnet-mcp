@@ -25,6 +25,11 @@ import {
   applicationLogServiceSchema,
   applicationLogTailLinesSchema,
   applicationRevisionSchema,
+  applicationResourceCpuPercentSchema,
+  applicationResourceMemoryMiBSchema,
+  applicationResourceNetworkMiBPerMinuteSchema,
+  applicationResourceRestartDeltaSchema,
+  applicationResourceThresholdRequestBody,
   applicationUpdateCandidateMatches,
   safeApplicationInspectionPayload,
   safeApplicationDataRestorePayload,
@@ -88,6 +93,7 @@ const server = new McpServer(
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
       "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. When access.request.schema_version=2, submit every exact access.endpoints key once and match the user's requested service by endpoint service and port; array order and primary=true are metadata, not a recommendation. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
+      "get_application_installation includes bounded application and per-container resource history plus optional display thresholds when the worker supports those measurements. Use configure_application_resource_thresholds only to highlight CPU, memory, network-per-minute, or restart-delta samples at the user's request. Thresholds do not reserve or enforce resources, trigger server actions, affect billing, or promise alerts.",
       "Use list_application_registry_credentials only for non-secret private registry credential metadata. Exact custom HTTPS registry hostnames are supported. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
       "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. Validation resolves mutable image tags once and returns an immutable digest-pinned Compose definition before checking it on the target worker. Recipe creation and revision tools freeze that exact validated definition; installation runs an exact revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
       "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery never modifies containers. Compose adoption is a separate prepare → inspect → explicit confirm flow; only confirm_application_compose_adoption stops source containers, and only after the user approves the exact candidate and source-stop acknowledgement. The initial takeover is one-time, while the exact external-volume binding remains signed into later lifecycle actions. If managed startup fails, source containers resume only after the managed replacement is conclusively contained; an uncertain outcome fails closed for operator recovery.",
@@ -743,7 +749,7 @@ server.registerTool(
   "get_application_installation",
   {
     description:
-      "Get customer-safe observed state, health, drift, endpoints, components, and latest action for one owned managed application. Requires applications:read.",
+      "Get customer-safe observed state, health, drift, endpoints, components, bounded application/container resource history, optional display thresholds, and latest action for one owned managed application. Container samples expose only Compose service and ordinal; Docker identities and internal generation digests are withheld. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
@@ -762,6 +768,54 @@ server.registerTool(
         orderNo,
         `installations/${encodeURIComponent(installation_id)}`
       )
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "configure_application_resource_thresholds",
+  {
+    description:
+      "Replace the complete optional resource display-threshold set for one owned managed application. Read get_application_installation first. Omitted or null fields disable that threshold and omitting all four clears the preferences. These settings only highlight measured CPU, memory, combined network-per-minute, and restart-delta samples; they do not reserve or enforce resources, restart containers, affect billing, or promise alerts. Confirm the exact thresholds with the user first. Requires applications:manage and is not a paid API-key operation.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      installation_id: applicationInstallationIdSchema,
+      cpu_percent: applicationResourceCpuPercentSchema,
+      memory_mib: applicationResourceMemoryMiBSchema,
+      network_mib_per_minute: applicationResourceNetworkMiBPerMinuteSchema,
+      restart_delta: applicationResourceRestartDeltaSchema,
+      confirmed: z
+        .literal(true)
+        .describe("True only after the user confirmed the complete threshold set"),
+    },
+    annotations: {
+      title: "Configure application resource thresholds",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    installation_id,
+    cpu_percent,
+    memory_mib,
+    network_mib_per_minute,
+    restart_delta,
+  }) => {
+    const { data } = await apiRequest(
+      "PUT",
+      applicationPath(
+        orderNo,
+        `installations/${encodeURIComponent(installation_id)}/resource-thresholds`
+      ),
+      applicationResourceThresholdRequestBody({
+        cpuPercent: cpu_percent,
+        memoryMiB: memory_mib,
+        networkMiBPerMinute: network_mib_per_minute,
+        restartDelta: restart_delta,
+      })
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }

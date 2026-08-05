@@ -58,6 +58,14 @@ limited to one exact Compose service. Log inspections accept at most 500 lines
 and 131,072 bytes. These two read-scoped inspections create short-lived
 inspection jobs, so the API key must permit POST requests.
 
+Installation detail includes bounded application and per-container CPU, memory,
+network, restart, and storage history when the worker reports it. Containers are
+identified only by Compose service and ordinal. Use
+`configure_application_resource_thresholds` after explicit confirmation to
+replace optional display thresholds. Omitted values clear a threshold; the
+thresholds only highlight measurements and do not enforce resources, trigger
+server actions, affect billing, or promise alerts.
+
 Use `configure_application_access` to change how an installed application is
 reached. Read the installation first and pass its current revision with a new
 idempotency key. `platform_https` allocates an opaque VPSnet hostname with
@@ -405,7 +413,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 |------|-------------|
 | `list_application_catalog` | List published applications compatible with a service |
 | `list_service_applications` | List installed applications and pending checkout selection |
-| `get_application_installation` | Get observed state, health, drift, endpoints, and components |
+| `get_application_installation` | Get observed state, health, drift, endpoints, components, resource history, and thresholds |
 | `get_application_events` | Get bounded customer-safe installation events |
 | `get_application_health` | Run and poll a fresh container-health inspection |
 | `get_application_logs` | Run and poll a size-bounded recent-log inspection |
@@ -427,6 +435,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `confirm_application_compose_adoption` | Confirm the exact source takeover after explicit approval |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
+| `configure_application_resource_thresholds` | Replace confirmed non-enforcing application resource display thresholds |
 | `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement |
 | `cancel_application_action` | Cancel the exact latest queued action only while the backend advertises it as cancellable |
 
