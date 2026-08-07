@@ -4004,11 +4004,14 @@ server.registerTool(
       };
     }
 
-    // Folder search depends on a worker capability that older nodes do not
-    // report. The browse POST itself does not gate on it: an unsupported node
-    // accepts the request and fails asynchronously. Returning an unfiltered
-    // listing instead would be worse than an error, because the caller would
-    // trust a file list that silently ignored the search term.
+    // Folder search depends on a node capability that older workers do not
+    // report. The browse POST refuses a filter it cannot serve with
+    // serviceFileBrowseSearchUnavailable, so this probe is not what makes the
+    // refusal safe -- it is what makes it legible: it names the reason and the
+    // way forward here rather than surfacing a bare error code from a POST
+    // that has already consumed the caller's idempotency key. Either way an
+    // unfiltered listing is never returned in a search's place, because a
+    // caller would trust a file list that silently ignored the search term.
     if (filter !== undefined) {
       const probe = await apiRequest(
         "GET",
