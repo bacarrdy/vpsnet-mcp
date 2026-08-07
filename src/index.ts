@@ -40,6 +40,9 @@ import {
 } from "./application-contract.js";
 import {
   composeAdoptionIdSchema,
+  composeDraftCurrentComposeSchema,
+  composeDraftDescriptionSchema,
+  composeDraftProjectNameSchema,
   composeProjectLabelSchema,
   customProjectComposeSchema,
   customProjectDefinitionRequestBody,
@@ -52,6 +55,7 @@ import {
   customProjectSecretsSchema,
   safeComposeAdoptionConfirmationPayload,
   safeComposeAdoptionPayload,
+  safeComposeDraftPayload,
   safeContainerDiscoveryPayload,
   safeCustomProjectInstallPayload,
   safeCustomProjectPayload,
@@ -114,7 +118,9 @@ const server = new McpServer(
       "Immutable application update is supported only when get_application_installation returns available_actions with type=update. Confirm the exact advertised upstream_version and blueprint_version, then pass both as update preconditions with a fresh client-global idempotencyKey. Reuse that key only for the exact same service and request. The backend selects and freezes the eligible published release; never accept or invent a target image, tag, or version.",
       "cancel_application_action is available only for the exact current latest_action while the backend advertises cancellable=true. It is a pre-dispatch cancellation request and never stops or interrupts a running worker job. Re-read the installation and use a fresh idempotencyKey that was not used for the original action.",
       "No separate application backup is created. list_application_restore_points freely exposes only eligible application-consistent nightly whole-VM points for the exact current Firecracker application revision; API keys need applications:manage, paid operations enabled, applications:restore paid scope, and full access because the response includes account balance. Select a point, call quote_application_data_restore to freeze the exact balance charge, disclose it to the user, then call restore_application_data with the same idempotency key and quote token only after explicit approval of both the charge and destructive data replacement. Paid API keys also require spend caps before quote/confirmation. Poll get_application_data_restore; needs_attention is not success and keeps mutations locked. Never ask for or invent PBS credentials, archive IDs, devices, or filesystem paths.",
+      "Installation list and detail responses carry a capabilities block for the service's platform: data_restore, console, compose_adoption, custom_projects, and log_service_filter. Treat it as the authority on what is possible for that installation. Do not offer selective data restore when data_restore is false, do not offer Compose adoption or customer recipes when their flags are false, and do not pass a per-service log filter when log_service_filter is false. A separate access.capabilities.can_configure flag governs whether the access mode may be changed.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
+      "draft_application_compose asks the VPSnet AI assistant to write a Compose document from a description. It is text generation only: no session, no SSH key, no container, no charge, and it is rate limited. Its output is an unvalidated suggestion — always run validate_application_recipe before creating a recipe or installing, and never present a draft as installed or verified.",
       "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
       "Service rescue is a separate recovery path for Firecracker VPS and Cloud VPS. Always call get_service_rescue first. Entering rescue restarts the service; call enter_service_rescue only after the user explicitly approves the restart and exact image returned by the capability response. Firecracker exposes the customer filesystem at /mnt/customer; Cloud VPS uses the operator recovery ISO and noVNC. Exit restores the exact original boot and running/stopped state. If exit returns needs_attention, retry exit_service_rescue with the same idempotency key. Never ask for or invent provider nodes, VM IDs, ISO paths, operation nonces, or rollback configuration.",
       "",
@@ -1270,6 +1276,43 @@ server.registerTool(
       content: [{
         type: "text",
         text: formatJson(safeApplicationDataRestorePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "draft_application_compose",
+  {
+    description:
+      "Ask the VPSnet AI assistant to write one complete Docker Compose document from a plain-language description, for use as a customer recipe on an owned service. This is text generation only: it creates no assistant session, deploys no SSH key, starts no container, changes nothing on the server, and does not consume the account balance. It is rate limited to 15 drafts per hour per user. The result is a SUGGESTION and is neither validated nor installed — always run validate_application_recipe on it before creating a recipe or installing. Requires applications:manage on an active service, and because it is a POST it needs an API key that permits write operations. If the assistant is unreachable the tool reports that drafting is unavailable; write the Compose document manually in that case.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      description: composeDraftDescriptionSchema,
+      project_name: composeDraftProjectNameSchema.optional(),
+      current_compose: composeDraftCurrentComposeSchema.optional(),
+    },
+    annotations: {
+      title: "Draft a Compose file with the VPSnet AI assistant",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+    },
+  },
+  async ({ orderNo, description, project_name, current_compose }) => {
+    const body: Record<string, unknown> = { description };
+    if (project_name !== undefined) body.project_name = project_name;
+    if (current_compose !== undefined) body.current_compose = current_compose;
+
+    const { status, data } = await apiRequest(
+      "POST",
+      applicationPath(orderNo, "custom-projects/ai/draft"),
+      body
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeComposeDraftPayload(status, data)),
       }],
     };
   }

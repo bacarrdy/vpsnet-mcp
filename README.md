@@ -120,6 +120,22 @@ Docker/server data, and requires rollback capacity. Poll
 be treated as success. These tools never accept or expose PBS credentials,
 archive names, devices, or filesystem paths.
 
+Installation list and detail responses carry a per-platform `capabilities`
+block — `data_restore`, `console`, `compose_adoption`, `custom_projects` and
+`log_service_filter` — plus a separate `access.capabilities.can_configure`
+flag. Treat those flags as the authority on what an installation supports
+rather than attempting an action and reading the failure.
+
+`draft_application_compose` asks the VPSnet AI assistant to write a complete
+Compose document from a plain-language description. It is text generation
+only: no assistant session, no SSH key, no container, no change to the server,
+and no charge to the balance. Drafting is rate limited to 15 requests per hour
+per user. The result is an **unvalidated suggestion** — run
+`validate_application_recipe` on it before creating a recipe or installing
+anything, and never describe a draft as verified or installed. When the
+assistant is unreachable the tool reports that drafting is unavailable instead
+of returning a partial file.
+
 Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
 `manage_application` call requires `acknowledge_data_loss=true` for uninstall,
@@ -465,6 +481,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `prepare_application_compose_adoption` | Prepare and poll a scrubbed candidate for one discovered Compose project |
 | `get_application_compose_adoption` | Poll one tenant-bound Compose adoption candidate |
 | `confirm_application_compose_adoption` | Confirm the exact source takeover after explicit approval |
+| `draft_application_compose` | Draft a Compose file with the VPSnet AI assistant; unvalidated suggestion only |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
 | `configure_application_resource_thresholds` | Replace confirmed non-enforcing application resource display thresholds |
