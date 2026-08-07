@@ -3251,7 +3251,9 @@ server.registerTool(
     const { data } = await apiRequest(
       "POST",
       `/account/domains/${domain_id}/dnssec-ds`,
-      { ds, idempotencyKey },
+      // The API's preferred key is ds_records; bare `ds` is only a
+      // compatibility fallback, so do not depend on it.
+      { ds_records: ds, idempotencyKey },
       { "Idempotency-Key": idempotencyKey }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -3276,7 +3278,9 @@ server.registerTool(
     const { data } = await apiRequest(
       "DELETE",
       `/account/domains/${domain_id}/dnssec-ds`,
-      { ds, idempotencyKey },
+      // The API's preferred key is ds_records; bare `ds` is only a
+      // compatibility fallback, so do not depend on it.
+      { ds_records: ds, idempotencyKey },
       { "Idempotency-Key": idempotencyKey }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
