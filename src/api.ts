@@ -1,3 +1,5 @@
+import { annotateAuthFailure } from "./auth-failure.js";
+
 const API_BASE = process.env.VPSNET_API_URL || "https://api.vpsnet.com";
 const API_KEY = process.env.VPSNET_API_KEY || "";
 const DEFAULT_API_TIMEOUT_MS = 45_000;
@@ -61,7 +63,11 @@ export async function apiRequest(
   } catch {
     data = { error: text || res.statusText };
   }
-  return { status: res.status, data };
+
+  // The account API signals auth problems with a bare status plus a message.
+  // Explain them here, at the single choke point, so every tool reports the
+  // real cause instead of an unactionable "Unauthorized".
+  return { status: res.status, data: annotateAuthFailure(res.status, data) };
 }
 
 export function formatJson(data: unknown): string {
