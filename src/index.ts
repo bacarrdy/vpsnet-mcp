@@ -59,6 +59,18 @@ import {
   safeCustomProjectValidationPayload,
 } from "./custom-project-contract.js";
 import {
+  fileBrowseDirectoryEntryIdSchema,
+  fileBrowseFilterSchema,
+  fileBrowseIdSchema,
+  fileBrowseOffsetSchema,
+  fileBrowsePointIdSchema,
+  fileBrowseRequestBody,
+  fileBrowseRequestRejection,
+  readSearchAvailable,
+  safeFileBrowsePayload,
+  safeFileBrowsePointsPayload,
+} from "./file-restore-contract.js";
+import {
   parseServiceRescueStatus,
   safeServiceRescuePayload,
   serviceRescueEnterRequestBody,
@@ -174,6 +186,7 @@ const server = new McpServer(
       "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
+      "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. Directories are paged at 200 entries, so follow result.nextOffset while result.truncated is true instead of trying to fetch everything at once, and say so when you are showing one page of a larger directory. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
@@ -3855,6 +3868,178 @@ server.registerTool(
       { backup_point_id }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// --- Backup file browsing (free, read-only) ---
+
+server.registerTool(
+  "list_restore_file_points",
+  {
+    description:
+      "List the nightly backup points whose contents can be browsed file by file for one owned service, and report whether folder search is available on that service's node. Browsing is free and never charges the account or changes the server. Always call this before browse_restore_files: its searchAvailable flag is the only reliable signal of whether the filter argument can be used. Initially supported on Firecracker VPS. Requires services:read.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+    },
+    annotations: {
+      title: "List browsable backup points",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      svc(encodeURIComponent(orderNo), "restore/files/points")
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeFileBrowsePointsPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "browse_restore_files",
+  {
+    description:
+      "Queue a free, read-only listing of one directory inside a backup point. This does NOT restore anything, does not charge the account, and does not modify the server. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so results are paged at 200 entries: when result.truncated is true, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      backupPointId: fileBrowsePointIdSchema,
+      sourceBrowseId: fileBrowseIdSchema
+        .optional()
+        .describe(
+          "Browse id of the succeeded listing the directory entry came from. Omit to list the backup root."
+        ),
+      directoryEntryId: fileBrowseDirectoryEntryIdSchema.optional(),
+      offset: fileBrowseOffsetSchema
+        .optional()
+        .describe(
+          "Copy result.nextOffset to page further through the SAME directory. Must be 0 (or omitted) when starting a root listing or entering a directory."
+        ),
+      filter: fileBrowseFilterSchema.optional(),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key for this exact browse request; reuse it only to replay the same request."
+      ),
+    },
+    annotations: {
+      title: "Browse backup files",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    backupPointId,
+    sourceBrowseId,
+    directoryEntryId,
+    offset,
+    filter,
+    idempotencyKey,
+  }) => {
+    const rejection = fileBrowseRequestRejection({
+      sourceBrowseId,
+      directoryEntryId,
+      offset,
+    });
+    if (rejection !== null) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson({ success: false, error: rejection }),
+        }],
+      };
+    }
+
+    // Folder search depends on a worker capability that older nodes do not
+    // report. The browse POST itself does not gate on it: an unsupported node
+    // accepts the request and fails asynchronously. Returning an unfiltered
+    // listing instead would be worse than an error, because the caller would
+    // trust a file list that silently ignored the search term.
+    if (filter !== undefined) {
+      const probe = await apiRequest(
+        "GET",
+        svc(encodeURIComponent(orderNo), "restore/files/points")
+      );
+      if (
+        probe.status < 200
+        || probe.status >= 300
+        || readSearchAvailable(probe.data) !== true
+      ) {
+        return {
+          isError: true,
+          content: [{
+            type: "text",
+            text: formatJson({
+              success: false,
+              error_codes: ["serviceFileBrowseSearchUnavailable"],
+              reason:
+                "Folder search is not available for this service right now, so the filter was not applied and no file list is being returned. This node's worker does not report the backup folder-search capability.",
+              fix:
+                "Browse the directory without filter and page through it with offset, or retry search later once the service's node reports the capability. Do not treat an unfiltered listing as a search result.",
+            }),
+          }],
+        };
+      }
+    }
+
+    const { status, data } = await apiRequest(
+      "POST",
+      svc(encodeURIComponent(orderNo), "restore/files/browses"),
+      fileBrowseRequestBody({
+        backupPointId,
+        sourceBrowseId,
+        directoryEntryId,
+        offset,
+        filter,
+      }),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeFileBrowsePayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_restore_file_browse",
+  {
+    description:
+      "Poll one queued backup file listing. Free and read-only. Keep polling while state is queued, running, or awaiting_reply; entries are present only when state is succeeded. A failed state carries an errorCode and no listing — report that rather than presenting an empty or partial directory as the real contents. Requires services:read.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      browse_id: fileBrowseIdSchema,
+    },
+    annotations: {
+      title: "Get backup file listing",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, browse_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      svc(
+        encodeURIComponent(orderNo),
+        `restore/files/browses/${encodeURIComponent(browse_id)}`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeFileBrowsePayload(status, data)),
+      }],
+    };
   }
 );
 

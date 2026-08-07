@@ -132,6 +132,38 @@ intentionally not exposed as MCP tools. Public pre-login order and domain-search
 routes likewise have authenticated MCP equivalents where an account operation
 needs them.
 
+## Browsing inside a backup
+
+Looking inside a backup is free and completely separate from paying to restore
+one. `list_restore_file_points`, `browse_restore_files` and
+`get_restore_file_browse` only read a backup's directory listing: they never
+charge the account, never overwrite the disk, and never put a file back on the
+server. Initially supported on Firecracker VPS.
+
+Browsing is asynchronous. `browse_restore_files` returns a browse id in a
+pending state; poll `get_restore_file_browse` until `state` is `succeeded`.
+Entries exist only in that state — a `failed` browse carries an `errorCode` and
+no listing, and must not be presented as an empty directory.
+
+Directories can hold an enormous number of files, so listings are paged at 200
+entries server-side. When `result.truncated` is true, call again with the same
+`sourceBrowseId` and `directoryEntryId` and `offset` set to
+`result.nextOffset`. Subdirectories are entered with the opaque `id` of a
+`type: "directory"` entry; filesystem paths are never accepted. Entry types are
+`file`, `directory`, `symlink` and `unsupported`.
+
+Folder search (the `filter` argument) matches entry **names** in the one
+directory being listed — case-insensitive substring, never a path, never
+recursive. It depends on a worker capability that older nodes do not report, so
+`list_restore_file_points` returns `searchAvailable`. `browse_restore_files`
+checks that flag before sending a filter and **fails with
+`serviceFileBrowseSearchUnavailable` when search is unsupported**, rather than
+quietly returning an unfiltered listing that would be mistaken for search
+results. Plain browsing keeps working on those nodes.
+
+Restoring selected files back onto the server is a paid operation and is
+deliberately **not** exposed here; use the VPSnet panel for it.
+
 ## SSH access workflow
 
 This MCP server manages your VPS infrastructure through the VPSnet.com API, including SSH key provisioning. Once an SSH key is deployed to a VPS, the AI assistant can connect directly using its environment's terminal (e.g. Claude Code's Bash tool, Cline's terminal).
@@ -500,6 +532,16 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `get_backup_status` | Get backup status and configuration |
 | `get_backup_history` | Get backup history |
 | `create_backup` | Create a new backup (paid) |
+
+### Restore
+| Tool | Description |
+|------|-------------|
+| `get_restore_status` | Get retention, restore price, and any restore in progress |
+| `list_restore_points` | List whole-service restore points |
+| `request_restore` | **Paid and destructive:** restore the whole service disk from a point |
+| `list_restore_file_points` | List browsable backup points and whether folder search is available (free) |
+| `browse_restore_files` | Queue a listing of one directory inside a backup (free, read-only) |
+| `get_restore_file_browse` | Poll a queued backup directory listing (free, read-only) |
 
 ### SSH Keys
 | Tool | Description |
