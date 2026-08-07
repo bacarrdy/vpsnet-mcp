@@ -258,14 +258,20 @@ export const APPLICATION_SECRET_DELIVERY = "portal" as const;
 
 export function applicationInstallRequestBody(params: {
   application: string;
-  releaseChannel: string;
+  releaseChannel?: string;
   variables: Record<string, unknown>;
   acknowledgeRuntimeRestart: boolean;
   access?: ApplicationSingleAccess;
 }): Record<string, unknown> {
   return {
     application: params.application,
-    releaseChannel: params.releaseChannel,
+    // Omitted on purpose when the caller did not pick one: the catalog then
+    // resolves the application's own published channel. Most published
+    // applications do not ship on a channel named "stable", so a hardcoded
+    // default here rejected them.
+    ...(params.releaseChannel !== undefined
+      ? { releaseChannel: params.releaseChannel }
+      : {}),
     variables: params.variables,
     secretDelivery: APPLICATION_SECRET_DELIVERY,
     ...(params.acknowledgeRuntimeRestart

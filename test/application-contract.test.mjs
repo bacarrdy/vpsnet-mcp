@@ -192,6 +192,28 @@ test("managed application install preserves explicit access and restart consent"
       secretDelivery: "portal",
     }
   );
+  assert.deepEqual(
+    applicationInstallRequestBody({
+      application: "open-webui",
+      variables: {},
+      acknowledgeRuntimeRestart: false,
+    }),
+    {
+      application: "open-webui",
+      variables: {},
+      secretDelivery: "portal",
+    },
+    "an omitted channel must stay omitted so the catalog resolves the application's own channel"
+  );
+  assert.equal(
+    "releaseChannel" in
+      applicationInstallRequestBody({
+        application: "open-webui",
+        variables: {},
+        acknowledgeRuntimeRestart: false,
+      }),
+    false
+  );
   assert.equal(
     applicationAccessSchema.safeParse({
       mode: "external_https",
