@@ -72,6 +72,7 @@ const server = new McpServer(
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
       "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
+      "This server needs a MANAGEMENT API key (scope full, or read for GET-only use). An AI-scoped key is issued only for VPSnet AI assistant inference and is refused on every account route, so no tool here can work with one. When a tool result carries auth_problem, read its reason and fix and relay them instead of reporting a bare 'Unauthorized'.",
       "",
       "## Ordering a new VPS",
       "Flow: get_order_plans → get_order_options(plan) → order_service.",

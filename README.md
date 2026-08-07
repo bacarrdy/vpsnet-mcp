@@ -577,7 +577,19 @@ For Claude Code extension, environment variables **must** be in the `env` object
 
 ### API key errors
 
-- Verify the key is correct (starts with `vpsnet_`)
+This server needs a **management** API key. Every failure below is reported by
+the tools with an `auth_problem` object containing the cause and the fix, so
+read that rather than guessing from the HTTP status.
+
+| What you see | What it means | Fix |
+|---|---|---|
+| `aiScopedApiKeyCannotManageAccount` (403) | The key is an **AI-scoped key**. Those are issued only for VPSnet AI assistant inference and are deliberately refused on the entire account API. Granting scopes cannot change this — the restriction is on the key type. | Create a separate key with scope `full` (or `read` for GET-only use) and use that here. Keep the AI-scoped key for inference. |
+| `apiKeyRejected` (401) | The key failed authentication outright. The API returns one identical 401 for every cause, so it is one of: unknown, revoked, expired, malformed, or your source IP is not on the key's IP allowlist. | Check the key is active and copied whole, and that any IP allowlist includes the address this server calls from. |
+| `readOnlyApiKeyCannotWrite` (401) | A read-scoped key was used for a write; read keys are limited to GET. | Use a full-scope key, or stay on read-only tools. |
+| `apiKeyScopeMissing` (403) | The key authenticated but lacks the granular scope named in `requiredScope`. | Add that scope in Account > API Keys. |
+| `apiKeyForbidden` (403) | The endpoint refuses API keys entirely. API keys never grant admin access. | Use the panel with a signed-in session. |
+
+- Verify the key is correct (starts with `vpsnet_` followed by 43 characters)
 - Keys are shown only once at creation — if lost, create a new one
 - Check that the key hasn't expired (Account > API Keys)
 
