@@ -2,6 +2,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
@@ -192,7 +193,7 @@ const server = new McpServer(
       "VPS product facts (unordered): 'firecracker' is VPS using Firecracker microVMs for Linux workloads; 'vds' is Cloud VPS (KVM) with High Availability, replicated Ceph NVMe storage, and Linux/Windows/BSD support; 'vps' is Container VPS using container virtualization; 'ds' is a dedicated single-tenant server. Match the user's requirements and returned plan capabilities; list position is not a recommendation. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire). Firecracker Functions is a separate usage-billed service with create/update/invoke/list tools, not part of ordering or managing a VPS, Cloud VPS, or Dedicated service.",
       "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
-      "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
+      "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
       "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. Directories are paged at 200 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
@@ -3906,17 +3907,57 @@ server.registerTool(
   "request_restore",
   {
     description:
-      "PAID: restore a service from a backup point. Charges the restore price (+VAT) from the ACCOUNT BALANCE immediately and overwrites the service disk with the backup content. DESTRUCTIVE and billed — always confirm the point and price (get_restore_status) with the user first.",
+      "PAID: restore a service from a backup point. Charges the restore price (+VAT) from the ACCOUNT BALANCE immediately and overwrites the service disk with the backup content. DESTRUCTIVE and billed — always confirm the point and price (get_restore_status) with the user first. The tool runs the backend's quote → confirm flow itself under one Idempotency-Key (generated per call unless idempotencyKey is given), so a single call is a single paid attempt. Requires services:read, a full-access API key with paid operations enabled, the services:restore paid scope, and configured spend caps.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       backup_point_id: z.number().describe("Restore point ID from list_restore_points"),
+      idempotencyKey: paidIdempotencyKeySchema
+        .optional()
+        .describe(
+          "Optional stable key to retry or replay ONE exact earlier restore attempt without paying twice. Omit it for a new restore — a fresh key is generated for the call."
+        ),
     },
   },
-  async ({ orderNo, backup_point_id }) => {
+  async ({ orderNo, backup_point_id, idempotencyKey }) => {
+    // The backend contract for API-key callers is quote → confirm with the
+    // SAME Idempotency-Key plus the quoteToken minted by the quote step. A
+    // bare confirm is refused (idempotencyKeyRequired / quoteTokenRequired),
+    // so both steps happen here, exactly like order_service.
+    const key = idempotencyKey ?? randomUUID();
+    const quote = await apiRequest(
+      "POST",
+      `/account/services/${orderNo}/restore/requests/quote`,
+      { backup_point_id },
+      { "Idempotency-Key": key }
+    );
+    const quoteToken = (quote.data as { quoteToken?: string } | null)
+      ?.quoteToken;
+    if (!quoteToken) {
+      const alreadyUsed = (quote.data as
+        | { idempotencyKeyAlreadyUsed?: boolean }
+        | null)?.idempotencyKeyAlreadyUsed === true;
+      if (!alreadyUsed) {
+        // Surface the quote-stage denial (scope, paid-ops, spend cap, missing
+        // point, ...) directly: it names the real reason, which a follow-up
+        // confirm would only mask behind quoteTokenRequired.
+        return { content: [{ type: "text", text: formatJson(quote.data) }] };
+      }
+      // The key was already spent on an earlier attempt. Confirm without a
+      // token: the backend resolves the same key to the existing restore
+      // request and replays it without charging again.
+      const replay = await apiRequest(
+        "POST",
+        `/account/services/${orderNo}/restore/requests`,
+        { backup_point_id },
+        { "Idempotency-Key": key }
+      );
+      return { content: [{ type: "text", text: formatJson(replay.data) }] };
+    }
     const { data } = await apiRequest(
       "POST",
       `/account/services/${orderNo}/restore/requests`,
-      { backup_point_id }
+      { backup_point_id, quoteToken },
+      { "Idempotency-Key": key, "X-Quote-Token": quoteToken }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
