@@ -89,6 +89,7 @@ const server = new McpServer(
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
       "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
       "This server needs a MANAGEMENT API key (scope full, or read for GET-only use). An AI-scoped key is issued only for VPSnet AI assistant inference and is refused on every account route, so no tool here can work with one. When a tool result carries auth_problem, read its reason and fix and relay them instead of reporting a bare 'Unauthorized'.",
+      "Service tools are scope-gated for API keys: service reads (lists, details, graphs, history, options, backup/snapshot/restore-point listings) require services:read; service mutations (start/stop/restart/console, suspend/resume, hostname, rDNS, root password, title, IPv6, extra settings, SSH key deploy, OS reinstall, plan change, renewal, auto-renew, backups, snapshots, firewall flush) require services:manage plus a full-access key; rescue requires services:rescue; paid whole-service restore additionally requires the services:restore paid scope. A key whose granular scope list was left empty keeps everything its access level (full/read) already allows, so scopes only ever narrow a key.",
       "",
       "## Ordering a new VPS",
       "Flow: get_order_plans → get_order_options(plan) → order_service.",
@@ -192,7 +193,7 @@ const server = new McpServer(
       "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first.",
-      "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. Directories are paged at 200 entries, so follow result.nextOffset while result.truncated is true instead of trying to fetch everything at once, and say so when you are showing one page of a larger directory. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
+      "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. Directories are paged at 200 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
@@ -452,7 +453,7 @@ server.registerTool(
   "list_services",
   {
     description:
-      "List all active VPS services with state, plan, IPs, and expiry",
+      "List all active VPS services with state, plan, IPs, and expiry Requires services:read when called with an API key.",
     inputSchema: {},
   },
   async () => {
@@ -464,7 +465,7 @@ server.registerTool(
 server.registerTool(
   "get_service",
   {
-    description: "Get detailed info for a service by order number",
+    description: "Get detailed info for a service by order number Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number, e.g. VP57068"),
     },
@@ -481,7 +482,7 @@ server.registerTool(
 server.registerTool(
   "get_service_graphs",
   {
-    description: "Get performance graphs (CPU, RAM, disk, network)",
+    description: "Get performance graphs (CPU, RAM, disk, network) Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -498,7 +499,7 @@ server.registerTool(
 server.registerTool(
   "get_service_history",
   {
-    description: "Get action history for a service",
+    description: "Get action history for a service Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2236,7 +2237,7 @@ server.registerTool(
 server.registerTool(
   "start_service",
   {
-    description: "Start a stopped VPS. Returns noty UUID for tracking.",
+    description: "Start a stopped VPS. Returns noty UUID for tracking. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2250,7 +2251,7 @@ server.registerTool(
 server.registerTool(
   "stop_service",
   {
-    description: "Stop a running VPS. Returns noty UUID for tracking.",
+    description: "Stop a running VPS. Returns noty UUID for tracking. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2264,7 +2265,7 @@ server.registerTool(
 server.registerTool(
   "restart_service",
   {
-    description: "Restart a VPS. Returns noty UUID for tracking.",
+    description: "Restart a VPS. Returns noty UUID for tracking. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2279,7 +2280,7 @@ server.registerTool(
   "console_service",
   {
     description:
-      "Open VNC console access to a running VPS. Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running.",
+      "Open VNC console access to a running VPS. Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2294,7 +2295,7 @@ server.registerTool(
   "suspend_service",
   {
     description:
-      "Suspend a running Cloud VPS (KVM/VDS) service. Changes service state to suspended. Returns a tracking event ID. VDS/Cloud VPS only; the service must be running.",
+      "Suspend a running Cloud VPS (KVM/VDS) service. Changes service state to suspended. Returns a tracking event ID. VDS/Cloud VPS only; the service must be running. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2309,7 +2310,7 @@ server.registerTool(
   "resume_service",
   {
     description:
-      "Resume a suspended Cloud VPS (KVM/VDS) service. Changes service state back to running. Returns a tracking event ID. VDS/Cloud VPS only; the service must be suspended.",
+      "Resume a suspended Cloud VPS (KVM/VDS) service. Changes service state back to running. Returns a tracking event ID. VDS/Cloud VPS only; the service must be suspended. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2326,7 +2327,7 @@ server.registerTool(
   "get_hostname",
   {
     description:
-      "Get the current service hostname, reserved automatic hostname, and automatic/customer management mode. Read-only API keys are accepted.",
+      "Get the current service hostname, reserved automatic hostname, and automatic/customer management mode. Read-only API keys are accepted. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2344,7 +2345,7 @@ server.registerTool(
   "change_hostname",
   {
     description:
-      "Queue a customer-managed hostname change for a Container VPS, VPS, or Cloud VPS. VPSnet-managed vpsnet.cloud names are reserved. The returned noty UUID tracks the asynchronous action. Requires a full API key; this route is not idempotency-keyed.",
+      "Queue a customer-managed hostname change for a Container VPS, VPS, or Cloud VPS. VPSnet-managed vpsnet.cloud names are reserved. The returned noty UUID tracks the asynchronous action. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       hostname: serviceHostnameSchema,
@@ -2364,7 +2365,7 @@ server.registerTool(
   "reset_hostname",
   {
     description:
-      "Restore the immutable VPSnet-managed automatic hostname for a Container VPS, VPS, or Cloud VPS. Returns noty=null when no guest change is needed. Requires a full API key; this route is not idempotency-keyed.",
+      "Restore the immutable VPSnet-managed automatic hostname for a Container VPS, VPS, or Cloud VPS. Returns noty=null when no guest change is needed. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2382,7 +2383,7 @@ server.registerTool(
   "change_root_password",
   {
     description:
-      "Change VPS root password. Rules: 6-40 chars, alphanumeric, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'.",
+      "Change VPS root password. Rules: 6-40 chars, alphanumeric, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       password: z
@@ -2406,7 +2407,7 @@ server.registerTool(
   "get_rdns",
   {
     description:
-      "Get effective PTR records for every assigned IPv4 and enabled IPv6 address. The response identifies the automatic default and whether each value is a customer override. Read-only API keys are accepted.",
+      "Get effective PTR records for every assigned IPv4 and enabled IPv6 address. The response identifies the automatic default and whether each value is a customer override. Read-only API keys are accepted. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2424,7 +2425,7 @@ server.registerTool(
   "change_rdns",
   {
     description:
-      "Set a customer PTR override for an address returned by get_rdns. Canonical length is 3-253 characters; labels are 1-63 ASCII alphanumeric/hyphen characters without leading/trailing hyphens. A trailing dot is removed and reserved VPSnet names are blocked. Requires a full API key; this route is not idempotency-keyed.",
+      "Set a customer PTR override for an address returned by get_rdns. Canonical length is 3-253 characters; labels are 1-63 ASCII alphanumeric/hyphen characters without leading/trailing hyphens. A trailing dot is removed and reserved VPSnet names are blocked. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       ip: serviceIpSchema,
@@ -2445,7 +2446,7 @@ server.registerTool(
   "clear_rdns",
   {
     description:
-      "Clear a customer PTR override for an address returned by get_rdns. The automatic VPSnet PTR is restored, or PTR is removed when no automatic hostname exists. Requires a full API key; this route is not idempotency-keyed.",
+      "Clear a customer PTR override for an address returned by get_rdns. The automatic VPSnet PTR is restored, or PTR is removed when no automatic hostname exists. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       ip: serviceIpSchema,
@@ -2464,7 +2465,7 @@ server.registerTool(
 server.registerTool(
   "flush_iptables",
   {
-    description: "Flush iptables rules on VPS (useful when locked out)",
+    description: "Flush iptables rules on VPS (useful when locked out) Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2481,7 +2482,7 @@ server.registerTool(
 server.registerTool(
   "get_title",
   {
-    description: "Get the current customer-visible service display title",
+    description: "Get the current customer-visible service display title Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2498,7 +2499,7 @@ server.registerTool(
 server.registerTool(
   "change_title",
   {
-    description: "Change service display title",
+    description: "Change service display title Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       title: z
@@ -2522,7 +2523,7 @@ server.registerTool(
 server.registerTool(
   "toggle_ipv6",
   {
-    description: "Enable or disable IPv6 on VPS",
+    description: "Enable or disable IPv6 on VPS Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       value: z.boolean().describe("true to enable, false to disable"),
@@ -2542,7 +2543,7 @@ server.registerTool(
   "toggle_extra_settings",
   {
     description:
-      "Toggle extra VPS settings: ppp, fuse, tuntap, or nfs",
+      "Toggle extra VPS settings: ppp, fuse, tuntap, or nfs Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       name: z
@@ -2565,7 +2566,7 @@ server.registerTool(
   "deploy_ssh_key",
   {
     description:
-      "Deploy an SSH key to VPS. Returns noty UUID for tracking. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here.",
+      "Deploy an SSH key to VPS. Returns noty UUID for tracking. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       ssh_key: z.number().describe("SSH key ID from list_ssh_keys"),
@@ -2586,7 +2587,7 @@ server.registerTool(
 server.registerTool(
   "get_os_options",
   {
-    description: "Get available OS templates for reinstall",
+    description: "Get available OS templates for reinstall Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2604,7 +2605,7 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys all data! If the service supports snapshots (Cloud VPS or Firecracker VPS), take one first — it's free for an initial window, so it's cheap insurance you can roll back to; then DELETE it once the reinstall succeeds, because after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire) — never leave snapshots lying around. Container VPS and Dedicated have no snapshots, so there is no rollback safety net — confirm with the user before reinstalling. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit.",
+      "Reinstall OS on VPS. WARNING: destroys all data! If the service supports snapshots (Cloud VPS or Firecracker VPS), take one first — it's free for an initial window, so it's cheap insurance you can roll back to; then DELETE it once the reinstall succeeds, because after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire) — never leave snapshots lying around. Container VPS and Dedicated have no snapshots, so there is no rollback safety net — confirm with the user before reinstalling. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       osVersion: z
@@ -2636,7 +2637,7 @@ server.registerTool(
   "get_plan_options",
   {
     description:
-      "Get available plans for upgrade/downgrade. Plan changes are FREE.",
+      "Get available plans for upgrade/downgrade. Plan changes are FREE. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2653,7 +2654,7 @@ server.registerTool(
 server.registerTool(
   "get_plan_resources",
   {
-    description: "Get configurable resources for a specific plan",
+    description: "Get configurable resources for a specific plan Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       plan: z.number().describe("Plan ID from get_plan_options"),
@@ -2672,7 +2673,7 @@ server.registerTool(
   "calculate_plan_change",
   {
     description:
-      "Preview plan change cost and new expiry. Plan changes are FREE — recalculates remaining time. Use get_plan_resources first to see available resource IDs for the target plan.",
+      "Preview plan change cost and new expiry. Plan changes are FREE — recalculates remaining time. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       plan: z.number().describe("Plan ID from get_plan_options"),
@@ -2697,7 +2698,7 @@ server.registerTool(
   "change_plan",
   {
     description:
-      "Change VPS plan (FREE). Recalculates expiry based on price difference. Always call calculate_plan_change first to preview. Use get_plan_resources to get resource IDs for the target plan.",
+      "Change VPS plan (FREE). Recalculates expiry based on price difference. Always call calculate_plan_change first to preview. Use get_plan_resources to get resource IDs for the target plan. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       plan: z.number().describe("Plan ID from get_plan_options"),
@@ -2723,7 +2724,7 @@ server.registerTool(
 server.registerTool(
   "get_period_options",
   {
-    description: "Get billing period and auto-renewal options",
+    description: "Get billing period and auto-renewal options Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2740,7 +2741,7 @@ server.registerTool(
 server.registerTool(
   "set_auto_renew",
   {
-    description: "Enable or disable auto-renewal for a service. Note: enabling auto-renewal will automatically charge the account balance at each renewal (creating an invoice) without further confirmation.",
+    description: "Enable or disable auto-renewal for a service. Note: enabling auto-renewal will automatically charge the account balance at each renewal (creating an invoice) without further confirmation. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       state: z.boolean().describe("true to enable, false to disable"),
@@ -2766,7 +2767,7 @@ server.registerTool(
   "renew_service",
   {
     description:
-      "Manually renew a service for a specific period. COST WARNING: this charges the account balance / creates an invoice immediately, and renewal payments are NON-REFUNDABLE once confirmed. Verify the service and period with the user before calling. Payment object: { payment: 1, successUrl: '', cancelUrl: '' } for balance payment.",
+      "Manually renew a service for a specific period. COST WARNING: this charges the account balance / creates an invoice immediately, and renewal payments are NON-REFUNDABLE once confirmed. Verify the service and period with the user before calling. Payment object: { payment: 1, successUrl: '', cancelUrl: '' } for balance payment. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       period: z.number().describe("Period ID from get_period_options"),
@@ -2927,7 +2928,7 @@ server.registerTool(
 server.registerTool(
   "get_backup_status",
   {
-    description: "Get backup status and configuration for a service",
+    description: "Get backup status and configuration for a service Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2944,7 +2945,7 @@ server.registerTool(
 server.registerTool(
   "get_backup_history",
   {
-    description: "Get backup history for a service",
+    description: "Get backup history for a service Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2962,7 +2963,7 @@ server.registerTool(
   "create_backup",
   {
     description:
-      "Create a new backup. Returns noty UUID for tracking. First call get_backup_status to see available period dates and price. Backup is a paid operation (price shown in get_backup_status).",
+      "Create a new backup. Returns noty UUID for tracking. First call get_backup_status to see available period dates and price. Backup is a paid operation (price shown in get_backup_status). Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       period: z
@@ -3070,7 +3071,8 @@ server.registerTool(
 server.registerTool(
   "list_api_keys",
   {
-    description: "List all API keys on the account",
+    description:
+      "Show the API key this request authenticated with. The backend scopes this endpoint to the calling key itself (the response sets apiKeyScopedToSelf), so other keys on the account are never listed here. Creating new keys and managing or revoking other keys is available only in the VPSnet panel.",
     inputSchema: {},
   },
   async () => {
@@ -3083,9 +3085,9 @@ server.registerTool(
   "get_api_key",
   {
     description:
-      "Get metadata for one active API key owned by the account. The full key and stored secrets are never returned.",
+      "Get metadata for one active API key. For API-key callers only the calling key's own ID is accessible — introspecting other keys is refused and is panel-only. The full key and stored secrets are never returned.",
     inputSchema: {
-      id: z.number().int().positive().describe("API key ID from list_api_keys"),
+      id: z.number().int().positive().describe("API key ID from list_api_keys (the calling key's own ID)"),
     },
   },
   async ({ id }) => {
@@ -3711,7 +3713,7 @@ server.registerTool(
   "list_snapshots",
   {
     description:
-      "List disk snapshots for a Cloud VPS (KVM/VDS) service, with the snapshot billing policy (free window, then billed per GB while kept) and a usage summary. Firecracker VPS uses list_firecracker_snapshots instead.",
+      "List disk snapshots for a Cloud VPS (KVM/VDS) service, with the snapshot billing policy (free window, then billed per GB while kept) and a usage summary. Firecracker VPS uses list_firecracker_snapshots instead. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number, e.g. VD12345"),
     },
@@ -3729,7 +3731,7 @@ server.registerTool(
   "create_snapshot",
   {
     description:
-      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Only one snapshot action can run at a time; snapshot count is limited per service.",
+      "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Only one snapshot action can run at a time; snapshot count is limited per service. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       description: z.string().optional().describe("Optional snapshot description"),
@@ -3751,7 +3753,7 @@ server.registerTool(
   "rollback_snapshot",
   {
     description:
-      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around.",
+      "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapname: z.string().describe("Snapshot name from list_snapshots"),
@@ -3769,7 +3771,7 @@ server.registerTool(
 server.registerTool(
   "delete_snapshot",
   {
-    description: "Delete a Cloud VPS (KVM/VDS) disk snapshot.",
+    description: "Delete a Cloud VPS (KVM/VDS) disk snapshot. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapname: z.string().describe("Snapshot name from list_snapshots"),
@@ -3788,7 +3790,7 @@ server.registerTool(
   "list_firecracker_snapshots",
   {
     description:
-      "List temporary snapshots for a Firecracker VPS service, including billing state (free window, then a per-GB keep rate) and expiry.",
+      "List temporary snapshots for a Firecracker VPS service, including billing state (free window, then a per-GB keep rate) and expiry. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number, e.g. VP57068"),
     },
@@ -3806,7 +3808,7 @@ server.registerTool(
   "create_firecracker_snapshot",
   {
     description:
-      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Check list_firecracker_snapshots for the policy fields.",
+      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Check list_firecracker_snapshots for the policy fields. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       description: z
@@ -3831,7 +3833,7 @@ server.registerTool(
   "rollback_firecracker_snapshot",
   {
     description:
-      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around.",
+      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
@@ -3849,7 +3851,7 @@ server.registerTool(
 server.registerTool(
   "delete_firecracker_snapshot",
   {
-    description: "Delete a Firecracker VPS temporary snapshot (stops its keep billing).",
+    description: "Delete a Firecracker VPS temporary snapshot (stops its keep billing). Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
@@ -3868,7 +3870,7 @@ server.registerTool(
   "get_restore_status",
   {
     description:
-      "Get the unified restore state for a service: retention days, restore price, and any restore request in progress. Cloud VPS and Firecracker VPS have automatic daily off-node backups restored through this flow.",
+      "Get the unified restore state for a service: retention days, restore price, and any restore request in progress. Cloud VPS and Firecracker VPS have automatic daily off-node backups restored through this flow. Requires services:read plus the services:restore paid scope when called with an API key (the response includes account balance).",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -3886,7 +3888,7 @@ server.registerTool(
   "list_restore_points",
   {
     description:
-      "List available backup restore points for a service (automatic off-node backups). Use a point id with request_restore.",
+      "List available backup restore points for a service (automatic off-node backups). Use a point id with request_restore. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -3955,7 +3957,7 @@ server.registerTool(
   "browse_restore_files",
   {
     description:
-      "Queue a free, read-only listing of one directory inside a backup point. This does NOT restore anything, does not charge the account, and does not modify the server. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so results are paged at 200 entries: when result.truncated is true, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
+      "Queue a free, read-only listing of one directory inside a backup point. This does NOT restore anything, does not charge the account, and does not modify the server. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so results are paged at 200 entries: while result.nextOffset is non-null, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. When nextOffset is null the listing cannot be paged further even if truncated is true — that is a capped scan; check result.listingStatus: 'complete' means the folder was read end to end, 'partial' means the listing is a bounded lower-bound slice, so never present it as the whole folder. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       backupPointId: fileBrowsePointIdSchema,
@@ -3968,7 +3970,7 @@ server.registerTool(
       offset: fileBrowseOffsetSchema
         .optional()
         .describe(
-          "Copy result.nextOffset to page further through the SAME directory. Must be 0 (or omitted) when starting a root listing or entering a directory."
+          "Copy a non-null result.nextOffset to page further through the SAME directory (a null nextOffset means the listing cannot be paged further). Must be 0 (or omitted) when starting a root listing or entering a directory."
         ),
       filter: fileBrowseFilterSchema.optional(),
       idempotencyKey: idempotencyKeySchema.describe(
@@ -4099,7 +4101,7 @@ server.registerTool(
   "get_guest_agent_status",
   {
     description:
-      "Check whether the QEMU guest agent is running inside a Cloud VPS (KVM/VDS). Useful before OS-level operations that depend on the agent.",
+      "Check whether the QEMU guest agent is running inside a Cloud VPS (KVM/VDS). Useful before OS-level operations that depend on the agent. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
