@@ -4439,7 +4439,7 @@ server.registerTool(
   "apply_dns_template",
   {
     description:
-      "Apply a backend-defined DNS template to a native forward zone. Records still pass the same API validation, quotas and conflict rules as manual record writes. Requires dns:write when using an API key.",
+      "Apply a backend-defined DNS template to a native forward zone. Records still pass the same API validation, quotas and conflict rules as manual record writes. Prefer preview=true first to show the user exactly which records a template would write before changing the zone. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: z.number().describe("DNS zone ID"),
       template: z
@@ -4449,14 +4449,28 @@ server.registerTool(
         .record(z.union([z.string(), z.number(), z.boolean()]))
         .optional()
         .describe("Template parameters, e.g. { ipv4, ipv6, www, mx_target, ttl } depending on the template"),
+      preview: z
+        .boolean()
+        .optional()
+        .describe(
+          "true to dry-run the template and return the records it would write without changing the zone"
+        ),
+      overwrite: z
+        .boolean()
+        .optional()
+        .describe(
+          "true to replace existing records that conflict with the template. Destructive: confirm the exact conflicts with the user first, ideally from a preview run."
+        ),
     },
   },
-  async ({ zone_id, template, parameters }) => {
+  async ({ zone_id, template, parameters, preview, overwrite }) => {
     const { data } = await apiRequest(
       "POST",
       `/account/dns/zones/${zone_id}/templates/${encodeURIComponent(template)}`,
       {
         ...(parameters !== undefined ? { parameters } : {}),
+        ...(preview !== undefined ? { preview } : {}),
+        ...(overwrite !== undefined ? { overwrite } : {}),
       }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
