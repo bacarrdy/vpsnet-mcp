@@ -241,6 +241,21 @@ export function applicationAccessConfigurationRequestBody(
   return { access, expectedRevision };
 }
 
+/**
+ * Generated credentials are always handed to the owner in the VPSnet panel,
+ * never returned to this client.
+ *
+ * The alternative, `inline`, requires a `revealReceipt`: a caller-generated
+ * token that asserts "I have received this credential and stored it", after
+ * which it is never shown again. An assistant cannot truthfully make that
+ * assertion on a user's behalf — its context is transient and is not a place a
+ * customer can retrieve a password from later — so acknowledging one-time
+ * delivery here would destroy the customer's only copy of the credential.
+ * Requesting `portal` keeps the one-time guarantee intact and hands the single
+ * reveal to the person who can actually store it.
+ */
+export const APPLICATION_SECRET_DELIVERY = "portal" as const;
+
 export function applicationInstallRequestBody(params: {
   application: string;
   releaseChannel: string;
@@ -252,6 +267,7 @@ export function applicationInstallRequestBody(params: {
     application: params.application,
     releaseChannel: params.releaseChannel,
     variables: params.variables,
+    secretDelivery: APPLICATION_SECRET_DELIVERY,
     ...(params.acknowledgeRuntimeRestart
       ? { acknowledgeRuntimeRestart: true }
       : {}),
@@ -635,6 +651,52 @@ function errorCodes(value: unknown): string[] {
     .slice(0, 20);
 }
 
+/**
+ * Project the backend's machine-readable remediation block so a failure says
+ * what to send instead of only which code was returned. It is a whitelist: only
+ * field names, accepted values and translation keys survive, never a credential
+ * value, a receipt or a free-form server string.
+ */
+function safeApplicationErrorDetail(value: unknown): Record<string, unknown> | null {
+  const detail = record(value);
+  if (Object.keys(detail).length === 0) {
+    return null;
+  }
+
+  const resolution = Array.isArray(detail.resolution)
+    ? detail.resolution.slice(0, 8).map((entry) => {
+        const step = record(entry);
+        return {
+          field: boundedString(step.field, 64),
+          value: typeof step.value === "boolean" || typeof step.value === "number"
+            ? step.value
+            : boundedString(step.value, 64),
+          requires: Array.isArray(step.requires)
+            ? step.requires
+                .slice(0, 8)
+                .map((name) => boundedString(name, 64))
+                .filter((name): name is string => name !== null)
+            : [],
+        };
+      })
+    : [];
+
+  const credentials = Array.isArray(detail.credentials)
+    ? detail.credentials
+        .slice(0, 32)
+        .map((name) => boundedString(name, 96))
+        .filter((name): name is string => name !== null)
+    : [];
+
+  return {
+    code: boundedString(detail.code, 100),
+    message_key: boundedString(detail.message_key, 190),
+    reason: boundedString(detail.reason, 96),
+    credentials,
+    resolution,
+  };
+}
+
 export function safeApplicationMutationPayload(
   status: number,
   data: unknown,
@@ -644,9 +706,15 @@ export function safeApplicationMutationPayload(
   const codes = errorCodes(payload);
   const reveal = record(payload.secret_reveal);
   const existingHandoff = record(payload.portal_handoff);
+  const delivery = record(payload.secret_delivery);
+  const detail = safeApplicationErrorDetail(payload.error_detail);
   const revealRequired = Object.keys(reveal).length > 0
     || existingHandoff.required === true
-    || codes.some((code) => /(?:secret.*reveal|generated.*credential)/i.test(code));
+    || delivery.pending_reveal === true
+    || detail?.reason === "generated_credentials"
+    || codes.some((code) =>
+      /(?:secret.*(?:reveal|delivery)|generated.*credential)/i.test(code)
+    );
   const accessPath = safePortalPath(portalPath);
   const portalHandoff = revealRequired && accessPath
     ? {
@@ -661,6 +729,7 @@ export function safeApplicationMutationPayload(
       success: false,
       status,
       error_codes: codes,
+      error_detail: detail,
       portal_handoff: portalHandoff,
     };
   }
@@ -681,6 +750,10 @@ export function safeApplicationMutationPayload(
       id: boundedString(action.id),
       type: boundedString(action.type),
       state: boundedString(action.state),
+    },
+    secret_delivery: {
+      mode: boundedString(delivery.mode, 32),
+      pending_reveal: delivery.pending_reveal === true,
     },
     portal_handoff: portalHandoff,
   };

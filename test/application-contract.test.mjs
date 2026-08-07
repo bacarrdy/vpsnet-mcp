@@ -173,6 +173,7 @@ test("managed application install preserves explicit access and restart consent"
       application: "open-webui",
       releaseChannel: "stable",
       variables: {},
+      secretDelivery: "portal",
       acknowledgeRuntimeRestart: true,
       access,
     }
@@ -188,6 +189,7 @@ test("managed application install preserves explicit access and restart consent"
       application: "open-webui",
       releaseChannel: "stable",
       variables: {},
+      secretDelivery: "portal",
     }
   );
   assert.equal(
@@ -473,4 +475,92 @@ test("inspection output redacts private keys with truncated PEM boundaries", () 
     assert.equal(redacted.includes(material), false);
     assert.doesNotMatch(redacted, /-----BEGIN .*PRIVATE KEY|-----END .*PRIVATE KEY/);
   }
+});
+
+test("managed application install never acknowledges one-time secret delivery", () => {
+  // A revealReceipt asserts the caller received and stored a credential that is
+  // never shown again. An assistant cannot store anything for the user, so the
+  // request must always ask for portal delivery and must never carry a receipt.
+  const body = applicationInstallRequestBody({
+    application: "bookstack",
+    releaseChannel: "stable",
+    variables: {},
+    acknowledgeRuntimeRestart: true,
+  });
+
+  assert.equal(body.secretDelivery, "portal");
+  assert.equal(Object.prototype.hasOwnProperty.call(body, "revealReceipt"), false);
+  assert.equal(JSON.stringify(body).toLowerCase().includes("receipt"), false);
+});
+
+test("managed application failures explain what the caller must send", () => {
+  const projected = safeApplicationMutationPayload(
+    409,
+    {
+      applicationOneTimeSecretDeliveryUnavailable: true,
+      error_detail: {
+        code: "applicationOneTimeSecretDeliveryUnavailable",
+        message_key: "install.secretDelivery.required",
+        reason: "generated_credentials",
+        credentials: ["ADMIN_PASSWORD"],
+        resolution: [
+          { field: "secretDelivery", value: "portal", requires: [] },
+          {
+            field: "secretDelivery",
+            value: "inline",
+            requires: ["revealReceipt"],
+            receipt: { field: "revealReceipt", pattern: "^[A-Za-z0-9_-]{43}$" },
+          },
+        ],
+        discover_at: "GET /account/services/{orderNo}/applications/catalog",
+      },
+    },
+    "/management/service/VPS-1/applications"
+  );
+
+  assert.equal(projected.success, false);
+  assert.deepEqual(projected.error_codes, [
+    "applicationOneTimeSecretDeliveryUnavailable",
+  ]);
+  assert.equal(projected.error_detail.message_key, "install.secretDelivery.required");
+  assert.deepEqual(projected.error_detail.credentials, ["ADMIN_PASSWORD"]);
+  assert.deepEqual(projected.error_detail.resolution[0], {
+    field: "secretDelivery",
+    value: "portal",
+    requires: [],
+  });
+  // The receipt shape is deliberately dropped: this client must not be nudged
+  // toward inline delivery.
+  assert.equal("receipt" in projected.error_detail.resolution[1], false);
+  assert.equal(projected.portal_handoff.required, true);
+});
+
+test("managed application install surfaces a waiting portal reveal", () => {
+  const projected = safeApplicationMutationPayload(
+    202,
+    {
+      success: true,
+      replayed: false,
+      installation: {
+        id: "1f3502fc-1177-4e3f-b867-b3f6d7b9846e",
+        state: "queued",
+        application: "bookstack",
+        release_channel: "stable",
+        upstream_version: "24.05",
+      },
+      action: { id: ACTION_ID, type: "install", state: "queued" },
+      secret_delivery: {
+        mode: "portal",
+        pending_reveal: true,
+        claim: { path: "/account/services/VPS-1/applications" },
+      },
+    },
+    "/management/service/VPS-1/applications"
+  );
+
+  assert.equal(projected.secret_delivery.mode, "portal");
+  assert.equal(projected.secret_delivery.pending_reveal, true);
+  assert.equal(projected.portal_handoff.required, true);
+  // No claim path, receipt, or credential material reaches this client.
+  assert.equal("claim" in projected.secret_delivery, false);
 });
