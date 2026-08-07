@@ -76,6 +76,8 @@ async function withServer(t, { searchAvailable }) {
           nextOffset: 200,
           truncated: true,
           scanned: 23,
+          skipped: 2,
+          listingStatus: "partial",
         }),
       };
     } else {
@@ -148,6 +150,8 @@ test("browse tools are read-only and bind to the exact backup file routes", asyn
   assert.equal(payload.browse.result.entries[0].type, "directory");
   assert.equal(payload.browse.result.truncated, true);
   assert.equal(payload.browse.result.nextOffset, 200);
+  assert.equal(payload.browse.result.skipped, 2);
+  assert.equal(payload.browse.result.listingStatus, "partial");
 });
 
 test("search is sent only when the node advertises the capability", async (t) => {

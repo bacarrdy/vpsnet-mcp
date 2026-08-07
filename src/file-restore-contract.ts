@@ -150,6 +150,19 @@ function safeBrowseResult(value: unknown): Record<string, unknown> | null {
     nextOffset: boundedInteger(source.nextOffset, FILE_BROWSE_MAX_OFFSET),
     truncated: source.truncated === true,
     scanned: boundedInteger(source.scanned, Number.MAX_SAFE_INTEGER),
+    // Entries whose names the backup contract cannot represent (for example
+    // filenames that are not valid UTF-8) are skipped, not failed. Surfacing
+    // the count keeps a short page honest.
+    skipped: boundedInteger(source.skipped, Number.MAX_SAFE_INTEGER),
+    // 'complete' means the directory was read end to end, so this listing --
+    // including an empty search -- is definitive. 'partial' means the scan
+    // stopped before the directory did: the listing is a lower bound, and
+    // nothing can be concluded about what is absent from it. Never tell a
+    // user a file does not exist in the backup off a partial listing.
+    listingStatus:
+      source.listingStatus === "complete" || source.listingStatus === "partial"
+        ? source.listingStatus
+        : null,
   };
 }
 
