@@ -84,6 +84,18 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.ok(install.inputSchema.properties?.access);
   assert.match(install.description, /portal handoff/i);
   assert.doesNotMatch(install.description, /support boundary|authorship/i);
+  // No channel default: omitting release_channel lets the catalog resolve the
+  // application's own published channel. A hardcoded "stable" rejected most
+  // published applications.
+  assert.ok(install.inputSchema.properties?.release_channel);
+  assert.equal(
+    "default" in install.inputSchema.properties.release_channel,
+    false
+  );
+  assert.equal(
+    (install.inputSchema.required || []).includes("release_channel"),
+    false
+  );
 
   assert.ok(configureAccess);
   assert.equal(configureAccess.inputSchema.properties?.confirmed.const, true);

@@ -1909,8 +1909,10 @@ server.registerTool(
       release_channel: z
         .string()
         .regex(/^[a-z0-9][a-z0-9-]{0,31}$/)
-        .default("stable")
-        .describe("Published release channel, normally stable"),
+        .optional()
+        .describe(
+          "Published release channel. Omit it to install the application's own published channel; most catalog applications are not published on a channel named 'stable', so never guess one."
+        ),
       variables: applicationVariablesSchema,
       acknowledge_runtime_restart: z
         .literal(true)
