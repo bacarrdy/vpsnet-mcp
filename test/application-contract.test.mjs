@@ -557,6 +557,37 @@ test("managed application failures explain what the caller must send", () => {
   assert.equal(projected.portal_handoff.required, true);
 });
 
+test("already-installed 409 carries the action-form resolution to the agent", () => {
+  const projected = safeApplicationMutationPayload(
+    409,
+    {
+      applicationAlreadyInstalled: true,
+      blockingInstallation: { installation: "abc-123", state: "failed" },
+      error_detail: {
+        code: "applicationAlreadyInstalled",
+        message_key: "install.alreadyInstalled.blocked",
+        reason: "failed_installation_holds_slot",
+        resolution: [
+          { action: "uninstall", installation: "abc-123", description_key: "install.alreadyInstalled.uninstallExisting" },
+          { action: "repair", installation: "abc-123", description_key: "install.alreadyInstalled.repairFailed" },
+        ],
+        discover_at: "GET /account/services/{orderNo}/applications/installations/{installation}",
+      },
+    },
+    "/management/service/VPS-1/applications"
+  );
+
+  assert.equal(projected.success, false);
+  // The actionable steps must survive projection, not be blanked to {field:null}.
+  assert.deepEqual(projected.error_detail.resolution[0], {
+    action: "uninstall",
+    installation: "abc-123",
+    description_key: "install.alreadyInstalled.uninstallExisting",
+  });
+  assert.equal(projected.error_detail.resolution[1].action, "repair");
+  assert.equal(projected.error_detail.reason, "failed_installation_holds_slot");
+});
+
 test("managed application install surfaces a waiting portal reveal", () => {
   const projected = safeApplicationMutationPayload(
     202,
