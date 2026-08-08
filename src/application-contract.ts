@@ -672,18 +672,39 @@ function safeApplicationErrorDetail(value: unknown): Record<string, unknown> | n
   const resolution = Array.isArray(detail.resolution)
     ? detail.resolution.slice(0, 8).map((entry) => {
         const step = record(entry);
-        return {
-          field: boundedString(step.field, 64),
-          value: typeof step.value === "boolean" || typeof step.value === "number"
+        // Two resolution shapes exist: the variable-form ({field,value,
+        // requires}, e.g. secret-delivery) and the action-form ({action,
+        // installation,description_key}, e.g. the already-installed 409's
+        // uninstall/repair steps and the port-conflict holder). Carry both,
+        // dropping only keys that are absent, so an agent actually receives
+        // the actionable step instead of a blanked {field:null,value:null}.
+        const mapped: Record<string, unknown> = {};
+        const field = boundedString(step.field, 64);
+        if (field !== null) {
+          mapped.field = field;
+          mapped.value = typeof step.value === "boolean" || typeof step.value === "number"
             ? step.value
-            : boundedString(step.value, 64),
-          requires: Array.isArray(step.requires)
+            : boundedString(step.value, 64);
+          mapped.requires = Array.isArray(step.requires)
             ? step.requires
                 .slice(0, 8)
                 .map((name) => boundedString(name, 64))
                 .filter((name): name is string => name !== null)
-            : [],
-        };
+            : [];
+        }
+        const action = boundedString(step.action, 64);
+        if (action !== null) {
+          mapped.action = action;
+        }
+        const installation = boundedString(step.installation, 64);
+        if (installation !== null) {
+          mapped.installation = installation;
+        }
+        const descriptionKey = boundedString(step.description_key, 190);
+        if (descriptionKey !== null) {
+          mapped.description_key = descriptionKey;
+        }
+        return mapped;
       })
     : [];
 
