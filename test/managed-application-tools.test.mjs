@@ -84,6 +84,20 @@ test("tools/list exposes the backend-compatible managed application contract", a
   assert.ok(install.inputSchema.properties?.access);
   assert.match(install.description, /portal handoff/i);
   assert.doesNotMatch(install.description, /support boundary|authorship/i);
+  // Install parity with the panel: agents must know that private access is not
+  // browser-reachable, that platform_https is the usual public choice for
+  // web-UI applications, and where the public URL appears after install.
+  assert.match(install.description, /private access is reachable only from inside the server/i);
+  assert.match(install.description, /platform_https/);
+  assert.match(
+    install.description,
+    /public endpoint URL from get_application_installation/i
+  );
+  const installAccessDescription = JSON.stringify(
+    install.inputSchema.properties?.access
+  );
+  assert.match(installAccessDescription, /platform_https/);
+  assert.match(installAccessDescription, /reachable only from inside the server/i);
   // No channel default: omitting release_channel lets the catalog resolve the
   // application's own published channel. A hardcoded "stable" rejected most
   // published applications.
