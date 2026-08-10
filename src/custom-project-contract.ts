@@ -35,30 +35,6 @@ export const customProjectComposeSchema = z
     "Docker Compose YAML. Mutable image tags are resolved once and replaced with immutable sha256 digests before worker validation."
   );
 
-export const composeDraftDescriptionSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(2000)
-  .describe(
-    "Plain-language description of what the customer wants to run, e.g. 'a WordPress site with its own MySQL database'. Never put secrets, tokens, or passwords in this text."
-  );
-
-export const composeDraftProjectNameSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(255)
-  .describe("Optional project name to draft against");
-
-export const composeDraftCurrentComposeSchema = z
-  .string()
-  .min(1)
-  .max(12000)
-  .describe(
-    "Optional existing Compose document to revise instead of drafting from scratch"
-  );
-
 const customProjectVariableNameSchema = z
   .string()
   .regex(/^[A-Z][A-Z0-9_]{0,62}$/);
@@ -134,6 +110,10 @@ function boundedString(value: unknown, maxLength = 512): string | null {
 }
 
 function boundedInteger(value: unknown, max: number): number | null {
+  if (
+    (typeof value !== "number" && typeof value !== "string")
+    || (typeof value === "string" && value.trim() === "")
+  ) return null;
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 && number <= max
     ? number
@@ -603,57 +583,5 @@ export function safeComposeAdoptionConfirmationPayload(
       access_path: portalPath,
       reason: "application_status_and_secret_reveal",
     },
-  };
-}
-
-/**
- * Keep only the drafted Compose document and its advisory notes.
- *
- * Drafting is text generation performed for the customer by the VPSnet AI
- * assistant. It creates no session, deploys no key, touches no container, and
- * does not consume the account balance. When the assistant is unreachable the
- * backend answers 503 `unavailable`, which must be reported as "drafting is
- * unavailable right now", never as a validated or installable result.
- */
-export function safeComposeDraftPayload(
-  status: number,
-  data: unknown
-): Record<string, unknown> {
-  const payload = record(data);
-  const success = status >= 200 && status < 300 && payload.success === true;
-  const compose = boundedString(payload.compose_yaml, 65536);
-
-  if (success === false || compose === null) {
-    const unavailable = payload.unavailable === true || status === 503;
-    return {
-      success: false,
-      status,
-      error_codes: errorCodes(payload),
-      retry_after: boundedInteger(payload.retryAfter, 86400),
-      reason: unavailable
-        ? "Compose drafting by the VPSnet AI assistant is unavailable right now."
-        : "The compose draft request was refused.",
-      fix: unavailable
-        ? "Retry later, or write the Compose document yourself and check it with validate_application_recipe."
-        : "Check the description and project name, then retry.",
-    };
-  }
-
-  const notes = Array.isArray(payload.notes) ? payload.notes : [];
-
-  return {
-    success: true,
-    status,
-    compose_yaml: compose,
-    summary: boundedString(payload.summary, 2000),
-    notes: notes
-      .slice(0, 8)
-      .map((note) => boundedString(note, 500))
-      .filter((note): note is string => note !== null),
-    // A draft is an unvalidated suggestion, not an installable artefact.
-    next_step:
-      "Show the draft to the user. It is not validated or installed: run "
-      + "validate_application_recipe to check it against the target worker "
-      + "policy before creating a recipe or installing anything.",
   };
 }

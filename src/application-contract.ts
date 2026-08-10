@@ -197,14 +197,23 @@ export const applicationResourceRestartDeltaSchema = z
   .optional()
   .describe("Optional restart display threshold between comparable samples");
 
+export const applicationResourceEmailEnabledSchema = z
+  .boolean()
+  .optional()
+  .describe(
+    "Send one account email when a configured threshold is reached and one when it recovers"
+  );
+
 export function applicationResourceThresholdRequestBody(input: {
   cpuPercent?: number | null;
+  emailEnabled?: boolean;
   memoryMiB?: number | null;
   networkMiBPerMinute?: number | null;
   restartDelta?: number | null;
-}): Record<string, number | null> {
+}): Record<string, number | null | boolean> {
   return {
     cpuPercent: input.cpuPercent ?? null,
+    emailEnabled: input.emailEnabled ?? false,
     memoryMiB: input.memoryMiB ?? null,
     networkMiBPerMinute: input.networkMiBPerMinute ?? null,
     restartDelta: input.restartDelta ?? null,
@@ -353,6 +362,10 @@ function boundedString(value: unknown, maxLength = 512): string | null {
 }
 
 function boundedInteger(value: unknown, max: number): number | null {
+  if (
+    (typeof value !== "number" && typeof value !== "string")
+    || (typeof value === "string" && value.trim() === "")
+  ) return null;
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 && number <= max
     ? number
@@ -452,19 +465,28 @@ function safeApplicationDataRestore(value: unknown): Record<string, unknown> | n
 }
 
 function boundedMoney(value: unknown): number | null {
-    const amount = Number(value);
-    return Number.isFinite(amount) && amount >= 0 && amount <= 1_000_000
-      ? Math.round(amount * 100) / 100
-      : null;
+  const amount = numericValue(value);
+  return amount !== null && amount >= 0 && amount <= 1_000_000
+    ? Math.round(amount * 100) / 100
+    : null;
 }
 
 function boundedBalance(value: unknown): number | null {
-  const amount = Number(value);
-  return Number.isFinite(amount)
+  const amount = numericValue(value);
+  return amount !== null
     && amount >= -1_000_000
     && amount <= 1_000_000
     ? Math.round(amount * 100) / 100
     : null;
+}
+
+function numericValue(value: unknown): number | null {
+  if (
+    (typeof value !== "number" && typeof value !== "string")
+    || (typeof value === "string" && value.trim() === "")
+  ) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function safeApplicationDataRestoreQuote(
@@ -472,12 +494,12 @@ function safeApplicationDataRestoreQuote(
 ): Record<string, unknown> | null {
   const quote = record(value);
   const priceExVat = boundedMoney(quote.price_ex_vat);
-  const vatRate = Number(quote.vat_rate);
+  const vatRate = numericValue(quote.vat_rate);
   const totalCharged = boundedMoney(quote.total_charged);
   const balance = boundedBalance(quote.balance);
   if (
     priceExVat === null
-    || !Number.isFinite(vatRate)
+    || vatRate === null
     || vatRate < 0
     || vatRate > 100
     || totalCharged === null

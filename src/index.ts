@@ -27,6 +27,7 @@ import {
   applicationLogTailLinesSchema,
   applicationRevisionSchema,
   applicationResourceCpuPercentSchema,
+  applicationResourceEmailEnabledSchema,
   applicationResourceMemoryMiBSchema,
   applicationResourceNetworkMiBPerMinuteSchema,
   applicationResourceRestartDeltaSchema,
@@ -41,9 +42,6 @@ import {
 } from "./application-contract.js";
 import {
   composeAdoptionIdSchema,
-  composeDraftCurrentComposeSchema,
-  composeDraftDescriptionSchema,
-  composeDraftProjectNameSchema,
   composeProjectLabelSchema,
   customProjectComposeSchema,
   customProjectDefinitionRequestBody,
@@ -56,7 +54,6 @@ import {
   customProjectSecretsSchema,
   safeComposeAdoptionConfirmationPayload,
   safeComposeAdoptionPayload,
-  safeComposeDraftPayload,
   safeContainerDiscoveryPayload,
   safeCustomProjectInstallPayload,
   safeCustomProjectPayload,
@@ -112,7 +109,7 @@ const server = new McpServer(
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and manage_application are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
       "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. When access.request.schema_version=2, submit every exact access.endpoints key once and match the user's requested service by endpoint service and port; array order and primary=true are metadata, not a recommendation. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
-      "get_application_installation includes bounded application and per-container resource history plus optional display thresholds when the worker supports those measurements. Use configure_application_resource_thresholds only to highlight CPU, memory, network-per-minute, or restart-delta samples at the user's request. Thresholds do not reserve or enforce resources, trigger server actions, affect billing, or promise alerts.",
+      "get_application_installation includes bounded application and per-container resource history plus optional display thresholds when the worker supports those measurements. Use configure_application_resource_thresholds only at the user's request. Thresholds highlight CPU, memory, network-per-minute, or restart-delta samples but do not reserve or enforce resources, trigger server actions, or affect billing. Email is disabled by default; when the user enables it, VPSnet sends one reached and one recovered message per threshold episode without repeating while the metric remains high.",
       "Use list_application_registry_credentials only for non-secret private registry credential metadata. Exact custom HTTPS registry hostnames are supported. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
       "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. Validation resolves mutable image tags once and returns an immutable digest-pinned Compose definition before checking it on the target worker. Recipe creation and revision tools freeze that exact validated definition; installation runs an exact revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
       "discover_service_containers returns bounded read-only Docker metadata from a supported Firecracker service. Treat managed and detected containers as separate states. Discovery never modifies containers. Compose adoption is a separate prepare → inspect → explicit confirm flow; only confirm_application_compose_adoption stops source containers, and only after the user approves the exact candidate and source-stop acknowledgement. The initial takeover is one-time, while the exact external-volume binding remains signed into later lifecycle actions. If managed startup fails, source containers resume only after the managed replacement is conclusively contained; an uncertain outcome fails closed for operator recovery.",
@@ -122,7 +119,6 @@ const server = new McpServer(
       "No separate application backup is created. list_application_restore_points freely exposes only eligible application-consistent nightly whole-VM points for the exact current Firecracker application revision; API keys need applications:manage, paid operations enabled, applications:restore paid scope, and full access because the response includes account balance. Select a point, call quote_application_data_restore to freeze the exact balance charge, disclose it to the user, then call restore_application_data with the same idempotency key and quote token only after explicit approval of both the charge and destructive data replacement. Paid API keys also require spend caps before quote/confirmation. Poll get_application_data_restore; needs_attention is not success and keeps mutations locked. Never ask for or invent PBS credentials, archive IDs, devices, or filesystem paths.",
       "Installation list and detail responses carry a capabilities block for the service's platform: data_restore, console, compose_adoption, custom_projects, and log_service_filter. Treat it as the authority on what is possible for that installation. Do not offer selective data restore when data_restore is false, do not offer Compose adoption or customer recipes when their flags are false, and do not pass a per-service log filter when log_service_filter is false. A separate access.capabilities.can_configure flag governs whether the access mode may be changed.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
-      "draft_application_compose asks the VPSnet AI assistant to write a Compose document from a description. It is text generation only: no session, no SSH key, no container, no charge, and it is rate limited. Its output is an unvalidated suggestion — always run validate_application_recipe before creating a recipe or installing, and never present a draft as installed or verified.",
       "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
       "Service rescue is a separate recovery path for Firecracker VPS and Cloud VPS. Always call get_service_rescue first. Entering rescue restarts the service; call enter_service_rescue only after the user explicitly approves the restart and exact image returned by the capability response. Firecracker exposes the customer filesystem at /mnt/customer; Cloud VPS uses the operator recovery ISO and noVNC. Exit restores the exact original boot and running/stopped state. If exit returns needs_attention, retry exit_service_rescue with the same idempotency key. Never ask for or invent provider nodes, VM IDs, ISO paths, operation nonces, or rollback configuration.",
       "",
@@ -194,8 +190,9 @@ const server = new McpServer(
       "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
-      "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. Directories are paged at 200 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
+      "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. The server selects pages of 200 or 1,000 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, use result.pageSize rather than assuming 200 when moving backwards, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
+      "Before update_function, call get_function. If integrity.unreadable_fields names code or environment, do not update until the user explicitly approves replacing every unavailable value from a trusted copy. Only then pass acknowledge_unreadable_replacement=true. The backend rejects an unacknowledged replacement; never set the flag for an ordinary update.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
       "",
@@ -466,7 +463,8 @@ server.registerTool(
 server.registerTool(
   "get_service",
   {
-    description: "Get detailed info for a service by order number Requires services:read when called with an API key.",
+    description:
+      "Get detailed info for a service by order number. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number, e.g. VP57068"),
     },
@@ -799,11 +797,12 @@ server.registerTool(
   "configure_application_resource_thresholds",
   {
     description:
-      "Replace the complete optional resource display-threshold set for one owned managed application. Read get_application_installation first. Omitted or null fields disable that threshold and omitting all four clears the preferences. These settings only highlight measured CPU, memory, combined network-per-minute, and restart-delta samples; they do not reserve or enforce resources, restart containers, affect billing, or promise alerts. Confirm the exact thresholds with the user first. Requires applications:manage and is not a paid API-key operation.",
+      "Replace the complete optional resource-threshold set and email preference for one owned managed application. Read get_application_installation first. Omitted or null numeric fields disable that threshold; omitted email_enabled is false; omitting all four thresholds clears the preferences and disables email. Thresholds highlight measured CPU, memory, combined network-per-minute, and restart-delta samples. When email is enabled, VPSnet sends one account email when a configured threshold is reached and one when it recovers, without repeating while it remains high. Thresholds do not reserve or enforce resources, restart containers, or affect billing. Confirm the exact thresholds and email preference with the user first. Requires applications:manage and is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
       cpu_percent: applicationResourceCpuPercentSchema,
+      email_enabled: applicationResourceEmailEnabledSchema,
       memory_mib: applicationResourceMemoryMiBSchema,
       network_mib_per_minute: applicationResourceNetworkMiBPerMinuteSchema,
       restart_delta: applicationResourceRestartDeltaSchema,
@@ -822,6 +821,7 @@ server.registerTool(
     orderNo,
     installation_id,
     cpu_percent,
+    email_enabled,
     memory_mib,
     network_mib_per_minute,
     restart_delta,
@@ -834,6 +834,7 @@ server.registerTool(
       ),
       applicationResourceThresholdRequestBody({
         cpuPercent: cpu_percent,
+        emailEnabled: email_enabled,
         memoryMiB: memory_mib,
         networkMiBPerMinute: network_mib_per_minute,
         restartDelta: restart_delta,
@@ -1278,43 +1279,6 @@ server.registerTool(
       content: [{
         type: "text",
         text: formatJson(safeApplicationDataRestorePayload(status, data)),
-      }],
-    };
-  }
-);
-
-server.registerTool(
-  "draft_application_compose",
-  {
-    description:
-      "Ask the VPSnet AI assistant to write one complete Docker Compose document from a plain-language description, for use as a customer recipe on an owned service. This is text generation only: it creates no assistant session, deploys no SSH key, starts no container, changes nothing on the server, and does not consume the account balance. It is rate limited to 15 drafts per hour per user. The result is a SUGGESTION and is neither validated nor installed — always run validate_application_recipe on it before creating a recipe or installing. Requires applications:manage on an active service, and because it is a POST it needs an API key that permits write operations. If the assistant is unreachable the tool reports that drafting is unavailable; write the Compose document manually in that case.",
-    inputSchema: {
-      orderNo: applicationOrderNoSchema,
-      description: composeDraftDescriptionSchema,
-      project_name: composeDraftProjectNameSchema.optional(),
-      current_compose: composeDraftCurrentComposeSchema.optional(),
-    },
-    annotations: {
-      title: "Draft a Compose file with the VPSnet AI assistant",
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-    },
-  },
-  async ({ orderNo, description, project_name, current_compose }) => {
-    const body: Record<string, unknown> = { description };
-    if (project_name !== undefined) body.project_name = project_name;
-    if (current_compose !== undefined) body.current_compose = current_compose;
-
-    const { status, data } = await apiRequest(
-      "POST",
-      applicationPath(orderNo, "custom-projects/ai/draft"),
-      body
-    );
-    return {
-      content: [{
-        type: "text",
-        text: formatJson(safeComposeDraftPayload(status, data)),
       }],
     };
   }
@@ -3097,6 +3061,44 @@ server.registerTool(
   }
 );
 
+server.registerTool(
+  "get_api_key_activity",
+  {
+    description:
+      "Get the recorded request activity for this API key: recent matched route patterns and statuses, resolved and separately labelled caller-claimed source addresses, endpoint/source totals, and retained daily history. API-key callers can inspect only the same key that authenticated the MCP connection. Key values, headers, query strings, path values, and request bodies are never returned. To protect the control plane during abusive bursts, audit writes are capped per key per minute and retained detail has a separate per-key row ceiling; totals describe recorded rows and are not a billing ledger.",
+    inputSchema: {
+      id: z.number().int().positive().describe("API key ID from list_api_keys (the calling key's own ID)"),
+      limit: z.number().int().min(1).max(200).optional().describe("Recent request rows to return (default 50, maximum 200)"),
+    },
+  },
+  async ({ id, limit }) => {
+    const query = limit === undefined ? "" : `?limit=${encodeURIComponent(String(limit))}`;
+    const { data } = await apiRequest(
+      "GET",
+      `/account/api-keys/${id}/activity${query}`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_api_key_inference_usage",
+  {
+    description:
+      "Get exact paid VPSnet AI usage for this inference API key: committed and currently reserved spend for the UTC day and month, request and token totals by public VPSnet model profile, configured spend limits, remaining spend, and notification preferences. API-key callers can inspect only the same key that authenticated the MCP connection. Internal provider model names are never returned. This is read-only and does not change limits, notifications, or billing.",
+    inputSchema: {
+      id: z.number().int().positive().describe("Inference API key ID from list_api_keys (the calling key's own ID)"),
+    },
+  },
+  async ({ id }) => {
+    const { data } = await apiRequest(
+      "GET",
+      `/account/api-keys/${id}/inference-usage`
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
 // --- DNS ---
 
 server.registerTool(
@@ -3809,7 +3811,7 @@ server.registerTool(
   "create_firecracker_snapshot",
   {
     description:
-      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept; snapshots expire automatically. Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Check list_firecracker_snapshots for the policy fields. Requires services:manage and a full-access API key.",
+      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept until its automatic expiry. Take a snapshot before any risky or automated change, and delete it once the change succeeds to stop keep billing early. Check list_firecracker_snapshots for the exact policy and expiry fields. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       description: z
@@ -3834,7 +3836,7 @@ server.registerTool(
   "rollback_firecracker_snapshot",
   {
     description:
-      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Requires services:manage and a full-access API key.",
+      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Firecracker snapshots expire automatically but remain billed after the free window until deletion or expiry, so delete an unneeded snapshot to stop keep billing early. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
@@ -3998,7 +4000,7 @@ server.registerTool(
   "browse_restore_files",
   {
     description:
-      "Queue a free, read-only listing of one directory inside a backup point. This does NOT restore anything, does not charge the account, and does not modify the server. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so results are paged at 200 entries: while result.nextOffset is non-null, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. When nextOffset is null the listing cannot be paged further even if truncated is true — that is a capped scan; check result.listingStatus: 'complete' means the folder was read end to end, 'partial' means the listing is a bounded lower-bound slice, so never present it as the whole folder. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
+      "Queue a free, read-only listing of one directory inside a backup point. This does NOT restore anything, does not charge the account, and does not modify the server. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so the server selects pages of 200 or 1,000 entries: while result.nextOffset is non-null, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. Use result.pageSize rather than assuming 200 when moving backwards. When nextOffset is null the listing cannot be paged further even if truncated is true — that is a capped scan; check result.listingStatus: 'complete' means the folder was read end to end, 'partial' means the listing is a bounded lower-bound slice, so never present it as the whole folder. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       backupPointId: fileBrowsePointIdSchema,
@@ -4171,6 +4173,7 @@ const functionBodyFromInput = (input: Record<string, unknown>) => {
     "enabled",
     "webhook_enabled",
     "rotate_webhook_secret",
+    "acknowledge_unreadable_replacement",
   ]) {
     if (input[key] !== undefined) body[key] = input[key];
   }
@@ -4242,10 +4245,14 @@ server.registerTool(
 server.registerTool(
   "update_function",
   {
-    description: "Update a Firecracker Function's code or configuration.",
+    description:
+      "Update a Firecracker Function's code or configuration. Call get_function first. If integrity.unreadable_fields names code or environment, the backend refuses the update unless the user explicitly approves replacing every unavailable value from a trusted copy and acknowledge_unreadable_replacement=true is passed. Leave that flag false for ordinary updates.",
     inputSchema: {
       function_id: z.number().describe("Function ID from list_functions"),
       ...functionFieldsSchema,
+      acknowledge_unreadable_replacement: z.boolean().optional().describe(
+        "Explicit customer approval to replace code or environment named by integrity.unreadable_fields; default false"
+      ),
     },
   },
   async ({ function_id, ...input }) => {

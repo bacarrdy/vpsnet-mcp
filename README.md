@@ -64,7 +64,9 @@ identified only by Compose service and ordinal. Use
 `configure_application_resource_thresholds` after explicit confirmation to
 replace optional display thresholds. Omitted values clear a threshold; the
 thresholds only highlight measurements and do not enforce resources, trigger
-server actions, affect billing, or promise alerts.
+server actions, or affect billing. Set `email_enabled` after explicit
+confirmation to send one account email when a threshold is reached and one when
+it recovers; repeated measurements above the same threshold do not resend.
 
 Use `configure_application_access` to change how an installed application is
 reached. Read the installation first and pass its current revision with a new
@@ -126,16 +128,6 @@ block — `data_restore`, `console`, `compose_adoption`, `custom_projects` and
 flag. Treat those flags as the authority on what an installation supports
 rather than attempting an action and reading the failure.
 
-`draft_application_compose` asks the VPSnet AI assistant to write a complete
-Compose document from a plain-language description. It is text generation
-only: no assistant session, no SSH key, no container, no change to the server,
-and no charge to the balance. Drafting is rate limited to 15 requests per hour
-per user. The result is an **unvalidated suggestion** — run
-`validate_application_recipe` on it before creating a recipe or installing
-anything, and never describe a draft as verified or installed. When the
-assistant is unreachable the tool reports that drafting is unavailable instead
-of returning a partial file.
-
 Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
 `manage_application` call requires `acknowledge_data_loss=true` for uninstall,
@@ -161,10 +153,12 @@ pending state; poll `get_restore_file_browse` until `state` is `succeeded`.
 Entries exist only in that state — a `failed` browse carries an `errorCode` and
 no listing, and must not be presented as an empty directory.
 
-Directories can hold an enormous number of files, so listings are paged at 200
-entries server-side. When `result.truncated` is true, call again with the same
-`sourceBrowseId` and `directoryEntryId` and `offset` set to
-`result.nextOffset`. Subdirectories are entered with the opaque `id` of a
+Directories can hold an enormous number of files, so the server selects pages
+of 200 or 1,000 entries according to the worker capability. When
+`result.nextOffset` is non-null, call again with the same `sourceBrowseId` and
+`directoryEntryId` and set `offset` to that cursor. Use `result.pageSize`
+rather than assuming 200 when moving backwards. Subdirectories are entered
+with the opaque `id` of a
 `type: "directory"` entry; filesystem paths are never accepted. Entry types are
 `file`, `directory`, `symlink` and `unsupported`.
 
@@ -481,10 +475,9 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `prepare_application_compose_adoption` | Prepare and poll a scrubbed candidate for one discovered Compose project |
 | `get_application_compose_adoption` | Poll one tenant-bound Compose adoption candidate |
 | `confirm_application_compose_adoption` | Confirm the exact source takeover after explicit approval |
-| `draft_application_compose` | Draft a Compose file with the VPSnet AI assistant; unvalidated suggestion only |
 | `install_application` | Queue a confirmed, version-pinned managed installation |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change |
-| `configure_application_resource_thresholds` | Replace confirmed non-enforcing application resource display thresholds |
+| `configure_application_resource_thresholds` | Replace confirmed non-enforcing application resource thresholds and reached/recovered email preference |
 | `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement |
 | `cancel_application_action` | Cancel the exact latest queued action only while the backend advertises it as cancellable |
 
@@ -494,6 +487,9 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `start_service` | Start a stopped VPS |
 | `stop_service` | Stop a running VPS |
 | `restart_service` | Restart a VPS |
+| `console_service` | Request an out-of-band console session for a running VPS |
+| `suspend_service` | Suspend a running Cloud VPS |
+| `resume_service` | Resume a suspended Cloud VPS |
 
 ### Service Settings
 | Tool | Description |
@@ -535,6 +531,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | `list_invoices` | List invoices |
 | `get_invoice` | Get a specific invoice |
 | `list_payments` | List payment history |
+| `get_usage_statements` | List itemized metered-usage statements separately from invoices |
 
 ### Ordering
 | Tool | Description |
@@ -571,11 +568,105 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 ### API Keys
 | Tool | Description |
 |------|-------------|
-| `list_api_keys` | List all API keys |
+| `list_api_keys` | Show the API key authenticating this MCP connection |
 | `get_api_key` | Get one active key's non-secret metadata |
+| `get_api_key_activity` | Get the calling key's bounded retained request activity and recorded totals |
+| `get_api_key_inference_usage` | Get the calling inference key's exact paid VPSnet AI usage and cap state |
 
 API-key creation, changes, and revocation require a browser/session login. They
 cannot be performed by an MCP connection authenticated with an API key.
+
+### Domains
+| Tool | Description |
+|------|-------------|
+| `list_domains` | List domains owned by the account |
+| `get_domain` | Get one owned domain and its pending action |
+| `list_domain_tlds` | List TLDs currently enabled for ordering |
+| `check_domain_availability` | Check domain availability without ordering |
+| `get_domain_ordering_status` | Get non-secret domain-ordering readiness |
+| `set_domain_nameservers` | Queue a nameserver change for an owned domain |
+| `list_domain_glue_records` | List same-domain nameserver address records |
+| `create_domain_glue_record` | Queue creation or update of a nameserver address record |
+| `delete_domain_glue_record` | Queue deletion of a nameserver address record |
+| `get_domain_parent_ds` | List parent-zone DNSSEC DS records |
+| `add_domain_parent_ds` | Queue addition of parent-zone DS records |
+| `delete_domain_parent_ds` | Queue deletion of parent-zone DS records |
+| `list_domain_contacts` | List domain contacts owned by the account |
+| `create_domain_contact` | Create a domain contact |
+| `update_domain_contact` | Update an existing domain contact |
+| `delete_domain_contact` | Delete an unused domain contact |
+| `quote_domain_register` | Quote a domain registration without charging |
+| `confirm_domain_register` | Confirm and pay for an exact registration quote |
+| `quote_domain_transfer` | Quote a domain transfer without charging |
+| `confirm_domain_transfer` | Confirm and pay for an exact transfer quote |
+| `quote_domain_renew` | Quote renewal of an owned domain without charging |
+| `confirm_domain_renew` | Confirm and pay for an exact renewal quote |
+| `quote_domain_restore` | Quote restoration of a domain in redemption without charging |
+| `confirm_domain_restore` | Confirm and pay for an exact restoration quote |
+| `set_domain_auto_renew` | Enable or disable automatic renewal for an owned domain |
+| `get_registrar_lock` | Get registrar transfer-lock state; changes remain panel-only |
+
+### DNS
+| Tool | Description |
+|------|-------------|
+| `list_service_dns_options` | List owned zones and service addresses available for DNS attachment |
+| `attach_service_dns_record` | Point an owned-zone name at one service address |
+| `list_dns_zones` | List forward DNS zones owned by the account |
+| `create_dns_zone` | Create a native or secondary forward DNS zone |
+| `get_dns_zone` | Get one DNS zone and its desired records |
+| `get_dns_zone_diagnostics` | Inspect delegation, SOA, DNSSEC, and record hygiene |
+| `export_dns_zone` | Export a native zone as a BIND-style zone file |
+| `import_dns_zone` | Import bounded BIND-style records into a native zone |
+| `list_dns_templates` | List backend-defined DNS record templates |
+| `apply_dns_template` | Preview or apply one DNS record template |
+| `delete_dns_zone` | Delete a forward DNS zone |
+| `verify_dns_zone` | Verify ownership and publish a pending zone |
+| `get_dnssec` | Get DNSSEC state and public DNSKEY/DS material |
+| `set_dnssec` | Enable or safely disable DNSSEC signing |
+| `upsert_dns_record` | Create or replace a forward DNS desired-state record |
+| `update_dns_record` | Update one existing non-system DNS record |
+| `delete_dns_record` | Delete one forward DNS desired-state record |
+| `get_dns_service_status` | Get managed DNS cluster status and published endpoints |
+| `get_dns_zone_history` | Get recent zone and record change history |
+| `list_ddns_tokens` | List non-secret DDNS and ACME token metadata |
+| `create_ddns_token` | Create a narrow DDNS or ACME updater token |
+| `revoke_ddns_token` | Revoke a DDNS or ACME updater token |
+
+### Snapshots
+| Tool | Description |
+|------|-------------|
+| `list_snapshots` | List Cloud VPS disk snapshots and billing policy |
+| `create_snapshot` | Create a Cloud VPS disk snapshot |
+| `rollback_snapshot` | Destructively roll a Cloud VPS back to a snapshot |
+| `delete_snapshot` | Delete a Cloud VPS disk snapshot and stop its keep billing |
+| `list_firecracker_snapshots` | List temporary Firecracker VPS snapshots and expiry |
+| `create_firecracker_snapshot` | Create a temporary Firecracker VPS snapshot |
+| `rollback_firecracker_snapshot` | Destructively roll a Firecracker VPS back to a snapshot |
+| `delete_firecracker_snapshot` | Delete a Firecracker VPS snapshot and stop its keep billing |
+
+### Service Rescue
+| Tool | Description |
+|------|-------------|
+| `get_service_rescue` | Get rescue capability and current durable rescue session |
+| `enter_service_rescue` | Restart an eligible service into an advertised rescue image |
+| `exit_service_rescue` | Restore the exact pre-rescue boot configuration and state |
+
+### Firecracker Functions
+| Tool | Description |
+|------|-------------|
+| `list_functions` | List usage-billed Firecracker Functions |
+| `get_function` | Get one function, including integrity state and protected values when readable |
+| `create_function` | Create a Firecracker Function |
+| `update_function` | Update a function; unreadable protected values require explicit replacement approval |
+| `delete_function` | Delete a Firecracker Function |
+| `invoke_function` | Invoke a function with metered CPU and memory usage |
+| `list_function_invocations` | List a function's invocations, status, duration, and cost |
+| `get_function_invocation` | Get one invocation's output, logs, and usage cost |
+
+### Guest Agent
+| Tool | Description |
+|------|-------------|
+| `get_guest_agent_status` | Check QEMU guest-agent availability on a Cloud VPS |
 
 ### History
 | Tool | Description |

@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { safeFileBrowsePayload } from "../build/file-restore-contract.js";
 
 const BROWSE_ID = "550e8400-e29b-41d4-a716-446655440000";
 const DIR_ENTRY = "a".repeat(64);
@@ -17,6 +18,51 @@ const browse = (state, result = null) => ({
   createdAt: "2026-08-06 11:59:00",
   completedAt: state === "succeeded" ? "2026-08-06 12:00:00" : null,
   expiresAt: "2026-08-06 13:00:00",
+});
+
+test("cached browse results without pageSize retain the legacy 200-entry contract", () => {
+  const payload = safeFileBrowsePayload(200, {
+    success: true,
+    browse: browse("succeeded", {
+      directory: { path: "/" },
+      entries: [],
+      offset: 0,
+      nextOffset: null,
+      truncated: false,
+      scanned: 0,
+      skipped: 0,
+      listingStatus: "complete",
+    }),
+  });
+
+  assert.equal(payload.browse.result.pageSize, 200);
+  assert.equal(payload.browse.result.nextOffset, null);
+});
+
+test("nullable browse integers stay unknown instead of being fabricated as zero", () => {
+  const payload = safeFileBrowsePayload(200, {
+    success: true,
+    browse: browse("succeeded", {
+      directory: { path: "/" },
+      entries: [{
+        id: DIR_ENTRY,
+        name: "etc",
+        type: "directory",
+        size_bytes: null,
+        modified_at: null,
+      }],
+      offset: 0,
+      pageSize: 200,
+      nextOffset: null,
+      truncated: false,
+      scanned: 1,
+      skipped: 0,
+      listingStatus: "complete",
+    }),
+  });
+
+  assert.equal(payload.browse.result.nextOffset, null);
+  assert.equal(payload.browse.result.entries[0].size_bytes, null);
 });
 
 async function withServer(t, { searchAvailable }) {
@@ -65,17 +111,18 @@ async function withServer(t, { searchAvailable }) {
         success: true,
         browse: browse("succeeded", {
           directory: { path: "/" },
-          entries: [{
-            id: DIR_ENTRY,
-            name: "etc",
-            type: "directory",
-            size_bytes: 4096,
+          entries: Array.from({ length: 1000 }, (_, index) => ({
+            id: index === 0 ? DIR_ENTRY : index.toString(16).padStart(64, "0"),
+            name: index === 0 ? "etc" : `file-${index}.txt`,
+            type: index === 0 ? "directory" : "file",
+            size_bytes: index === 0 ? null : index,
             modified_at: "2026-08-06 12:00:00",
-          }],
+          })),
           offset: 0,
-          nextOffset: 200,
+          pageSize: 1000,
+          nextOffset: 1000,
           truncated: true,
-          scanned: 23,
+          scanned: 1002,
           skipped: 2,
           listingStatus: "partial",
         }),
@@ -148,8 +195,10 @@ test("browse tools are read-only and bind to the exact backup file routes", asyn
   const payload = JSON.parse(polled.content[0].text);
   assert.equal(payload.browse.state, "succeeded");
   assert.equal(payload.browse.result.entries[0].type, "directory");
+  assert.equal(payload.browse.result.entries.length, 1000);
+  assert.equal(payload.browse.result.pageSize, 1000);
   assert.equal(payload.browse.result.truncated, true);
-  assert.equal(payload.browse.result.nextOffset, 200);
+  assert.equal(payload.browse.result.nextOffset, 1000);
   assert.equal(payload.browse.result.skipped, 2);
   assert.equal(payload.browse.result.listingStatus, "partial");
 });
