@@ -659,9 +659,26 @@ cannot be performed by an MCP connection authenticated with an API key.
 | `create_function` | Create a Firecracker Function |
 | `update_function` | Update a function; unreadable protected values require explicit replacement approval |
 | `delete_function` | Delete a Firecracker Function |
-| `invoke_function` | Invoke a function with metered CPU and memory usage |
+| `invoke_function` | Invoke a function with metered CPU and memory usage; one stable Idempotency-Key prevents exact retries from running or billing twice |
 | `list_function_invocations` | List a function's invocations, status, duration, and cost |
 | `get_function_invocation` | Get one invocation's output, logs, and usage cost |
+
+### Temp VMs
+| Tool | Description |
+|------|-------------|
+| `get_temp_vm_options` | Get Temp VM profiles, durations, pricing inputs, and limits |
+| `quote_temp_vm` | Quote one prepaid session without charging or allocating a server |
+| `list_temp_vms` | List the account's Temp VM sessions and current options |
+| `create_temp_vm` | Create or exactly replay a paid session from the retained quote key and token |
+| `get_temp_vm` | Get one tenant-owned Temp VM session |
+| `delete_temp_vm` | Permanently delete a Temp VM after explicit data-loss acknowledgement; no customer refund is initiated |
+
+Temp VMs always include one public IP with outbound SMTP blocked. They have a
+hard expiry, no backups or snapshots, no conversion to a monthly service, and
+no customer-controlled refund on expiry or early deletion. `create_temp_vm`
+never re-quotes: use the exact `idempotency_key`, `quoteToken`, profile, and TTL
+returned by `quote_temp_vm` so an uncertain response can be replayed without a
+second charge.
 
 ### Guest Agent
 | Tool | Description |

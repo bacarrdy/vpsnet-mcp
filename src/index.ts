@@ -78,6 +78,17 @@ import {
   serviceRescueEnterRequestBody,
   serviceRescueImageIdSchema,
 } from "./service-rescue-contract.js";
+import {
+  safeTempVmPayload,
+  tempVmIdempotencyKeySchema,
+  tempVmIdSchema,
+  tempVmOsIdSchema,
+  tempVmProfileSchema,
+  tempVmQuoteTokenSchema,
+  tempVmRootPasswordSchema,
+  tempVmSshPublicKeySchema,
+  tempVmTtlSchema,
+} from "./temp-vm-contract.js";
 
 const server = new McpServer(
   { name: "vpsnet", version: "2.0.0" },
@@ -192,6 +203,8 @@ const server = new McpServer(
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
       "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. The server selects pages of 200 or 1,000 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, use result.pageSize rather than assuming 200 when moving backwards, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
+      "Temp VMs are separate prepaid Firecracker SSH servers with a hard expiry. Flow: get_temp_vm_options → quote_temp_vm → create_temp_vm. Copy the exact idempotency_key, quoteToken, profile, and TTL from the quote into create_temp_vm; create never re-quotes. One public IP is mandatory, outbound SMTP stays blocked, and a generated password is delivered only to the account email when no credential is supplied. Temp VMs have no backups or snapshots, deletion is permanent, and neither expiry nor customer deletion starts a refund.",
+      "To select a non-default Temp VM OS, use the selected profile's plan_id with get_order_options and pass an enabled non-runtime Firecracker guest OS ID. Omit os_id when there is no specific OS requirement; never invent an ID or use a Functions runtime image.",
       "Before update_function, call get_function. If integrity.unreadable_fields names code or environment, do not update until the user explicitly approves replacing every unavailable value from a trusted copy. Only then pass acknowledge_unreadable_replacement=true. The backend rejects an unacknowledged replacement; never set the flag for an ordinary update.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
@@ -4286,7 +4299,7 @@ server.registerTool(
   "invoke_function",
   {
     description:
-      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations. Always pass idempotency_key for agent retries so the same logical step is not double-run or double-billed (response may include replayed=true).",
+      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations. One Idempotency-Key is generated per tool call unless idempotency_key is supplied; reuse an explicit key only for an exact retry so the same logical step is not double-run or double-billed (response may include replayed=true).",
     inputSchema: {
       function_id: z.number().describe("Function ID from list_functions"),
       input: z
@@ -4294,26 +4307,30 @@ server.registerTool(
         .optional()
         .describe("Input payload passed to the function (string; JSON text is fine)"),
       wait: z.boolean().optional().describe("Wait synchronously for the result"),
-      idempotency_key: z
-        .string()
-        .max(190)
+      idempotency_key: paidIdempotencyKeySchema
         .optional()
         .describe(
-          "Stable client key for this logical invoke (e.g. agent step id). Retries with the same key return the original invocation."
+          "Optional stable key for this exact logical invoke (e.g. agent step id). Exact retries with the same key return the original invocation; changed input or wait semantics are refused."
         ),
+    },
+    annotations: {
+      title: "Invoke Firecracker Function",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({ function_id, input, wait, idempotency_key }) => {
     const body: Record<string, unknown> = {};
     if (input !== undefined) body.input = input;
     if (wait !== undefined) body.wait = wait;
-    if (idempotency_key !== undefined && String(idempotency_key).trim() !== "") {
-      body.idempotency_key = String(idempotency_key).trim();
-    }
+    const key = idempotency_key ?? randomUUID();
     const { data } = await apiRequest(
       "POST",
       `/account/firecracker/functions/${function_id}/invoke`,
-      body
+      body,
+      { "Idempotency-Key": key }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -4351,6 +4368,250 @@ server.registerTool(
       `/account/firecracker/functions/${function_id}/invocations/${encodeURIComponent(invocation_id)}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// --- Temporary Firecracker VM sessions ---
+
+server.registerTool(
+  "get_temp_vm_options",
+  {
+    description:
+      "Get customer-visible Temp VM profiles, allowed session durations, pricing inputs, public-IP policy, and concurrency limits. Host placement is never returned. Requires services:read.",
+    inputSchema: {},
+    annotations: {
+      title: "Get Temp VM options",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async () => {
+    const { status, data } = await apiRequest(
+      "GET",
+      "/account/firecracker/temp-vms/options"
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeTempVmPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "quote_temp_vm",
+  {
+    description:
+      "Prepare a prepaid Temp VM price without charging or allocating anything. Requires services:read plus paid fc:order scope/caps for API keys. Keep the returned idempotency_key and quoteToken: create_temp_vm must receive both with the exact quoted profile and TTL. A used quote key is not silently replaced.",
+    inputSchema: {
+      profile: tempVmProfileSchema.optional(),
+      ttl_minutes: tempVmTtlSchema.optional(),
+      idempotency_key: tempVmIdempotencyKeySchema
+        .optional()
+        .describe(
+          "Optional new key for this quote. Omit it to generate one; the result returns the generated key."
+        ),
+    },
+    annotations: {
+      title: "Quote Temp VM session",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
+  async ({ profile, ttl_minutes, idempotency_key }) => {
+    const key = idempotency_key ?? randomUUID();
+    const body: Record<string, unknown> = {};
+    if (profile !== undefined) body.profile = profile;
+    if (ttl_minutes !== undefined) body.ttl_minutes = ttl_minutes;
+
+    const { status, data } = await apiRequest(
+      "POST",
+      "/account/firecracker/temp-vms/quote",
+      body,
+      { "Idempotency-Key": key }
+    );
+    const payload = safeTempVmPayload(status, data);
+    const result = payload.success === true
+      ? { ...payload, idempotency_key: key }
+      : payload;
+    return { content: [{ type: "text", text: formatJson(result) }] };
+  }
+);
+
+server.registerTool(
+  "list_temp_vms",
+  {
+    description:
+      "List the account's Temp VM sessions and current options. Credentials and internal host placement are never returned. Requires services:read.",
+    inputSchema: {},
+    annotations: {
+      title: "List Temp VM sessions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async () => {
+    const { status, data } = await apiRequest(
+      "GET",
+      "/account/firecracker/temp-vms"
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeTempVmPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "create_temp_vm",
+  {
+    description:
+      "PAID: create or exactly replay one quoted Temp VM session. Requires services:manage plus paid fc:order scope/caps. Use the exact idempotency_key and quote_token from quote_temp_vm; this tool never creates a replacement quote. One public IP is forced and SMTP remains blocked. Omit both credential fields for generated-password delivery by account email. There are no backups or snapshots and customer deletion does not refund the session.",
+    inputSchema: {
+      profile: tempVmProfileSchema.optional(),
+      ttl_minutes: tempVmTtlSchema.optional(),
+      os_id: tempVmOsIdSchema.optional(),
+      root_password: tempVmRootPasswordSchema.optional(),
+      ssh_public_key: tempVmSshPublicKeySchema.optional(),
+      idempotency_key: tempVmIdempotencyKeySchema,
+      quote_token: tempVmQuoteTokenSchema,
+      acknowledge_price_eur: z
+        .number()
+        .min(0.5)
+        .describe("Exact gross EUR amount disclosed by quote_temp_vm and approved by the user"),
+      acknowledge_no_backups: z
+        .literal(true)
+        .describe(
+          "Confirm that required data will be copied out because the session has no backups or snapshots"
+        ),
+    },
+    annotations: {
+      title: "Create paid Temp VM session",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async ({
+    profile,
+    ttl_minutes,
+    os_id,
+    root_password,
+    ssh_public_key,
+    idempotency_key,
+    quote_token,
+    acknowledge_price_eur,
+    acknowledge_no_backups,
+  }) => {
+    if (acknowledge_no_backups !== true || acknowledge_price_eur < 0.5) {
+      throw new Error("Explicit price and no-backup acknowledgement is required.");
+    }
+    if (root_password !== undefined && ssh_public_key !== undefined) {
+      throw new Error("Choose either root_password or ssh_public_key, not both.");
+    }
+
+    const body: Record<string, unknown> = {
+      public_ip: true,
+      idempotencyKey: idempotency_key,
+      quoteToken: quote_token,
+    };
+    if (profile !== undefined) body.profile = profile;
+    if (ttl_minutes !== undefined) body.ttl_minutes = ttl_minutes;
+    if (os_id !== undefined) body.os_id = os_id;
+    if (root_password !== undefined) body.rootPassword = root_password;
+    if (ssh_public_key !== undefined) body.ssh_public_key = ssh_public_key;
+
+    const { status, data } = await apiRequest(
+      "POST",
+      "/account/firecracker/temp-vms",
+      body,
+      {
+        "Idempotency-Key": idempotency_key,
+        "X-Quote-Token": quote_token,
+      }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeTempVmPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_temp_vm",
+  {
+    description:
+      "Get one tenant-owned Temp VM session. Credentials and internal host placement are never returned. Requires services:read.",
+    inputSchema: { id: tempVmIdSchema },
+    annotations: {
+      title: "Get Temp VM session",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async ({ id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      `/account/firecracker/temp-vms/${encodeURIComponent(String(id))}`
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeTempVmPayload(status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "delete_temp_vm",
+  {
+    description:
+      "Permanently delete a tenant-owned Temp VM before expiry. Requires services:manage. This preserves no disk or IP, has no customer-controlled refund, and is refused while payment confirmation is unresolved. Export required data first.",
+    inputSchema: {
+      id: tempVmIdSchema,
+      acknowledge_permanent_destruction: z
+        .literal(true)
+        .describe(
+          "Confirm that required data has been exported and permanent deletion is intended"
+        ),
+    },
+    annotations: {
+      title: "Permanently delete Temp VM",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async ({ id, acknowledge_permanent_destruction }) => {
+    if (acknowledge_permanent_destruction !== true) {
+      throw new Error("Explicit permanent-destruction acknowledgement is required.");
+    }
+    const { status, data } = await apiRequest(
+      "DELETE",
+      `/account/firecracker/temp-vms/${encodeURIComponent(String(id))}`
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeTempVmPayload(status, data)),
+      }],
+    };
   }
 );
 
