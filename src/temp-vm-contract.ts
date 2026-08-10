@@ -72,6 +72,8 @@ const tempVmStatusSchema = z.enum([
   "destroyed",
 ]);
 
+export const tempVmSmtpBlockedPorts = [25, 2525, 465, 587] as const;
+
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -133,6 +135,16 @@ function safeOptions(value: unknown): Record<string, unknown> | null {
     )
     : [];
   const publicIp = record(source.public_ip);
+  const smtpBlockedPorts = Array.isArray(publicIp.smtp_blocked_ports)
+    ? publicIp.smtp_blocked_ports.filter(
+      (port): port is number =>
+        typeof port === "number"
+        && tempVmSmtpBlockedPorts.includes(port as typeof tempVmSmtpBlockedPorts[number])
+    )
+    : [];
+  const reportsExactSmtpPolicy =
+    smtpBlockedPorts.length === tempVmSmtpBlockedPorts.length
+    && tempVmSmtpBlockedPorts.every((port) => smtpBlockedPorts.includes(port));
   if (profiles.length === 0 || allowedTtls.length === 0) return null;
 
   return {
@@ -143,6 +155,7 @@ function safeOptions(value: unknown): Record<string, unknown> | null {
     public_ip: {
       enabled: publicIp.enabled === true,
       smtp_block_forced: publicIp.smtp_block_forced === true,
+      smtp_blocked_ports: reportsExactSmtpPolicy ? [...tempVmSmtpBlockedPorts] : [],
       default_on: publicIp.default_on === true,
     },
     convert_to_monthly_allowed: source.convert_to_monthly_allowed === true,

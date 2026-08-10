@@ -5,6 +5,7 @@ import {
   safeTempVmPayload,
   tempVmIdempotencyKeySchema,
   tempVmQuoteTokenSchema,
+  tempVmSmtpBlockedPorts,
 } from "../build/temp-vm-contract.js";
 
 const quoteToken = `vpsnet_quote_${"q".repeat(48)}`;
@@ -26,6 +27,7 @@ const options = {
   public_ip: {
     enabled: true,
     smtp_block_forced: true,
+    smtp_blocked_ports: [25, 2525, 465, 587],
     default_on: true,
   },
   convert_to_monthly_allowed: false,
@@ -91,6 +93,10 @@ test("Temp VM payload projection keeps customer fields and drops placement and s
   assert.equal(projected.sessions[0].ip, "192.0.2.40");
   assert.equal(projected.sessions[0].refunded, false);
   assert.equal(projected.options.profiles[0].id, "standard");
+  assert.deepEqual(
+    projected.options.public_ip.smtp_blocked_ports,
+    tempVmSmtpBlockedPorts
+  );
   const json = JSON.stringify(projected);
   assert.doesNotMatch(json, /preferred_server_id|pool_mode|root_password|credentials|DoNotExpose/);
 });
