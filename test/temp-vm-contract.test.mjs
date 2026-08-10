@@ -42,6 +42,7 @@ const session = {
   order_id: 900,
   order_no: "FC900",
   order_state: "creating",
+  ip: "192.0.2.40",
   ttl_minutes: 60,
   billable_minutes: 60,
   amount_ex_vat: 0.5,
@@ -52,6 +53,7 @@ const session = {
   expires_at: null,
   destroyed_at: null,
   destroy_reason: null,
+  refunded: false,
   created_at: "2026-08-10 20:00:00",
   preferred_server_id: 100,
   root_password: "DoNotExpose123",
@@ -86,9 +88,26 @@ test("Temp VM payload projection keeps customer fields and drops placement and s
 
   assert.equal(projected.success, true);
   assert.equal(projected.sessions[0].order_no, "FC900");
+  assert.equal(projected.sessions[0].ip, "192.0.2.40");
+  assert.equal(projected.sessions[0].refunded, false);
   assert.equal(projected.options.profiles[0].id, "standard");
   const json = JSON.stringify(projected);
   assert.doesNotMatch(json, /preferred_server_id|pool_mode|root_password|credentials|DoNotExpose/);
+});
+
+test("Temp VM payload projection rejects malformed address and refund state", () => {
+  const projected = safeTempVmPayload(200, {
+    success: true,
+    session: {
+      ...session,
+      ip: "host.internal.example",
+      refunded: "false",
+    },
+  });
+
+  assert.equal(projected.success, true);
+  assert.equal(projected.session.ip, null);
+  assert.equal(projected.session.refunded, null);
 });
 
 test("Temp VM quote projection bounds usage details and keeps confirmation proof", () => {

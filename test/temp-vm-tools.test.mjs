@@ -39,6 +39,7 @@ const session = {
   order_id: 900,
   order_no: "FC900",
   order_state: "creating",
+  ip: "192.0.2.40",
   ttl_minutes: 60,
   billable_minutes: 60,
   amount_ex_vat: 0.5,
@@ -49,6 +50,7 @@ const session = {
   expires_at: null,
   destroyed_at: null,
   destroy_reason: null,
+  refunded: false,
   created_at: "2026-08-10 20:00:00",
   preferred_server_id: 100,
   credentials: { root_password: "DoNotExpose123" },
@@ -217,6 +219,12 @@ test("Temp VM tools bind every published route and preserve paid replay proof", 
 
   const list = await client.callTool({ name: "list_temp_vms", arguments: {} });
   const get = await client.callTool({ name: "get_temp_vm", arguments: { id: 41 } });
+  const listedSession = JSON.parse(list.content[0].text).sessions[0];
+  const fetchedSession = JSON.parse(get.content[0].text).session;
+  for (const projected of [listedSession, fetchedSession]) {
+    assert.equal(projected.ip, "192.0.2.40");
+    assert.equal(projected.refunded, false);
+  }
   for (const result of [list, get]) {
     assert.doesNotMatch(
       result.content[0].text,

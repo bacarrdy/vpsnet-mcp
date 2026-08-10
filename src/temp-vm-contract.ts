@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 import { z } from "zod";
 
 export const tempVmIdSchema = z
@@ -81,6 +83,11 @@ function stringOrNull(value: unknown, maxLength = 255): string | null {
   if (typeof value !== "string") return null;
   const text = value.replace(/[\u0000-\u001f\u007f]/g, " ").trim();
   return text ? text.slice(0, maxLength) : null;
+}
+
+function ipv4OrNull(value: unknown): string | null {
+  const candidate = stringOrNull(value, 15);
+  return candidate !== null && isIP(candidate) === 4 ? candidate : null;
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -168,6 +175,7 @@ function safeSession(value: unknown): Record<string, unknown> | null {
       typeof orderState === "number" || typeof orderState === "string"
         ? orderState
         : null,
+    ip: ipv4OrNull(source.ip),
     ttl_minutes: positiveInteger(source.ttl_minutes),
     billable_minutes: positiveInteger(source.billable_minutes),
     amount_ex_vat: finiteNumber(source.amount_ex_vat),
@@ -178,6 +186,8 @@ function safeSession(value: unknown): Record<string, unknown> | null {
     expires_at: stringOrNull(source.expires_at, 32),
     destroyed_at: stringOrNull(source.destroyed_at, 32),
     destroy_reason: stringOrNull(source.destroy_reason, 96),
+    refunded:
+      typeof source.refunded === "boolean" ? source.refunded : null,
     created_at: stringOrNull(source.created_at, 32),
   };
 }
