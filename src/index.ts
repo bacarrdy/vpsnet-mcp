@@ -4377,7 +4377,7 @@ server.registerTool(
   "get_temp_vm_options",
   {
     description:
-      "Get customer-visible Temp VM profiles, allowed session durations, pricing inputs, public-IP policy, and concurrency limits. Host placement is never returned. Requires services:read.",
+      "Get customer-visible Temp VM profiles, allowed session durations, pricing inputs, public-IP policy with the exact blocked outbound SMTP ports, and concurrency limits. Host placement is never returned. Requires services:read.",
     inputSchema: {},
     annotations: {
       title: "Get Temp VM options",
@@ -4475,7 +4475,7 @@ server.registerTool(
   "create_temp_vm",
   {
     description:
-      "PAID: create or exactly replay one quoted Temp VM session. Requires services:manage plus paid fc:order scope/caps. Use the exact idempotency_key and quote_token from quote_temp_vm; this tool never creates a replacement quote. One public IP is forced and SMTP remains blocked. Omit both credential fields for generated-password delivery by account email. There are no backups or snapshots and customer deletion does not refund the session.",
+      "PAID: create or exactly replay one quoted Temp VM session. Requires services:manage plus paid fc:order scope/caps. Use the exact idempotency_key and quote_token from quote_temp_vm; this tool never creates a replacement quote. One public IP is forced, and outbound SMTP connections to TCP ports 25, 2525, 465, and 587 remain blocked. Omit both credential fields for generated-password delivery by account email. There are no backups or snapshots and customer deletion does not refund the session.",
     inputSchema: {
       profile: tempVmProfileSchema.optional(),
       ttl_minutes: tempVmTtlSchema.optional(),
