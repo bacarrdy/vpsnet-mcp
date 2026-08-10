@@ -16,6 +16,7 @@ import {
   applicationLogTailLinesSchema,
   applicationExpectedVersionSchema,
   applicationResourceCpuPercentSchema,
+  applicationResourceEmailEnabledSchema,
   applicationResourceMemoryMiBSchema,
   applicationResourceNetworkMiBPerMinuteSchema,
   applicationResourceRestartDeltaSchema,
@@ -36,18 +37,23 @@ test("application resource thresholds match the bounded replacement contract", (
     1048576
   );
   assert.equal(applicationResourceRestartDeltaSchema.safeParse(0).success, false);
+  assert.equal(applicationResourceEmailEnabledSchema.parse(true), true);
+  assert.equal(applicationResourceEmailEnabledSchema.safeParse("yes").success, false);
   assert.deepEqual(
     applicationResourceThresholdRequestBody({
       cpuPercent: 80,
+      emailEnabled: true,
       restartDelta: 2,
     }),
     {
       cpuPercent: 80,
+      emailEnabled: true,
       memoryMiB: null,
       networkMiBPerMinute: null,
       restartDelta: 2,
     }
   );
+  assert.equal(applicationResourceThresholdRequestBody({}).emailEnabled, false);
 });
 
 test("managed application log inspection limits match the backend contract", () => {

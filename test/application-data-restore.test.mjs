@@ -234,3 +234,24 @@ test("restore-point sanitizer preserves an insufficient negative balance", async
   assert.equal(payload.quote.balance, -1.25);
   assert.equal(payload.quote.balance_sufficient, false);
 });
+
+test("restore-point sanitizer rejects null quote numbers instead of inventing a free quote", async () => {
+  const { safeApplicationDataRestorePointsPayload } = await import(
+    "../build/application-contract.js"
+  );
+  const payload = safeApplicationDataRestorePointsPayload(200, {
+    success: true,
+    points: [],
+    quote: {
+      price_ex_vat: null,
+      vat_rate: null,
+      total_charged: null,
+      balance: null,
+      balance_sufficient: true,
+    },
+    activeRestore: null,
+  });
+
+  assert.equal(payload.success, false);
+  assert.deepEqual(payload.error_codes, ["applicationDataRestoreQuoteInvalid"]);
+});

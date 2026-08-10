@@ -143,7 +143,9 @@ test("tools/list exposes the backend-compatible managed application contract", a
     1000
   );
   assert.equal(configureResourceThresholds.annotations?.idempotentHint, true);
-  assert.match(configureResourceThresholds.description, /display-threshold/i);
+  assert.match(configureResourceThresholds.description, /email preference/i);
+  assert.match(configureResourceThresholds.description, /one account email/i);
+  assert.match(configureResourceThresholds.description, /do not reserve or enforce/i);
   assert.match(configureResourceThresholds.description, /do not.*affect billing/i);
   assert.match(
     configureResourceThresholds.description,

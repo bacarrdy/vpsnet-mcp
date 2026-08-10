@@ -8,8 +8,11 @@ import { z } from "zod";
  * of this module; see README for what shipping it would require.
  */
 
-/** Server-fixed directory page size. There is no client-side limit parameter. */
-export const FILE_BROWSE_PAGE_SIZE = 200;
+/** Largest server-selected directory page. There is no client-side limit parameter. */
+export const FILE_BROWSE_MAX_PAGE_SIZE = 1000;
+
+/** Older nodes select this page size and older cached API results omit pageSize. */
+export const FILE_BROWSE_LEGACY_PAGE_SIZE = 200;
 
 /** ServiceFileRestoreContract::MAX_PAGE_OFFSET */
 export const FILE_BROWSE_MAX_OFFSET = 1_000_000;
@@ -41,7 +44,7 @@ export const fileBrowseOffsetSchema = z
   .min(0)
   .max(FILE_BROWSE_MAX_OFFSET)
   .describe(
-    `Page offset within the same directory listing; copy nextOffset from the previous result. Page size is fixed at ${FILE_BROWSE_PAGE_SIZE} entries.`
+    `Page offset within the same directory listing; copy nextOffset from the previous result. The server selects a page size of ${FILE_BROWSE_LEGACY_PAGE_SIZE} or ${FILE_BROWSE_MAX_PAGE_SIZE} entries.`
   );
 
 export const fileBrowseFilterSchema = z
@@ -98,9 +101,8 @@ function boundedString(value: unknown, maxLength = 512): string | null {
 }
 
 function boundedInteger(value: unknown, max: number): number | null {
-  const number = Number(value);
-  return Number.isInteger(number) && number >= 0 && number <= max
-    ? number
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= max
+    ? value
     : null;
 }
 
@@ -133,10 +135,14 @@ function safeBrowseResult(value: unknown): Record<string, unknown> | null {
 
   const directory = record(source.directory);
   const entries = Array.isArray(source.entries) ? source.entries : [];
+  const pageSize =
+    source.pageSize === FILE_BROWSE_MAX_PAGE_SIZE
+      ? FILE_BROWSE_MAX_PAGE_SIZE
+      : FILE_BROWSE_LEGACY_PAGE_SIZE;
 
   return {
     directory: { path: boundedString(directory.path, 4096) },
-    entries: entries.slice(0, FILE_BROWSE_PAGE_SIZE).map((value) => {
+    entries: entries.slice(0, pageSize).map((value) => {
       const entry = record(value);
       return {
         id: boundedString(entry.id, 64),
@@ -147,6 +153,7 @@ function safeBrowseResult(value: unknown): Record<string, unknown> | null {
       };
     }),
     offset: boundedInteger(source.offset, FILE_BROWSE_MAX_OFFSET),
+    pageSize,
     nextOffset: boundedInteger(source.nextOffset, FILE_BROWSE_MAX_OFFSET),
     truncated: source.truncated === true,
     scanned: boundedInteger(source.scanned, Number.MAX_SAFE_INTEGER),
