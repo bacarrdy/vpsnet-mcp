@@ -4279,17 +4279,30 @@ server.registerTool(
   "invoke_function",
   {
     description:
-      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations.",
+      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations. Always pass idempotency_key for agent retries so the same logical step is not double-run or double-billed (response may include replayed=true).",
     inputSchema: {
       function_id: z.number().describe("Function ID from list_functions"),
-      input: z.string().optional().describe("Input payload passed to the function"),
+      input: z
+        .string()
+        .optional()
+        .describe("Input payload passed to the function (string; JSON text is fine)"),
       wait: z.boolean().optional().describe("Wait synchronously for the result"),
+      idempotency_key: z
+        .string()
+        .max(190)
+        .optional()
+        .describe(
+          "Stable client key for this logical invoke (e.g. agent step id). Retries with the same key return the original invocation."
+        ),
     },
   },
-  async ({ function_id, input, wait }) => {
+  async ({ function_id, input, wait, idempotency_key }) => {
     const body: Record<string, unknown> = {};
     if (input !== undefined) body.input = input;
     if (wait !== undefined) body.wait = wait;
+    if (idempotency_key !== undefined && String(idempotency_key).trim() !== "") {
+      body.idempotency_key = String(idempotency_key).trim();
+    }
     const { data } = await apiRequest(
       "POST",
       `/account/firecracker/functions/${function_id}/invoke`,
