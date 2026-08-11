@@ -6,11 +6,11 @@ export const tempVmIdSchema = z
   .number()
   .int()
   .positive()
-  .describe("Temp VM session ID returned by list_temp_vms");
+  .describe("on-demand server session ID returned by list_temp_vms");
 
 export const tempVmProfileSchema = z
   .enum(["standard", "power"])
-  .describe("Temp VM profile returned by get_temp_vm_options");
+  .describe("on-demand server profile returned by get_temp_vm_options");
 
 export const tempVmTtlSchema = z
   .number()
@@ -50,7 +50,7 @@ export const tempVmIdempotencyKeySchema = z
   .max(190)
   .regex(/^[A-Za-z0-9._:-]{16,190}$/)
   .describe(
-    "Client-global key for one exact Temp VM quote and create attempt. Reuse it only with the unchanged request."
+    "Client-global key for one exact on-demand server quote and create attempt. Reuse it only with the unchanged request."
   );
 
 export const tempVmQuoteTokenSchema = z
