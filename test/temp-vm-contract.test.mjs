@@ -11,6 +11,8 @@ import {
 const quoteToken = `vpsnet_quote_${"q".repeat(48)}`;
 
 const options = {
+  orderable: false,
+  availability: "coming_soon",
   profiles: [{
     id: "standard",
     name: "Temp Standard",
@@ -24,6 +26,11 @@ const options = {
   allowed_ttls: [30, 60, 120],
   hard_max_ttl: 360,
   min_bill: 30,
+  storage_policy: {
+    local_disk_deleted_with_server: true,
+    automatic_backups_included: false,
+    snapshots_available: false,
+  },
   public_ip: {
     enabled: true,
     smtp_block_forced: true,
@@ -93,6 +100,13 @@ test("Temp VM payload projection keeps customer fields and drops placement and s
   assert.equal(projected.sessions[0].ip, "192.0.2.40");
   assert.equal(projected.sessions[0].refunded, false);
   assert.equal(projected.options.profiles[0].id, "standard");
+  assert.equal(projected.options.orderable, false);
+  assert.equal(projected.options.availability, "coming_soon");
+  assert.deepEqual(projected.options.storage_policy, {
+    local_disk_deleted_with_server: true,
+    automatic_backups_included: false,
+    snapshots_available: false,
+  });
   assert.deepEqual(
     projected.options.public_ip.smtp_blocked_ports,
     tempVmSmtpBlockedPorts
@@ -114,6 +128,29 @@ test("Temp VM payload projection rejects malformed address and refund state", ()
   assert.equal(projected.success, true);
   assert.equal(projected.session.ip, null);
   assert.equal(projected.session.refunded, null);
+});
+
+test("Temp VM options fail closed when launch or storage policy is malformed", () => {
+  const projected = safeTempVmPayload(200, {
+    success: true,
+    options: {
+      ...options,
+      orderable: true,
+      availability: "unexpected",
+      storage_policy: {
+        local_disk_deleted_with_server: "yes",
+        automatic_backups_included: "no",
+      },
+    },
+  });
+
+  assert.equal(projected.options.orderable, false);
+  assert.equal(projected.options.availability, "coming_soon");
+  assert.deepEqual(projected.options.storage_policy, {
+    local_disk_deleted_with_server: null,
+    automatic_backups_included: null,
+    snapshots_available: null,
+  });
 });
 
 test("Temp VM quote projection bounds usage details and keeps confirmation proof", () => {

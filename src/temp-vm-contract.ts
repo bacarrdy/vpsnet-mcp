@@ -96,6 +96,10 @@ function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function booleanOrNull(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
 function positiveInteger(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
@@ -125,6 +129,7 @@ function safeProfile(value: unknown): Record<string, unknown> | null {
 
 function safeOptions(value: unknown): Record<string, unknown> | null {
   const source = record(value);
+  const storagePolicy = record(source.storage_policy);
   const profiles = Array.isArray(source.profiles)
     ? source.profiles.map(safeProfile).filter((item) => item !== null)
     : [];
@@ -146,12 +151,23 @@ function safeOptions(value: unknown): Record<string, unknown> | null {
     smtpBlockedPorts.length === tempVmSmtpBlockedPorts.length
     && tempVmSmtpBlockedPorts.every((port) => smtpBlockedPorts.includes(port));
   if (profiles.length === 0 || allowedTtls.length === 0) return null;
+  const orderable =
+    source.orderable === true && source.availability === "available";
 
   return {
+    orderable,
+    availability: orderable ? "available" : "coming_soon",
     profiles,
     allowed_ttls: allowedTtls,
     hard_max_ttl: positiveInteger(source.hard_max_ttl),
     min_bill: positiveInteger(source.min_bill),
+    storage_policy: {
+      local_disk_deleted_with_server:
+        booleanOrNull(storagePolicy.local_disk_deleted_with_server),
+      automatic_backups_included:
+        booleanOrNull(storagePolicy.automatic_backups_included),
+      snapshots_available: booleanOrNull(storagePolicy.snapshots_available),
+    },
     public_ip: {
       enabled: publicIp.enabled === true,
       smtp_block_forced: publicIp.smtp_block_forced === true,
