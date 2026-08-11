@@ -23,6 +23,11 @@ const options = {
   allowed_ttls: [30, 60, 120],
   hard_max_ttl: 360,
   min_bill: 30,
+  storage_policy: {
+    local_disk_deleted_with_server: true,
+    automatic_backups_included: false,
+    snapshots_available: false,
+  },
   public_ip: {
     enabled: true,
     smtp_block_forced: true,
@@ -179,7 +184,14 @@ test("Temp VM tools bind every published route and preserve paid replay proof", 
     true
   );
 
-  await client.callTool({ name: "get_temp_vm_options", arguments: {} });
+  const optionsResult = await client.callTool({
+    name: "get_temp_vm_options",
+    arguments: {},
+  });
+  const projectedOptions = JSON.parse(optionsResult.content[0].text).options;
+  assert.equal(projectedOptions.orderable, false);
+  assert.equal(projectedOptions.availability, "coming_soon");
+  assert.equal(projectedOptions.storage_policy.snapshots_available, false);
   const quoteResult = await client.callTool({
     name: "quote_temp_vm",
     arguments: {

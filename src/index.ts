@@ -4491,7 +4491,7 @@ server.registerTool(
       acknowledge_no_backups: z
         .literal(true)
         .describe(
-          "Confirm that required data will be copied out because the session has no backups or snapshots"
+          "Confirm the disclosed data policy: automatic backups and snapshots are not included, so required data must be stored elsewhere before server deletion"
         ),
     },
     annotations: {
@@ -4514,7 +4514,7 @@ server.registerTool(
     acknowledge_no_backups,
   }) => {
     if (acknowledge_no_backups !== true || acknowledge_price_eur < 0.5) {
-      throw new Error("Explicit price and no-backup acknowledgement is required.");
+      throw new Error("Explicit price and data-policy acknowledgement is required.");
     }
     if (root_password !== undefined && ssh_public_key !== undefined) {
       throw new Error("Choose either root_password or ssh_public_key, not both.");

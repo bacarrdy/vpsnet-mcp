@@ -666,20 +666,21 @@ cannot be performed by an MCP connection authenticated with an API key.
 ### On-demand servers
 | Tool | Description |
 |------|-------------|
-| `get_temp_vm_options` | Get on-demand server profiles, durations, pricing inputs, exact blocked SMTP ports, and limits |
-| `quote_temp_vm` | Quote one prepaid session without charging or allocating a server |
+| `get_temp_vm_options` | Get launch state, profiles, compatibility pricing inputs, and exact storage/network policy |
+| `quote_temp_vm` | Inspect the disabled quote operation and its coming-soon response |
 | `list_temp_vms` | List the account's on-demand server sessions and current options |
-| `create_temp_vm` | Create or exactly replay a paid session from the retained quote key and token |
+| `create_temp_vm` | Inspect the disabled create operation; no payment or allocation occurs while the product is coming soon |
 | `get_temp_vm` | Get one tenant-owned on-demand server session |
 | `delete_temp_vm` | Permanently delete an on-demand server after explicit data-loss acknowledgement; no customer refund is initiated |
 
-On-demand servers always include one public IP with outbound SMTP connections blocked on
-TCP ports 25, 2525, 465, and 587. They have a
-hard expiry, no backups or snapshots, no conversion to a monthly service, and
-no customer-controlled refund on expiry or early deletion. `create_temp_vm`
-never re-quotes: use the exact `idempotency_key`, `quoteToken`, profile, and TTL
-returned by `quote_temp_vm` so an uncertain response can be replayed without a
-second charge.
+Customer ordering is disabled while the on-demand server lifecycle is being
+validated. Current options disclose that automatic backups and snapshots are
+not included and outbound connections to mail-delivery TCP ports 25, 2525,
+465, and 587 are restricted. Existing internal test sessions remain available
+through list/get/delete for cleanup. Fixed-TTL and prepaid fields in the
+disabled compatibility schema are not a launch promise; the flexible duration
+and metered-billing contract must be published consistently before ordering is
+enabled.
 
 ### Guest Agent
 | Tool | Description |
