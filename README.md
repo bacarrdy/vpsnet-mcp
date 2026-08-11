@@ -663,17 +663,17 @@ cannot be performed by an MCP connection authenticated with an API key.
 | `list_function_invocations` | List a function's invocations, status, duration, and cost |
 | `get_function_invocation` | Get one invocation's output, logs, and usage cost |
 
-### Temp VMs
+### On-demand servers
 | Tool | Description |
 |------|-------------|
-| `get_temp_vm_options` | Get Temp VM profiles, durations, pricing inputs, exact blocked SMTP ports, and limits |
+| `get_temp_vm_options` | Get on-demand server profiles, durations, pricing inputs, exact blocked SMTP ports, and limits |
 | `quote_temp_vm` | Quote one prepaid session without charging or allocating a server |
-| `list_temp_vms` | List the account's Temp VM sessions and current options |
+| `list_temp_vms` | List the account's on-demand server sessions and current options |
 | `create_temp_vm` | Create or exactly replay a paid session from the retained quote key and token |
-| `get_temp_vm` | Get one tenant-owned Temp VM session |
-| `delete_temp_vm` | Permanently delete a Temp VM after explicit data-loss acknowledgement; no customer refund is initiated |
+| `get_temp_vm` | Get one tenant-owned on-demand server session |
+| `delete_temp_vm` | Permanently delete an on-demand server after explicit data-loss acknowledgement; no customer refund is initiated |
 
-Temp VMs always include one public IP with outbound SMTP connections blocked on
+On-demand servers always include one public IP with outbound SMTP connections blocked on
 TCP ports 25, 2525, 465, and 587. They have a
 hard expiry, no backups or snapshots, no conversion to a monthly service, and
 no customer-controlled refund on expiry or early deletion. `create_temp_vm`

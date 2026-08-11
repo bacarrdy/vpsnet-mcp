@@ -203,8 +203,8 @@ const server = new McpServer(
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
       "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. The server selects pages of 200 or 1,000 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, use result.pageSize rather than assuming 200 when moving backwards, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
-      "Temp VMs are a coming-soon Firecracker SSH-server concept. Customer quote/create operations are disabled and return tempVmComingSoon before payment or allocation. Use get_temp_vm_options to inspect the launch state; read and delete operations remain available for discovery and cleanup of existing test sessions.",
-      "To select a non-default Temp VM OS, use the selected profile's plan_id with get_order_options and pass an enabled non-runtime Firecracker guest OS ID. Omit os_id when there is no specific OS requirement; never invent an ID or use a Functions runtime image.",
+      "On-demand servers are a coming-soon Firecracker compute service with full root SSH access. Customer quote/create operations are disabled and return tempVmComingSoon before payment or allocation. Use get_temp_vm_options to inspect the launch state; read and delete operations remain available for discovery and cleanup of existing test sessions.",
+      "To select a non-default on-demand server OS, use the selected profile's plan_id with get_order_options and pass an enabled non-runtime Firecracker guest OS ID. Omit os_id when there is no specific OS requirement; never invent an ID or use a Functions runtime image.",
       "Before update_function, call get_function. If integrity.unreadable_fields names code or environment, do not update until the user explicitly approves replacing every unavailable value from a trusted copy. Only then pass acknowledge_unreadable_replacement=true. The backend rejects an unacknowledged replacement; never set the flag for an ordinary update.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
       "Dynamic DNS updater tokens are narrow credentials for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updates; purpose=acme allows TXT only under _acme-challenge for DNS-01. They only operate inside verified customer-owned zones and can be restricted to source IP/CIDR ranges with allow_from.",
@@ -4371,16 +4371,16 @@ server.registerTool(
   }
 );
 
-// --- Temporary Firecracker VM sessions ---
+// --- On-demand server sessions (stable temp_vm API identifiers) ---
 
 server.registerTool(
   "get_temp_vm_options",
   {
     description:
-      "Get the coming-soon Temp VM preview options and authoritative orderable/availability launch state. Host placement is never returned. Requires services:read.",
+      "Get the coming-soon on-demand server preview options and authoritative orderable/availability launch state. Host placement is never returned. Requires services:read.",
     inputSchema: {},
     annotations: {
-      title: "Get Temp VM options",
+      title: "Get on-demand server options",
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
@@ -4416,7 +4416,7 @@ server.registerTool(
         ),
     },
     annotations: {
-      title: "Quote Temp VM session (Coming soon)",
+      title: "Quote on-demand server session (Coming soon)",
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
@@ -4447,10 +4447,10 @@ server.registerTool(
   "list_temp_vms",
   {
     description:
-      "List the account's Temp VM sessions and current options. Credentials and internal host placement are never returned. Requires services:read.",
+      "List the account's on-demand server sessions and current options. Credentials and internal host placement are never returned. Requires services:read.",
     inputSchema: {},
     annotations: {
-      title: "List Temp VM sessions",
+      title: "List on-demand server sessions",
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
@@ -4495,7 +4495,7 @@ server.registerTool(
         ),
     },
     annotations: {
-      title: "Create Temp VM session (Coming soon)",
+      title: "Create on-demand server session (Coming soon)",
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
@@ -4553,10 +4553,10 @@ server.registerTool(
   "get_temp_vm",
   {
     description:
-      "Get one tenant-owned Temp VM session. Credentials and internal host placement are never returned. Requires services:read.",
+      "Get one tenant-owned on-demand server session. Credentials and internal host placement are never returned. Requires services:read.",
     inputSchema: { id: tempVmIdSchema },
     annotations: {
-      title: "Get Temp VM session",
+      title: "Get on-demand server session",
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
@@ -4581,7 +4581,7 @@ server.registerTool(
   "delete_temp_vm",
   {
     description:
-      "Permanently delete a tenant-owned Temp VM before expiry. Requires services:manage. This preserves no disk or IP, has no customer-controlled refund, and is refused while payment confirmation is unresolved. Export required data first.",
+      "Permanently delete a tenant-owned on-demand server before expiry. Requires services:manage. This preserves no disk or IP, has no customer-controlled refund, and is refused while payment confirmation is unresolved. Export required data first.",
     inputSchema: {
       id: tempVmIdSchema,
       acknowledge_permanent_destruction: z
@@ -4591,7 +4591,7 @@ server.registerTool(
         ),
     },
     annotations: {
-      title: "Permanently delete Temp VM",
+      title: "Permanently delete on-demand server",
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,

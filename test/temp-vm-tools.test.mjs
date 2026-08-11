@@ -158,6 +158,9 @@ test("Temp VM tools bind every published route and preserve paid replay proof", 
     "delete_temp_vm",
   ]) {
     assert.equal(byName.has(name), true, `${name} is registered`);
+    const customerContract = JSON.stringify(byName.get(name));
+    assert.match(customerContract, /on-demand server/i);
+    assert.doesNotMatch(customerContract, /Temp VMs?/i);
   }
   assert.equal(byName.get("get_temp_vm_options").annotations.readOnlyHint, true);
   assert.equal(byName.get("create_temp_vm").annotations.destructiveHint, true);
