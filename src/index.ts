@@ -203,7 +203,7 @@ const server = new McpServer(
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
       "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. The server selects pages of 200 or 1,000 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, use result.pageSize rather than assuming 200 when moving backwards, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
-      "Temp VMs are separate prepaid Firecracker SSH servers with a hard expiry. Flow: get_temp_vm_options → quote_temp_vm → create_temp_vm. Copy the exact idempotency_key, quoteToken, profile, and TTL from the quote into create_temp_vm; create never re-quotes. One public IP is mandatory, outbound SMTP stays blocked, and a generated password is delivered only to the account email when no credential is supplied. Temp VMs have no backups or snapshots, deletion is permanent, and neither expiry nor customer deletion starts a refund.",
+      "Temp VMs are a coming-soon Firecracker SSH-server concept. Customer quote/create operations are disabled and return tempVmComingSoon before payment or allocation. Use get_temp_vm_options to inspect the launch state; read and delete operations remain available for discovery and cleanup of existing test sessions.",
       "To select a non-default Temp VM OS, use the selected profile's plan_id with get_order_options and pass an enabled non-runtime Firecracker guest OS ID. Omit os_id when there is no specific OS requirement; never invent an ID or use a Functions runtime image.",
       "Before update_function, call get_function. If integrity.unreadable_fields names code or environment, do not update until the user explicitly approves replacing every unavailable value from a trusted copy. Only then pass acknowledge_unreadable_replacement=true. The backend rejects an unacknowledged replacement; never set the flag for an ordinary update.",
       "The DNS API rejects PTR, *.in-addr.arpa, *.ip6.arpa, LUA, SOA/DNSSEC wire records, apex NS, and apex DS.",
@@ -4377,7 +4377,7 @@ server.registerTool(
   "get_temp_vm_options",
   {
     description:
-      "Get customer-visible Temp VM profiles, allowed session durations, pricing inputs, public-IP policy with the exact blocked outbound SMTP ports, and concurrency limits. Host placement is never returned. Requires services:read.",
+      "Get the coming-soon Temp VM preview options and authoritative orderable/availability launch state. Host placement is never returned. Requires services:read.",
     inputSchema: {},
     annotations: {
       title: "Get Temp VM options",
@@ -4405,7 +4405,7 @@ server.registerTool(
   "quote_temp_vm",
   {
     description:
-      "Prepare a prepaid Temp VM price without charging or allocating anything. Requires services:read plus paid fc:order scope/caps for API keys. Keep the returned idempotency_key and quoteToken: create_temp_vm must receive both with the exact quoted profile and TTL. A used quote key is not silently replaced.",
+      "Coming soon: customer ordering is disabled. The backend returns tempVmComingSoon before payment, host, IP, or service allocation.",
     inputSchema: {
       profile: tempVmProfileSchema.optional(),
       ttl_minutes: tempVmTtlSchema.optional(),
@@ -4416,7 +4416,7 @@ server.registerTool(
         ),
     },
     annotations: {
-      title: "Quote Temp VM session",
+      title: "Quote Temp VM session (Coming soon)",
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
@@ -4475,7 +4475,7 @@ server.registerTool(
   "create_temp_vm",
   {
     description:
-      "PAID: create or exactly replay one quoted Temp VM session. Requires services:manage plus paid fc:order scope/caps. Use the exact idempotency_key and quote_token from quote_temp_vm; this tool never creates a replacement quote. One public IP is forced, and outbound SMTP connections to TCP ports 25, 2525, 465, and 587 remain blocked. Omit both credential fields for generated-password delivery by account email. There are no backups or snapshots and customer deletion does not refund the session.",
+      "Coming soon: customer ordering is disabled. The backend returns tempVmComingSoon before any paid intent, charge, host, IP, or service allocation.",
     inputSchema: {
       profile: tempVmProfileSchema.optional(),
       ttl_minutes: tempVmTtlSchema.optional(),
@@ -4495,7 +4495,7 @@ server.registerTool(
         ),
     },
     annotations: {
-      title: "Create paid Temp VM session",
+      title: "Create Temp VM session (Coming soon)",
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,

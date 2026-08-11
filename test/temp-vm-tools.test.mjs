@@ -9,6 +9,8 @@ const IDEMPOTENCY_KEY = "temp-vm-attempt-0001";
 const QUOTE_TOKEN = `vpsnet_quote_${"q".repeat(48)}`;
 
 const options = {
+  orderable: false,
+  availability: "coming_soon",
   profiles: [{
     id: "standard",
     name: "Temp Standard",
@@ -159,6 +161,11 @@ test("Temp VM tools bind every published route and preserve paid replay proof", 
   }
   assert.equal(byName.get("get_temp_vm_options").annotations.readOnlyHint, true);
   assert.equal(byName.get("create_temp_vm").annotations.destructiveHint, true);
+  for (const name of ["get_temp_vm_options", "quote_temp_vm", "create_temp_vm"]) {
+    assert.match(byName.get(name).description, /coming.soon/i);
+  }
+  assert.match(byName.get("quote_temp_vm").description, /tempVmComingSoon/);
+  assert.match(byName.get("create_temp_vm").description, /tempVmComingSoon/);
   assert.equal(
     byName.get("create_temp_vm").inputSchema.properties.acknowledge_no_backups.const,
     true
