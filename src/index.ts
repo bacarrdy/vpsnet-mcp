@@ -61,6 +61,16 @@ import {
   safeCustomProjectValidationPayload,
 } from "./custom-project-contract.js";
 import {
+  certificateActionRequestBody,
+  certificateActionRequestSchema,
+  certificateOfferGenerationSchema,
+  certificateOfferIdSchema,
+  certificateOrderIdSchema,
+  certificateOrderInputShape,
+  certificateProductIdSchema,
+  safeCertificatePayload,
+} from "./certificate-contract.js";
+import {
   fileBrowseDirectoryEntryIdSchema,
   fileBrowseFilterSchema,
   fileBrowseIdSchema,
@@ -220,6 +230,16 @@ const server = new McpServer(
       "Domain parent-DS tools manage DNSSEC DS records in the parent zone for an owned domain. They are separate from DNS zone records and never manage PTR/reverse DNS.",
       "Transfer-away auth/EPP-code reveal is intentionally portal-only with 2FA/PIN step-up. The MCP uses X-API-KEY only and must not request or expose transfer-away credentials.",
       "Use get_domain_ordering_status before paid domain tests to see whether domain search and ordering are currently available.",
+      "",
+      "## Paid TLS certificates",
+      "Paid TLS certificates are portable account products, not managed-application-only features. They can be installed on customer Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, load-balancer, or other TLS endpoints.",
+      "Automatic HTTPS for VPSnet-managed applications is a separate integrated feature. Do not place a paid certificate order merely because an application already has automatic platform HTTPS.",
+      "Flow: list_certificate_catalog → quote_certificate → order_certificate. The quote returns the final customer price in EUR including VAT, a short-lived quote token, and the exact public-key type derived from the CSR. Disclose the exact total and obtain explicit approval before ordering.",
+      "The customer creates and retains the private key. Certificate tools accept only a signed public PKCS#10 CSR. Never ask for, accept, store, repeat, or place a private key in a tool argument or model context.",
+      "Use the same client-global idempotencyKey and exact unchanged order fields for quote_certificate and order_certificate. API keys require certificates:read for reads, certificates:manage for management, and paid operations plus certificates:order and spend caps for quote/order.",
+      "Certificate renewal is a separately paid successor order. Set renewal_of only for the exact eligible active certificate returned by list_certificates during its renewal window; never invent an earlier certificate identity.",
+      "A queued or paid order is not proof of issuance. Poll get_certificate and get_certificate_validation. attention_required is not success. download_certificate returns only the public leaf and chain and explicitly never returns a private key.",
+      "Management actions are durable and idempotent. Reuse an idempotency key only for an exact retry of the same action. If an outcome is reconciliation_required or outcome_ambiguous, use refresh_certificate and read state; do not submit the mutation again with a new key.",
     ].join("\n"),
   }
 );
@@ -3109,6 +3129,381 @@ server.registerTool(
       `/account/api-keys/${id}/inference-usage`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// --- Paid TLS certificates ---
+
+const certificatePaymentSchema = z
+  .object({
+    payment: z.number().int().positive().describe("Payment method ID; use 1 for account balance"),
+    successUrl: z.string().max(2048).describe("Approved VPSnet redirect URL, or an empty string"),
+    cancelUrl: z.string().max(2048).describe("Approved VPSnet redirect URL, or an empty string"),
+  })
+  .strict()
+  .describe("Payment object. For account balance use { payment: 1, successUrl: '', cancelUrl: '' }");
+
+const certificatePath = (suffix = "") =>
+  `/account/certificates${suffix}`;
+
+server.registerTool(
+  "list_certificate_catalog",
+  {
+    description:
+      "List published paid TLS certificate products and final customer offers in EUR. Products disclose validation level, public certificate-authority brand, supported names, SAN limits, management capabilities, term, and final retail prices. Only customer-visible catalog data is returned. Paid certificates are portable and are not limited to managed applications. Requires certificates:read.",
+    inputSchema: {},
+    annotations: {
+      title: "List paid TLS certificate catalog",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async () => {
+    const { status, data } = await apiRequest("GET", certificatePath("/catalog"));
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("catalog-list", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_certificate_catalog_product",
+  {
+    description:
+      "Read one published paid TLS product with final EUR offers and customer-visible capabilities. Use the exact offer ID and generation from this response when quoting. Requires certificates:read.",
+    inputSchema: {
+      product_id: certificateProductIdSchema,
+    },
+    annotations: {
+      title: "Get paid TLS certificate product",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ product_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/catalog/${encodeURIComponent(String(product_id))}`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("catalog-product", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "list_certificates",
+  {
+    description:
+      "List customer-owned paid TLS certificate orders, final EUR amount, validation and issuance state, renewal dates, and whether the public certificate bundle is ready. attention_required is not success. Requires certificates:read.",
+    inputSchema: {},
+    annotations: {
+      title: "List paid TLS certificates",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async () => {
+    const { status, data } = await apiRequest("GET", certificatePath());
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("order-list", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_certificate",
+  {
+    description:
+      "Read one customer-owned paid TLS certificate order. A paid, queued, or validating order is not issued; require state=active and download_available=true before treating the public certificate as ready. Requires certificates:read.",
+    inputSchema: {
+      certificate_order_id: certificateOrderIdSchema,
+    },
+    annotations: {
+      title: "Get paid TLS certificate",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_order_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/${encodeURIComponent(certificate_order_id)}`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("order", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "quote_certificate",
+  {
+    description:
+      "Create a short-lived quote for one exact paid TLS certificate or eligible renewal. This validates the current catalog generation, identifiers, customer contacts, and the public PKCS#10 CSR without charging or ordering. The response contains the final customer total in EUR including VAT. Disclose that exact total before order_certificate. The customer private key must never be supplied. Requires paid operations, certificates:order, spend caps, and a client-global idempotencyKey that must also be used for confirmation.",
+    inputSchema: {
+      ...certificateOrderInputShape,
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global unique key used for this quote and its exact order confirmation"
+      ),
+    },
+    annotations: {
+      title: "Quote paid TLS certificate",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ idempotencyKey, ...input }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath("/quote"),
+      input,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("quote", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "order_certificate",
+  {
+    description:
+      "Confirm and pay for the exact quote returned by quote_certificate. Call only after the user explicitly approves the exact final EUR total, certificate names, term, validation level, and payment method. Use the unchanged request, same idempotencyKey, and exact short-lived quote token. The private key remains customer-controlled. Paid certificate orders may become non-refundable once submitted or issued under the certificate authority's policy. Requires certificates:order and paid-operation spend controls.",
+    inputSchema: {
+      ...certificateOrderInputShape,
+      quote_token: z
+        .string()
+        .min(32)
+        .max(190)
+        .regex(/^[A-Za-z0-9._:-]{32,190}$/)
+        .describe("Exact short-lived quote_token returned by quote_certificate"),
+      payment: certificatePaymentSchema,
+      acknowledge_exact_quote_and_payment: z
+        .literal(true)
+        .describe("True only after the user approves the exact quoted EUR total, names, term, and payment"),
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Same client-global idempotency key used for quote_certificate"
+      ),
+    },
+    annotations: {
+      title: "Order paid TLS certificate",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    quote_token,
+    payment,
+    acknowledge_exact_quote_and_payment,
+    idempotencyKey,
+    ...input
+  }) => {
+    if (acknowledge_exact_quote_and_payment !== true) {
+      throw new Error("Explicit approval of the exact certificate quote and payment is required.");
+    }
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath("/order"),
+      { ...input, quoteToken: quote_token, payment },
+      {
+        "Idempotency-Key": idempotencyKey,
+        "X-Quote-Token": quote_token,
+      }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("confirmation", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_certificate_validation",
+  {
+    description:
+      "Read current per-name domain-control validation state and the owner-visible challenge while it is pending. Wildcards require DNS validation. This never submits or changes a validation method. Requires certificates:read.",
+    inputSchema: {
+      certificate_order_id: certificateOrderIdSchema,
+    },
+    annotations: {
+      title: "Get certificate validation",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_order_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/${encodeURIComponent(certificate_order_id)}/validation`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("validation", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "download_certificate",
+  {
+    description:
+      "Download the issued public leaf, chain, and full chain for one owned order after download_available becomes true. The bundle is portable to Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, and load-balancer endpoints. It never includes or reconstructs the customer private key. Requires certificates:read.",
+    inputSchema: {
+      certificate_order_id: certificateOrderIdSchema,
+    },
+    annotations: {
+      title: "Download public TLS certificate bundle",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_order_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/${encodeURIComponent(certificate_order_id)}/download`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("artifact", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "list_certificate_actions",
+  {
+    description:
+      "List durable customer-visible management actions for one paid certificate. Raw certificate-authority responses, request bodies, internal errors, provider IDs, and credentials are never returned. Requires certificates:read.",
+    inputSchema: {
+      certificate_order_id: certificateOrderIdSchema,
+    },
+    annotations: {
+      title: "List certificate actions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_order_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/${encodeURIComponent(certificate_order_id)}/actions`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("action-list", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "refresh_certificate",
+  {
+    description:
+      "Durably schedule a read-only certificate-authority status reconciliation for one owned order. Use this for stale or ambiguous state; it never repeats an order or management mutation. Poll get_certificate and list_certificate_actions afterward. Requires certificates:manage.",
+    inputSchema: {
+      certificate_order_id: certificateOrderIdSchema,
+    },
+    annotations: {
+      title: "Refresh certificate status",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_order_id }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(`/${encodeURIComponent(certificate_order_id)}/refresh`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("refresh", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "manage_certificate",
+  {
+    description:
+      "Queue one exact idempotent paid-certificate management action: cancel an eligible pending order, recheck or resend validation, change one validation method, or request a free same-name reissue with a new public CSR. Read the product capabilities, current order, validation, and actions first. Call only after explicit approval. A reissue must preserve the paid name set and never sends a private key. If the outcome becomes ambiguous, reuse the same key only for the exact retry or call refresh_certificate—never submit a new mutation key. Requires certificates:manage.",
+    inputSchema: {
+      certificate_order_id: certificateOrderIdSchema,
+      request: certificateActionRequestSchema,
+      acknowledge_certificate_action: z
+        .literal(true)
+        .describe("True only after the user approves this exact certificate management action"),
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global key for one exact action. Reuse only for an unchanged retry."
+      ),
+    },
+    annotations: {
+      title: "Manage paid TLS certificate",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    certificate_order_id,
+    request,
+    acknowledge_certificate_action,
+    idempotencyKey,
+  }) => {
+    if (acknowledge_certificate_action !== true) {
+      throw new Error("Explicit certificate-action approval is required.");
+    }
+    const { action, body } = certificateActionRequestBody(request);
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/${encodeURIComponent(certificate_order_id)}/actions/${encodeURIComponent(action)}`
+      ),
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("action", status, data)),
+      }],
+    };
   }
 );
 

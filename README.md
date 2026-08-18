@@ -4,7 +4,7 @@
 
 ## Features
 
-- **125+ tools** covering VPSNet service management, managed applications, DNS, domains, billing, API keys, and account operations
+- **135+ tools** covering VPSNet service management, managed applications, paid TLS certificates, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
@@ -575,6 +575,30 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 
 API-key creation, changes, and revocation require a browser/session login. They
 cannot be performed by an MCP connection authenticated with an API key.
+
+### Paid TLS certificates
+| Tool | Description |
+|------|-------------|
+| `list_certificate_catalog` | List published DV/OV/EV products and final customer offers in EUR |
+| `get_certificate_catalog_product` | Get one published product, its capabilities, and current offers |
+| `list_certificates` | List customer-owned paid certificate orders and issuance state |
+| `get_certificate` | Get one owned paid certificate order |
+| `quote_certificate` | Quote an exact certificate or renewal without charging |
+| `order_certificate` | Confirm and pay for an explicitly approved certificate quote |
+| `get_certificate_validation` | Read per-name validation state and an owner-visible pending challenge |
+| `download_certificate` | Download the issued public leaf and chain; private keys are never returned |
+| `list_certificate_actions` | List durable customer-visible management actions |
+| `refresh_certificate` | Schedule a read-only certificate-authority status reconciliation |
+| `manage_certificate` | Queue an idempotent cancellation, validation, or same-name reissue action |
+
+Paid certificates are portable account products: customers may install them on
+Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, load-balancer,
+or other TLS endpoints. They are separate from automatic HTTPS attached to a
+VPSnet-managed application. The MCP accepts only a public PKCS#10 CSR; the
+private key must remain under customer control and must never enter a tool
+argument or model context. Quote responses contain the final customer price in
+EUR, and ordering requires explicit approval plus the same idempotency key and
+short-lived quote token.
 
 ### Domains
 | Tool | Description |
