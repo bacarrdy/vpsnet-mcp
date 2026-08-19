@@ -63,11 +63,13 @@ import {
 import {
   certificateActionRequestBody,
   certificateActionRequestSchema,
+  certificateAcmeSubscriptionInputShape,
   certificateOfferGenerationSchema,
   certificateOfferIdSchema,
   certificateOrderIdSchema,
   certificateOrderInputShape,
   certificateProductIdSchema,
+  certificateSubscriptionIdSchema,
   safeCertificatePayload,
 } from "./certificate-contract.js";
 import {
@@ -231,9 +233,11 @@ const server = new McpServer(
       "Transfer-away auth/EPP-code reveal is intentionally portal-only with 2FA/PIN step-up. The MCP uses X-API-KEY only and must not request or expose transfer-away credentials.",
       "Use get_domain_ordering_status before paid domain tests to see whether domain search and ordering are currently available.",
       "",
-      "## Paid TLS certificates",
+      "## TLS certificates and Automatic SSL",
       "Paid TLS certificates are portable account products, not managed-application-only features. They can be installed on customer Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, load-balancer, or other TLS endpoints.",
-      "Automatic HTTPS for VPSnet-managed applications is a separate integrated feature. Do not place a paid certificate order merely because an application already has automatic platform HTTPS.",
+      "Managed HTTPS for VPSnet applications, Automatic SSL subscriptions for a customer ACME client, and portable certificate files are three separate choices. Do not place a paid order merely because an application already has managed platform HTTPS.",
+      "Automatic SSL flow: list_certificate_catalog → quote_automatic_ssl_subscription → order_automatic_ssl_subscription. It works with compatible ACME clients on VPSnet or another provider. A base domain includes its www alias; apex and wildcard names are separate subscribed identifiers and may be ordered together.",
+      "After payment, poll get_automatic_ssl_subscription until state=active and credentials_available=true. The private ACME server URL and EAB credentials are intentionally portal-only behind two-factor verification; they are not MCP or API-key tools and must never enter model context.",
       "Flow: list_certificate_catalog → quote_certificate → order_certificate. The quote returns the final customer price in EUR including VAT, a short-lived quote token, and the exact public-key type derived from the CSR. Disclose the exact total and obtain explicit approval before ordering.",
       "The customer creates and retains the private key. Certificate tools accept only a signed public PKCS#10 CSR. Never ask for, accept, store, repeat, or place a private key in a tool argument or model context.",
       "Use the same client-global idempotencyKey and exact unchanged order fields for quote_certificate and order_certificate. API keys require certificates:read for reads, certificates:manage for management, and paid operations plus certificates:order and spend caps for quote/order.",
@@ -3145,6 +3149,154 @@ const certificatePaymentSchema = z
 
 const certificatePath = (suffix = "") =>
   `/account/certificates${suffix}`;
+
+server.registerTool(
+  "list_automatic_ssl_subscriptions",
+  {
+    description:
+      "List customer-owned Automatic SSL subscriptions, subscribed DNS names, paid term, final EUR amount, public state, and whether portal-only setup credentials are ready. This never returns the private ACME server URL, account ID, EAB KID, or EAB HMAC key. Requires certificates:read.",
+    inputSchema: {},
+    annotations: {
+      title: "List Automatic SSL subscriptions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async () => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath("/acme-subscriptions")
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-list", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_automatic_ssl_subscription",
+  {
+    description:
+      "Read one customer-owned Automatic SSL subscription. state=active and credentials_available=true means setup may continue in the two-factor-protected VPSnet portal; it does not expose credentials here. Requires certificates:read.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+    },
+    annotations: {
+      title: "Get Automatic SSL subscription",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_subscription_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "quote_automatic_ssl_subscription",
+  {
+    description:
+      "Create a short-lived exact quote for Automatic SSL without charging. Use an acme_subscription catalog product and its exact current EUR offer generation. The subscribed names may be used by compatible ACME clients on VPSnet or another provider. A base name includes its www alias; apex and wildcard are separate identifiers. Disclose the final VAT-inclusive EUR total before ordering. Requires paid operations, certificates:order, spend caps, and a client-global idempotencyKey reused for confirmation.",
+    inputSchema: {
+      ...certificateAcmeSubscriptionInputShape,
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global unique key used for this quote and its exact order confirmation"
+      ),
+    },
+    annotations: {
+      title: "Quote Automatic SSL subscription",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ idempotencyKey, ...input }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath("/acme-subscriptions/quote"),
+      input,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-quote", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "order_automatic_ssl_subscription",
+  {
+    description:
+      "Confirm and pay for the exact Automatic SSL quote. Call only after the user approves the final EUR total, subscribed names, term, and payment method. Use the unchanged request, same idempotencyKey, and exact quote token. Setup credentials remain portal-only behind two-factor verification and are never returned to MCP. Requires certificates:order and paid-operation spend controls.",
+    inputSchema: {
+      ...certificateAcmeSubscriptionInputShape,
+      quote_token: z
+        .string()
+        .min(32)
+        .max(190)
+        .regex(/^[A-Za-z0-9._:-]{32,190}$/)
+        .describe("Exact short-lived quote_token returned by quote_automatic_ssl_subscription"),
+      payment: certificatePaymentSchema,
+      acknowledge_exact_quote_and_payment: z
+        .literal(true)
+        .describe("True only after the user approves the exact EUR total, names, term, and payment"),
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Same client-global idempotency key used for quote_automatic_ssl_subscription"
+      ),
+    },
+    annotations: {
+      title: "Order Automatic SSL subscription",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    quote_token,
+    payment,
+    acknowledge_exact_quote_and_payment,
+    idempotencyKey,
+    ...input
+  }) => {
+    if (acknowledge_exact_quote_and_payment !== true) {
+      throw new Error("Explicit approval of the exact Automatic SSL quote and payment is required.");
+    }
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath("/acme-subscriptions/order"),
+      { ...input, quoteToken: quote_token, payment },
+      {
+        "Idempotency-Key": idempotencyKey,
+        "X-Quote-Token": quote_token,
+      }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-confirmation", status, data)),
+      }],
+    };
+  }
+);
 
 server.registerTool(
   "list_certificate_catalog",
