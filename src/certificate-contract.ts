@@ -11,7 +11,11 @@ export type CertificatePayloadKind =
   | "artifact"
   | "action-list"
   | "action"
-  | "refresh";
+  | "refresh"
+  | "acme-subscription-list"
+  | "acme-subscription"
+  | "acme-subscription-quote"
+  | "acme-subscription-confirmation";
 
 export const certificateOrderIdSchema = z
   .string()
@@ -36,6 +40,11 @@ export const certificateOfferGenerationSchema = z
   .positive()
   .describe("Exact offer generation returned by the catalog; stale generations are rejected");
 
+export const certificateSubscriptionIdSchema = z
+  .string()
+  .regex(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+  .describe("Customer-owned Automatic SSL subscription UUID returned by list_automatic_ssl_subscriptions");
+
 const dnsIdentifierSchema = z
   .string()
   .min(3)
@@ -50,6 +59,43 @@ const dnsIdentifierSchema = z
       /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)
     );
   }, "Use a canonical lowercase DNS name or a single leading wildcard");
+
+const certificateAcmeDomainsSchema = z
+  .array(dnsIdentifierSchema)
+  .min(1)
+  .max(255)
+  .superRefine((domains, context) => {
+    const names = new Set<string>();
+    for (const [index, domain] of domains.entries()) {
+      if (names.has(domain)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index],
+          message: "Automatic SSL DNS names must be unique",
+        });
+      }
+      names.add(domain);
+    }
+    for (const [index, domain] of domains.entries()) {
+      if (domain.startsWith("www.") && names.has(domain.slice(4))) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index],
+          message: "Do not add www separately when its base domain is subscribed",
+        });
+      }
+    }
+  })
+  .describe(
+    "Canonical subscribed DNS names. A base name includes its www alias; an apex and wildcard are separate names and may be ordered together."
+  );
+
+export const certificateAcmeSubscriptionInputShape = {
+  product_id: certificateProductIdSchema,
+  offer_id: certificateOfferIdSchema,
+  offer_generation: certificateOfferGenerationSchema,
+  domains: certificateAcmeDomainsSchema,
+};
 
 const validationMethodSchema = z
   .string()
@@ -261,10 +307,24 @@ function safeProduct(value: unknown): Record<string, unknown> | null {
   const source = record(value);
   const id = integer(source.id);
   const label = text(source.label, 255);
+  const category = source.category === "caas" || source.category === "tls"
+    ? source.category
+    : null;
+  const fulfillment = source.fulfillment === "acme_subscription"
+    || source.fulfillment === "portable_certificate"
+    ? source.fulfillment
+    : null;
   const validationType = ["DV", "OV", "EV"].includes(String(source.validation_type))
     ? String(source.validation_type)
     : null;
-  if (id === null || label === null || validationType === null) return null;
+  if (
+    id === null
+    || label === null
+    || category === null
+    || fulfillment === null
+    || validationType === null
+    || (category === "caas") !== (fulfillment === "acme_subscription")
+  ) return null;
   const capabilities = record(source.capabilities);
   const management = record(capabilities.management);
   const commonName = record(capabilities.common_name);
@@ -286,6 +346,8 @@ function safeProduct(value: unknown): Record<string, unknown> | null {
   return {
     id,
     label,
+    category,
+    fulfillment,
     validation_type: validationType,
     brand: source.brand === null ? null : text(source.brand, 128),
     capabilities: {
@@ -294,6 +356,9 @@ function safeProduct(value: unknown): Record<string, unknown> | null {
         reissue: boolean(management.reissue),
         renew: boolean(management.renew),
         revoke: boolean(management.revoke),
+        acme_credentials: boolean(management.acme_credentials),
+        domains: boolean(management.domains),
+        subscription_renewal: boolean(management.subscription_renewal),
       },
       common_name: {
         single: boolean(commonName.single),
@@ -550,6 +615,157 @@ function safeAction(value: unknown): Record<string, unknown> | null {
   };
 }
 
+function safeAcmeSubscriptionDomain(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const id = integer(source.id);
+  const name = dnsIdentifierSchema.safeParse(source.name);
+  const nameKind = source.name_kind === "single" || source.name_kind === "wildcard"
+    ? source.name_kind
+    : null;
+  const state = ["requested", "active", "removing", "removed"].includes(String(source.state))
+    ? source.state
+    : null;
+  if (id === null || !name.success || nameKind === null || state === null) return null;
+  if ((nameKind === "wildcard") !== name.data.startsWith("*.")) return null;
+  return {
+    id,
+    name: name.data,
+    name_kind: nameKind,
+    included: boolean(source.included),
+    state,
+  };
+}
+
+function safeAcmeSubscription(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const id = certificateSubscriptionIdSchema.safeParse(source.id);
+  const product = record(source.product);
+  const productLabel = text(product.label, 255);
+  const termMonths = integer(product.term_months);
+  const state = [
+    "awaiting_payment",
+    "queued",
+    "provisioning",
+    "active",
+    "cancelled",
+    "failed",
+    "needs_attention",
+  ].includes(String(source.state)) ? source.state : null;
+  const billingState = [
+    "awaiting_payment",
+    "captured",
+    "paid",
+    "billing_review",
+    "refund_required",
+    "refund_pending",
+    "refunded",
+    "failed",
+  ].includes(String(source.billing_state)) ? source.billing_state : null;
+  const autoRenew = record(source.auto_renew);
+  const subscription = record(source.subscription);
+  const amount = record(source.amount);
+  const net = money(amount.net);
+  const createdAt = timestamp(source.created_at);
+  const updatedAt = timestamp(source.updated_at);
+  const providerEnabled = autoRenew.provider_enabled === null
+    ? null
+    : typeof autoRenew.provider_enabled === "boolean"
+      ? autoRenew.provider_enabled
+      : undefined;
+  if (
+    !id.success
+    || source.fulfillment !== "acme_subscription"
+    || productLabel === null
+    || termMonths === null
+    || state === null
+    || billingState === null
+    || providerEnabled === undefined
+    || amount.currency !== "EUR"
+    || net === null
+    || createdAt === null
+    || updatedAt === null
+  ) return null;
+  const domains = Array.isArray(source.domains)
+    ? source.domains.map(safeAcmeSubscriptionDomain).filter((domain) => domain !== null)
+    : [];
+  if (domains.length === 0) return null;
+  return {
+    id: id.data,
+    fulfillment: "acme_subscription",
+    product: { label: productLabel, term_months: termMonths },
+    domains,
+    state,
+    billing_state: billingState,
+    credentials_available: boolean(source.credentials_available),
+    auto_renew: {
+      enabled: boolean(autoRenew.enabled),
+      provider_enabled: providerEnabled,
+    },
+    subscription: {
+      begins_at: timestamp(subscription.begins_at),
+      ends_at: timestamp(subscription.ends_at),
+      renews_at: timestamp(subscription.renews_at),
+    },
+    amount: { currency: "EUR", net },
+    created_at: createdAt,
+    updated_at: updatedAt,
+  };
+}
+
+function safeAcmeSubscriptionQuote(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const product = record(source.product);
+  const productId = integer(product.id);
+  const productLabel = text(product.label, 255);
+  const termMonths = integer(product.term_months);
+  const amount = record(source.amount);
+  const base = money(amount.base);
+  const domainsPrice = money(amount.domains);
+  const net = money(amount.net);
+  const vat = money(amount.vat);
+  const vatRate = money(amount.vat_rate);
+  const total = money(amount.total);
+  if (
+    source.fulfillment !== "acme_subscription"
+    || productId === null
+    || productLabel === null
+    || termMonths === null
+    || amount.currency !== "EUR"
+    || base === null
+    || domainsPrice === null
+    || net === null
+    || vat === null
+    || vatRate === null
+    || total === null
+  ) return null;
+  const domains = Array.isArray(source.domains) ? source.domains.map((value) => {
+    const domain = record(value);
+    const name = dnsIdentifierSchema.safeParse(domain.name);
+    const nameKind = domain.name_kind === "single" || domain.name_kind === "wildcard"
+      ? domain.name_kind
+      : null;
+    if (!name.success || nameKind === null || (nameKind === "wildcard") !== name.data.startsWith("*.")) {
+      return null;
+    }
+    return { name: name.data, name_kind: nameKind };
+  }).filter((domain) => domain !== null) : [];
+  if (domains.length === 0) return null;
+  return {
+    fulfillment: "acme_subscription",
+    product: { id: productId, label: productLabel, term_months: termMonths },
+    domains,
+    amount: {
+      currency: "EUR",
+      base,
+      domains: domainsPrice,
+      net,
+      vat,
+      vat_rate: vatRate,
+      total,
+    },
+  };
+}
+
 function safeError(status: number, value: unknown): Record<string, unknown> {
   const source = record(value);
   const errors = Object.entries(source)
@@ -643,5 +859,43 @@ export function safeCertificatePayload(
       return source.reconciliation_queued === true
         ? { success: true, reconciliation_queued: true }
         : safeError(502, { invalidCertificateResponse: true });
+    case "acme-subscription-list":
+      return {
+        success: true,
+        records: Array.isArray(source.records)
+          ? source.records.map(safeAcmeSubscription).filter((subscription) => subscription !== null)
+          : [],
+      };
+    case "acme-subscription": {
+      const subscription = safeAcmeSubscription(source.subscription);
+      return subscription === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : { success: true, subscription };
+    }
+    case "acme-subscription-quote": {
+      const quote = safeAcmeSubscriptionQuote(source.quote);
+      const quoteToken = text(source.quote_token, 190);
+      return quote === null || quoteToken === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : {
+          success: true,
+          quote_token: quoteToken,
+          quote_expires_at: timestamp(source.quote_expires_at),
+          quote,
+        };
+    }
+    case "acme-subscription-confirmation": {
+      const subscription = safeAcmeSubscription(source.subscription);
+      return subscription === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : {
+          success: true,
+          replayed: boolean(source.replayed),
+          redirect: source.redirect === null ? null : text(source.redirect, 2048),
+          payment_id: nullableInteger(source.payment_id),
+          subscription,
+          refund_policy: text(source.refund_policy, 1000),
+        };
+    }
   }
 }

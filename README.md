@@ -4,7 +4,7 @@
 
 ## Features
 
-- **135+ tools** covering VPSNet service management, managed applications, paid TLS certificates, DNS, domains, billing, API keys, and account operations
+- **135+ tools** covering VPSNet service management, managed applications, Automatic SSL subscriptions, paid TLS certificates, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
@@ -139,6 +139,23 @@ available through the documented REST API and control panel, but are
 intentionally not exposed as MCP tools. Public pre-login order and domain-search
 routes likewise have authenticated MCP equivalents where an account operation
 needs them.
+
+## TLS certificates and Automatic SSL
+
+Certificate products are not limited to managed applications. Portable DV, OV,
+and EV orders can be installed on customer-controlled web servers, proxies,
+mail servers, load balancers, APIs, or other TLS-capable systems. Automatic SSL
+subscriptions instead connect a compatible ACME client on VPSnet or another
+provider and keep short-lived certificates current during the paid term.
+
+Use `list_certificate_catalog` to distinguish `portable_certificate` from
+`acme_subscription` offers. Automatic SSL follows
+`quote_automatic_ssl_subscription` → `order_automatic_ssl_subscription`, with
+the exact unchanged request, quote token, idempotency key, and explicit payment
+approval. Read state with `list_automatic_ssl_subscriptions` and
+`get_automatic_ssl_subscription`. Private ACME server and EAB credentials stay
+in the two-factor-protected customer portal and are intentionally unavailable
+to API keys and MCP, so they cannot enter model context.
 
 ## Browsing inside a backup
 
