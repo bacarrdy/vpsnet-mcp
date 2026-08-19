@@ -9,11 +9,18 @@ import { safeCertificatePayload } from "../build/certificate-contract.js";
 const ORDER_ID = "550e8400-e29b-41d4-a716-446655440000";
 const ACTION_ID = "550e8400-e29b-41d4-a716-446655440001";
 const SUBSCRIPTION_ID = "550e8400-e29b-41d4-a716-446655440002";
+const ACME_ACTION_ID = "550e8400-e29b-41d4-a716-446655440003";
+const ACME_RENEWAL_ID = "550e8400-e29b-41d4-a716-446655440004";
 const IDEMPOTENCY_KEY = "certificate-order-0001";
 const ACME_IDEMPOTENCY_KEY = "automatic-ssl-order-0001";
+const ACME_DOMAIN_IDEMPOTENCY_KEY = "automatic-ssl-domain-0001";
+const ACME_RENEWAL_IDEMPOTENCY_KEY = "automatic-ssl-renewal-0001";
+const ACME_ACTION_IDEMPOTENCY_KEY = "automatic-ssl-action-0001";
 const ACTION_KEY = "certificate-action-0001";
 const QUOTE_TOKEN = `certificate_quote_${"q".repeat(48)}`;
 const ACME_QUOTE_TOKEN = `certificate_acme_quote_${"a".repeat(48)}`;
+const ACME_DOMAIN_QUOTE_TOKEN = `certificate_acme_domain_${"d".repeat(48)}`;
+const ACME_RENEWAL_QUOTE_TOKEN = `certificate_acme_renewal_${"r".repeat(48)}`;
 const CSR = `-----BEGIN CERTIFICATE REQUEST-----\n${"QUJD".repeat(32)}\n-----END CERTIFICATE REQUEST-----\n`;
 
 const identifier = {
@@ -92,8 +99,8 @@ const acmeProduct = {
       renew: false,
       revoke: false,
       acme_credentials: true,
-      domains: false,
-      subscription_renewal: false,
+      domains: true,
+      subscription_renewal: true,
     },
     common_name: { single: true, wildcard: true, ip: false },
     san: {
@@ -115,8 +122,26 @@ const acmeSubscription = {
   fulfillment: "acme_subscription",
   product: { label: "Automatic SSL", term_months: 12 },
   domains: [
-    { id: 1, name: "*.example.com", name_kind: "wildcard", included: true, state: "active" },
-    { id: 2, name: "example.com", name_kind: "single", included: true, state: "active" },
+    {
+      id: 1,
+      name: "*.example.com",
+      name_kind: "wildcard",
+      included: true,
+      state: "active",
+      can_remove: true,
+      can_replace: false,
+      replace_until: null,
+    },
+    {
+      id: 2,
+      name: "example.com",
+      name_kind: "single",
+      included: true,
+      state: "active",
+      can_remove: true,
+      can_replace: true,
+      replace_until: "2026-09-03 10:00:00",
+    },
   ],
   state: "active",
   billing_state: "paid",
@@ -125,7 +150,12 @@ const acmeSubscription = {
   subscription: {
     begins_at: "2026-08-19 10:00:00",
     ends_at: "2027-08-19 10:00:00",
-    renews_at: null,
+    renews_at: "2027-08-19 10:00:00",
+  },
+  renewal: {
+    available: true,
+    payment_source: "balance",
+    current: null,
   },
   amount: { currency: "EUR", net: "69.99" },
   created_at: "2026-08-19 10:00:00",
@@ -135,6 +165,35 @@ const acmeSubscription = {
   eab_kid: "must-not-leak",
   eab_hmac_key: "must-not-leak",
   provider_subscription_id: "must-not-leak",
+};
+
+const acmeAction = {
+  id: ACME_ACTION_ID,
+  action: "add_domain",
+  state: "queued",
+  outcome_ambiguous: false,
+  attention_required: false,
+  billing_state: "paid",
+  amount: { currency: "EUR", net: "10.00" },
+  target_domain_id: 3,
+  submitted_at: null,
+  completed_at: null,
+  created_at: "2026-08-19 10:06:00",
+  updated_at: "2026-08-19 10:06:00",
+  provider_request: "must-not-leak",
+  last_error_code: "must-not-leak",
+};
+
+const acmeRenewal = {
+  id: ACME_RENEWAL_ID,
+  renewal_at: "2027-08-19 10:00:00",
+  state: "prepaid",
+  billing_state: "captured",
+  domain_count: 2,
+  amount: { currency: "EUR", net: "69.99" },
+  created_at: "2027-07-20 10:00:00",
+  updated_at: "2027-07-20 10:01:00",
+  provider_response: "must-not-leak",
 };
 
 const customerOrder = {
@@ -221,6 +280,7 @@ function acmeQuoteResponse() {
         { name: "*.example.com", name_kind: "wildcard" },
         { name: "example.com", name_kind: "single" },
       ],
+      auto_renew: true,
       amount: {
         currency: "EUR",
         base: "49.99",
@@ -233,6 +293,50 @@ function acmeQuoteResponse() {
     },
     provider_cost: "must-not-leak",
     eab_hmac_key: "must-not-leak",
+  };
+}
+
+function acmeDomainQuoteResponse() {
+  return {
+    success: true,
+    quote_token: ACME_DOMAIN_QUOTE_TOKEN,
+    quote_expires_at: "2026-08-19 10:15:00",
+    quote: {
+      operation: "add_domain",
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      domain: { name: "api.example.net", name_kind: "single" },
+      amount: {
+        currency: "EUR",
+        net: "10.00",
+        vat: "2.10",
+        vat_rate: "21.00",
+        total: "12.10",
+      },
+    },
+    provider_cost: "must-not-leak",
+  };
+}
+
+function acmeRenewalQuoteResponse() {
+  return {
+    success: true,
+    quote_token: ACME_RENEWAL_QUOTE_TOKEN,
+    quote_expires_at: "2027-07-20 10:15:00",
+    quote: {
+      operation: "renew_term",
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      renews_at: "2027-08-19 10:00:00",
+      domain_count: 2,
+      payment_source: "balance",
+      amount: {
+        currency: "EUR",
+        net: "69.99",
+        vat: "14.70",
+        vat_rate: "21.00",
+        total: "84.69",
+      },
+    },
+    provider_cost: "must-not-leak",
   };
 }
 
@@ -267,6 +371,69 @@ async function harness(t) {
       && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}`
     ) {
       response = { success: true, subscription: acmeSubscription };
+    } else if (
+      req.method === "GET"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/actions`
+    ) {
+      response = { success: true, records: [acmeAction], provider_response: "must-not-leak" };
+    } else if (
+      req.method === "POST"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/refresh`
+    ) {
+      status = 202;
+      response = { success: true, reconciliation_queued: true, provider: "must-not-leak" };
+    } else if (
+      req.method === "POST"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/domains/quote`
+    ) {
+      response = acmeDomainQuoteResponse();
+    } else if (
+      req.method === "POST"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/domains/order`
+    ) {
+      response = {
+        success: true,
+        replayed: false,
+        redirect: null,
+        payment_id: 101,
+        action: acmeAction,
+        refund_policy: "A definitive failure is credited once.",
+        provider_response: "must-not-leak",
+      };
+    } else if (
+      req.method === "POST"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/renewal/quote`
+    ) {
+      response = acmeRenewalQuoteResponse();
+    } else if (
+      req.method === "POST"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/renewal/order`
+    ) {
+      response = {
+        success: true,
+        replayed: false,
+        payment_id: 102,
+        payment_processing: false,
+        renewal: acmeRenewal,
+        refund_policy: "A definitive failure is credited once.",
+        provider_response: "must-not-leak",
+      };
+    } else if (
+      req.method === "POST"
+      && req.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/actions/remove_domain`
+    ) {
+      status = 202;
+      response = {
+        success: true,
+        action: {
+          ...acmeAction,
+          action: "remove_domain",
+          billing_state: "no_charge",
+          amount: { currency: "EUR", net: "0.00" },
+          target_domain_id: 2,
+        },
+        provider_response: "must-not-leak",
+      };
     } else if (
       req.method === "POST"
       && req.url === "/account/certificates/acme-subscriptions/quote"
@@ -400,6 +567,7 @@ const acmeOrderInput = {
   product_id: 18,
   offer_id: 72,
   offer_generation: 5,
+  auto_renew: true,
   domains: ["*.example.com", "example.com"],
 };
 
@@ -423,6 +591,13 @@ test("certificate tools expose the complete customer-safe contract", async (t) =
     "get_automatic_ssl_subscription",
     "quote_automatic_ssl_subscription",
     "order_automatic_ssl_subscription",
+    "list_automatic_ssl_actions",
+    "refresh_automatic_ssl_subscription",
+    "quote_automatic_ssl_domain",
+    "order_automatic_ssl_domain",
+    "quote_automatic_ssl_renewal",
+    "order_automatic_ssl_renewal",
+    "manage_automatic_ssl_subscription",
   ];
   for (const name of names) assert.equal(byName.has(name), true, `${name} is registered`);
 
@@ -430,6 +605,10 @@ test("certificate tools expose the complete customer-safe contract", async (t) =
   assert.equal(byName.get("order_certificate").annotations.destructiveHint, true);
   assert.equal(byName.get("list_automatic_ssl_subscriptions").annotations.readOnlyHint, true);
   assert.equal(byName.get("order_automatic_ssl_subscription").annotations.destructiveHint, true);
+  assert.equal(byName.get("list_automatic_ssl_actions").annotations.readOnlyHint, true);
+  assert.equal(byName.get("order_automatic_ssl_domain").annotations.destructiveHint, true);
+  assert.equal(byName.get("order_automatic_ssl_renewal").annotations.destructiveHint, true);
+  assert.equal(byName.get("manage_automatic_ssl_subscription").annotations.destructiveHint, true);
   assert.equal(
     byName.get("order_certificate").inputSchema.properties
       .acknowledge_exact_quote_and_payment.const,
@@ -467,6 +646,64 @@ test("certificate tools expose the complete customer-safe contract", async (t) =
   results.push(await client.callTool({
     name: "get_automatic_ssl_subscription",
     arguments: { certificate_subscription_id: SUBSCRIPTION_ID },
+  }));
+  results.push(await client.callTool({
+    name: "list_automatic_ssl_actions",
+    arguments: { certificate_subscription_id: SUBSCRIPTION_ID },
+  }));
+  results.push(await client.callTool({
+    name: "refresh_automatic_ssl_subscription",
+    arguments: { certificate_subscription_id: SUBSCRIPTION_ID },
+  }));
+  const domainQuoted = await client.callTool({
+    name: "quote_automatic_ssl_domain",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      domain: "api.example.net",
+      idempotencyKey: ACME_DOMAIN_IDEMPOTENCY_KEY,
+    },
+  });
+  results.push(domainQuoted);
+  assert.equal(JSON.parse(domainQuoted.content[0].text).quote.amount.total, "12.10");
+  assert.equal(JSON.parse(domainQuoted.content[0].text).quote_token, ACME_DOMAIN_QUOTE_TOKEN);
+  results.push(await client.callTool({
+    name: "order_automatic_ssl_domain",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      domain: "api.example.net",
+      quote_token: ACME_DOMAIN_QUOTE_TOKEN,
+      payment: { payment: 1, successUrl: "", cancelUrl: "" },
+      acknowledge_exact_quote_and_payment: true,
+      idempotencyKey: ACME_DOMAIN_IDEMPOTENCY_KEY,
+    },
+  }));
+  const renewalQuoted = await client.callTool({
+    name: "quote_automatic_ssl_renewal",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      idempotencyKey: ACME_RENEWAL_IDEMPOTENCY_KEY,
+    },
+  });
+  results.push(renewalQuoted);
+  assert.equal(JSON.parse(renewalQuoted.content[0].text).quote.amount.total, "84.69");
+  assert.equal(JSON.parse(renewalQuoted.content[0].text).quote_token, ACME_RENEWAL_QUOTE_TOKEN);
+  results.push(await client.callTool({
+    name: "order_automatic_ssl_renewal",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      quote_token: ACME_RENEWAL_QUOTE_TOKEN,
+      acknowledge_exact_quote_and_balance_payment: true,
+      idempotencyKey: ACME_RENEWAL_IDEMPOTENCY_KEY,
+    },
+  }));
+  results.push(await client.callTool({
+    name: "manage_automatic_ssl_subscription",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      request: { action: "remove_domain", domain_id: 2 },
+      acknowledge_automatic_ssl_action: true,
+      idempotencyKey: ACME_ACTION_IDEMPOTENCY_KEY,
+    },
   }));
   const acmeQuoted = await client.callTool({
     name: "quote_automatic_ssl_subscription",
@@ -534,7 +771,7 @@ test("certificate tools expose the complete customer-safe contract", async (t) =
   const modelContext = results.map((result) => result.content[0].text).join("\n");
   assert.doesNotMatch(
     modelContext,
-    /must-not-leak|provider_(?:cost|order|product|response|token|secret|subscription)|request_ciphertext|last_error_code|private_key\b|eab_(?:kid|hmac)|server_url|account_id/i
+    /must-not-leak|provider_(?:cost|order|product|request|response|token|secret|subscription)|request_ciphertext|last_error_code|private_key\b|eab_(?:kid|hmac)|server_url|account_id/i
   );
   assert.match(modelContext, /public-dcv-value/);
   assert.match(modelContext, /Example Trust/);
@@ -569,6 +806,37 @@ test("certificate tools expose the complete customer-safe contract", async (t) =
     quoteToken: ACME_QUOTE_TOKEN,
     payment: { payment: 1, successUrl: "", cancelUrl: "" },
   });
+  const acmeDomainQuoteRequest = requests.find(
+    (request) => request.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/domains/quote`
+  );
+  assert.equal(acmeDomainQuoteRequest.headers["idempotency-key"], ACME_DOMAIN_IDEMPOTENCY_KEY);
+  assert.deepEqual(acmeDomainQuoteRequest.body, { domain: "api.example.net" });
+  const acmeDomainOrderRequest = requests.find(
+    (request) => request.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/domains/order`
+  );
+  assert.equal(acmeDomainOrderRequest.headers["idempotency-key"], ACME_DOMAIN_IDEMPOTENCY_KEY);
+  assert.equal(acmeDomainOrderRequest.headers["x-quote-token"], ACME_DOMAIN_QUOTE_TOKEN);
+  assert.deepEqual(acmeDomainOrderRequest.body, {
+    domain: "api.example.net",
+    quoteToken: ACME_DOMAIN_QUOTE_TOKEN,
+    payment: { payment: 1, successUrl: "", cancelUrl: "" },
+  });
+  const acmeRenewalQuoteRequest = requests.find(
+    (request) => request.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/renewal/quote`
+  );
+  assert.equal(acmeRenewalQuoteRequest.headers["idempotency-key"], ACME_RENEWAL_IDEMPOTENCY_KEY);
+  assert.deepEqual(acmeRenewalQuoteRequest.body, {});
+  const acmeRenewalOrderRequest = requests.find(
+    (request) => request.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/renewal/order`
+  );
+  assert.equal(acmeRenewalOrderRequest.headers["idempotency-key"], ACME_RENEWAL_IDEMPOTENCY_KEY);
+  assert.equal(acmeRenewalOrderRequest.headers["x-quote-token"], ACME_RENEWAL_QUOTE_TOKEN);
+  assert.deepEqual(acmeRenewalOrderRequest.body, { quoteToken: ACME_RENEWAL_QUOTE_TOKEN });
+  const acmeManageRequest = requests.find(
+    (request) => request.url === `/account/certificates/acme-subscriptions/${SUBSCRIPTION_ID}/actions/remove_domain`
+  );
+  assert.equal(acmeManageRequest.headers["idempotency-key"], ACME_ACTION_IDEMPOTENCY_KEY);
+  assert.deepEqual(acmeManageRequest.body, { domain_id: 2 });
   const manageRequest = requests.find((request) => request.url.endsWith("/resend_validation"));
   assert.equal(manageRequest.headers["idempotency-key"], ACTION_KEY);
   assert.deepEqual(manageRequest.body, {});
@@ -613,6 +881,35 @@ test("certificate schemas reject private keys and invalid wildcard validation be
     },
   });
   assert.equal(duplicate.isError, true);
+  const invalidAddedDomain = await client.callTool({
+    name: "quote_automatic_ssl_domain",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      domain: "UPPER.example.com",
+      idempotencyKey: ACME_DOMAIN_IDEMPOTENCY_KEY,
+    },
+  });
+  assert.equal(invalidAddedDomain.isError, true);
+  const unapprovedRenewal = await client.callTool({
+    name: "order_automatic_ssl_renewal",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      quote_token: ACME_RENEWAL_QUOTE_TOKEN,
+      acknowledge_exact_quote_and_balance_payment: false,
+      idempotencyKey: ACME_RENEWAL_IDEMPOTENCY_KEY,
+    },
+  });
+  assert.equal(unapprovedRenewal.isError, true);
+  const unapprovedRemoval = await client.callTool({
+    name: "manage_automatic_ssl_subscription",
+    arguments: {
+      certificate_subscription_id: SUBSCRIPTION_ID,
+      request: { action: "remove_domain", domain_id: 2 },
+      acknowledge_automatic_ssl_action: false,
+      idempotencyKey: ACME_ACTION_IDEMPOTENCY_KEY,
+    },
+  });
+  assert.equal(unapprovedRemoval.isError, true);
   assert.equal(requests.filter((request) => request.url.endsWith("/quote")).length, 0);
 });
 
