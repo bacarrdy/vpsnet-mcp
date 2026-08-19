@@ -63,6 +63,9 @@ import {
 import {
   certificateActionRequestBody,
   certificateActionRequestSchema,
+  certificateAcmeSubscriptionActionRequestBody,
+  certificateAcmeSubscriptionActionRequestSchema,
+  certificateAcmeSubscriptionDomainInputShape,
   certificateAcmeSubscriptionInputShape,
   certificateOfferGenerationSchema,
   certificateOfferIdSchema,
@@ -236,8 +239,11 @@ const server = new McpServer(
       "## TLS certificates and Automatic SSL",
       "Paid TLS certificates are portable account products, not managed-application-only features. They can be installed on customer Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, load-balancer, or other TLS endpoints.",
       "Managed HTTPS for VPSnet applications, Automatic SSL subscriptions for a customer ACME client, and portable certificate files are three separate choices. Do not place a paid order merely because an application already has managed platform HTTPS.",
-      "Automatic SSL flow: list_certificate_catalog → quote_automatic_ssl_subscription → order_automatic_ssl_subscription. It works with compatible ACME clients on VPSnet or another provider. A base domain includes its www alias; apex and wildcard names are separate subscribed identifiers and may be ordered together.",
+      "Automatic SSL flow: list_certificate_catalog → quote_automatic_ssl_subscription → order_automatic_ssl_subscription. It works with compatible ACME clients on VPSnet or another provider. A base domain includes its www alias; apex and wildcard names are separate subscribed identifiers and may be ordered together. Choose auto_renew explicitly; every next term is still quoted and prepaid from balance during the final 30 days.",
       "After payment, poll get_automatic_ssl_subscription until state=active and credentials_available=true. The private ACME server URL and EAB credentials are intentionally portal-only behind two-factor verification; they are not MCP or API-key tools and must never enter model context.",
+      "Add a DNS name with quote_automatic_ssl_domain → order_automatic_ssl_domain using the exact quote token and unchanged idempotency key. The quote prevents duplicate coverage from base/www and wildcard/base relationships.",
+      "When renewal.available=true, use quote_automatic_ssl_renewal → order_automatic_ssl_renewal. Renewal is balance-only and must be explicitly approved; payment_processing or manual_review is not success.",
+      "Use list_automatic_ssl_actions before manage_automatic_ssl_subscription. Cancellation, removal, and same-type correction are durable and idempotent. Reuse a key only for the exact same request. For reconciliation_required or outcome_ambiguous, call refresh_automatic_ssl_subscription and read state instead of creating a new mutation.",
       "Flow: list_certificate_catalog → quote_certificate → order_certificate. The quote returns the final customer price in EUR including VAT, a short-lived quote token, and the exact public-key type derived from the CSR. Disclose the exact total and obtain explicit approval before ordering.",
       "The customer creates and retains the private key. Certificate tools accept only a signed public PKCS#10 CSR. Never ask for, accept, store, repeat, or place a private key in a tool argument or model context.",
       "Use the same client-global idempotencyKey and exact unchanged order fields for quote_certificate and order_certificate. API keys require certificates:read for reads, certificates:manage for management, and paid operations plus certificates:order and spend caps for quote/order.",
@@ -3147,6 +3153,13 @@ const certificatePaymentSchema = z
   .strict()
   .describe("Payment object. For account balance use { payment: 1, successUrl: '', cancelUrl: '' }");
 
+const certificateQuoteTokenSchema = z
+  .string()
+  .min(32)
+  .max(190)
+  .regex(/^[A-Za-z0-9._:-]{32,190}$/)
+  .describe("Exact short-lived quote_token returned by the matching quote tool");
+
 const certificatePath = (suffix = "") =>
   `/account/certificates${suffix}`;
 
@@ -3293,6 +3306,300 @@ server.registerTool(
       content: [{
         type: "text",
         text: formatJson(safeCertificatePayload("acme-subscription-confirmation", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "list_automatic_ssl_actions",
+  {
+    description:
+      "List the latest customer-visible cancellation, domain addition, removal, and replacement actions for one owned Automatic SSL subscription. Certificate-authority payloads, credentials, commercial internals, and internal errors are omitted. Requires certificates:read.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+    },
+    annotations: {
+      title: "List Automatic SSL actions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_subscription_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/actions`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-action-list", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "refresh_automatic_ssl_subscription",
+  {
+    description:
+      "Durably schedule an authoritative read-only certificate-authority refresh for one owned Automatic SSL subscription. Use it for stale or ambiguous state; it never repeats a provider mutation. Poll get_automatic_ssl_subscription and list_automatic_ssl_actions afterward. Requires certificates:manage.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+    },
+    annotations: {
+      title: "Refresh Automatic SSL status",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_subscription_id }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/refresh`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-refresh", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "quote_automatic_ssl_domain",
+  {
+    description:
+      "Quote one additional DNS name for an active Automatic SSL subscription without charging. A base name includes www and a wildcard includes its base name, so covered names cannot be purchased twice. Disclose the final VAT-inclusive EUR total before ordering. Requires paid operations, certificates:order, spend caps, and a client-global idempotencyKey reused for confirmation.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+      ...certificateAcmeSubscriptionDomainInputShape,
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global unique key used for this domain quote and its exact confirmation"
+      ),
+    },
+    annotations: {
+      title: "Quote Automatic SSL domain",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_subscription_id, idempotencyKey, ...input }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/domains/quote`
+      ),
+      input,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-domain-quote", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "order_automatic_ssl_domain",
+  {
+    description:
+      "Confirm and pay for the exact additional Automatic SSL DNS-name quote. Call only after the user approves the final EUR total, DNS name, and payment method. Use the unchanged name, same idempotencyKey, and exact quote token. Requires certificates:order and paid-operation spend controls.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+      ...certificateAcmeSubscriptionDomainInputShape,
+      quote_token: certificateQuoteTokenSchema,
+      payment: certificatePaymentSchema,
+      acknowledge_exact_quote_and_payment: z
+        .literal(true)
+        .describe("True only after the user approves the exact EUR total, DNS name, and payment"),
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Same client-global idempotency key used for quote_automatic_ssl_domain"
+      ),
+    },
+    annotations: {
+      title: "Order Automatic SSL domain",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    certificate_subscription_id,
+    quote_token,
+    payment,
+    acknowledge_exact_quote_and_payment,
+    idempotencyKey,
+    ...input
+  }) => {
+    if (acknowledge_exact_quote_and_payment !== true) {
+      throw new Error("Explicit approval of the exact Automatic SSL domain quote and payment is required.");
+    }
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/domains/order`
+      ),
+      { ...input, quoteToken: quote_token, payment },
+      {
+        "Idempotency-Key": idempotencyKey,
+        "X-Quote-Token": quote_token,
+      }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(
+          safeCertificatePayload("acme-subscription-domain-confirmation", status, data)
+        ),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "quote_automatic_ssl_renewal",
+  {
+    description:
+      "Quote the next term of an owned renewable Automatic SSL subscription during its final 30 days without charging. The quote is bound to the exact current DNS-name set, renewal date, offer generation, and final VAT-inclusive EUR total. Requires paid operations, certificates:order, spend caps, and a client-global idempotencyKey reused for confirmation.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global unique key used for this renewal quote and its exact confirmation"
+      ),
+    },
+    annotations: {
+      title: "Quote Automatic SSL renewal",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ certificate_subscription_id, idempotencyKey }) => {
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/renewal/quote`
+      ),
+      {},
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-renewal-quote", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "order_automatic_ssl_renewal",
+  {
+    description:
+      "Prepay one exact next Automatic SSL term from account balance. Call only after the user approves the renewal date, DNS-name count, and final VAT-inclusive EUR total. Use the same idempotencyKey and exact quote token. A definitive provider failure is credited once to balance; an uncertain result remains under reconciliation and must not be submitted again with a new key. Requires certificates:order and paid-operation spend controls.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+      quote_token: certificateQuoteTokenSchema,
+      acknowledge_exact_quote_and_balance_payment: z
+        .literal(true)
+        .describe("True only after the user approves the exact renewal and balance charge"),
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Same client-global idempotency key used for quote_automatic_ssl_renewal"
+      ),
+    },
+    annotations: {
+      title: "Prepay Automatic SSL renewal",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    certificate_subscription_id,
+    quote_token,
+    acknowledge_exact_quote_and_balance_payment,
+    idempotencyKey,
+  }) => {
+    if (acknowledge_exact_quote_and_balance_payment !== true) {
+      throw new Error("Explicit approval of the exact Automatic SSL renewal and balance charge is required.");
+    }
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/renewal/order`
+      ),
+      { quoteToken: quote_token },
+      {
+        "Idempotency-Key": idempotencyKey,
+        "X-Quote-Token": quote_token,
+      }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(
+          safeCertificatePayload("acme-subscription-renewal-confirmation", status, data)
+        ),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "manage_automatic_ssl_subscription",
+  {
+    description:
+      "Queue one exact idempotent Automatic SSL action: cancel the subscription, remove an eligible purchased DNS name, or replace an eligible purchased DNS name during its correction window. Read the subscription and its actions first, and call only after explicit approval. If the result becomes ambiguous, reuse the same key only for an unchanged retry or call refresh_automatic_ssl_subscription—never submit a new mutation key. Requires certificates:manage.",
+    inputSchema: {
+      certificate_subscription_id: certificateSubscriptionIdSchema,
+      request: certificateAcmeSubscriptionActionRequestSchema,
+      acknowledge_automatic_ssl_action: z
+        .literal(true)
+        .describe("True only after the user approves this exact Automatic SSL action"),
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Client-global key for one exact action. Reuse only for an unchanged retry."
+      ),
+    },
+    annotations: {
+      title: "Manage Automatic SSL subscription",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    certificate_subscription_id,
+    request,
+    acknowledge_automatic_ssl_action,
+    idempotencyKey,
+  }) => {
+    if (acknowledge_automatic_ssl_action !== true) {
+      throw new Error("Explicit Automatic SSL action approval is required.");
+    }
+    const { action, body } = certificateAcmeSubscriptionActionRequestBody(request);
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/actions/${encodeURIComponent(action)}`
+      ),
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("acme-subscription-action", status, data)),
       }],
     };
   }

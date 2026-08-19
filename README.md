@@ -153,7 +153,15 @@ Use `list_certificate_catalog` to distinguish `portable_certificate` from
 `quote_automatic_ssl_subscription` → `order_automatic_ssl_subscription`, with
 the exact unchanged request, quote token, idempotency key, and explicit payment
 approval. Read state with `list_automatic_ssl_subscriptions` and
-`get_automatic_ssl_subscription`. Private ACME server and EAB credentials stay
+`get_automatic_ssl_subscription`. Additional names use
+`quote_automatic_ssl_domain` → `order_automatic_ssl_domain`; the API prevents
+paying twice for names already covered by base/www or wildcard/base rules.
+During the final 30 days, an eligible next term uses
+`quote_automatic_ssl_renewal` → `order_automatic_ssl_renewal` and is prepaid
+from account balance only after the exact EUR total is approved. Cancellation,
+domain removal, and same-type correction use `manage_automatic_ssl_subscription`;
+ambiguous state is reconciled with `refresh_automatic_ssl_subscription`, never
+by inventing a second mutation. Private ACME server and EAB credentials stay
 in the two-factor-protected customer portal and are intentionally unavailable
 to API keys and MCP, so they cannot enter model context.
 
@@ -600,6 +608,13 @@ cannot be performed by an MCP connection authenticated with an API key.
 | `get_automatic_ssl_subscription` | Get one owned subscription, its domain set, renewal state, and readiness |
 | `quote_automatic_ssl_subscription` | Quote an exact domain set in EUR without charging |
 | `order_automatic_ssl_subscription` | Confirm and pay for the explicitly approved subscription quote |
+| `list_automatic_ssl_actions` | List customer-visible subscription and DNS-name changes |
+| `refresh_automatic_ssl_subscription` | Schedule an authoritative read-only status refresh |
+| `quote_automatic_ssl_domain` | Quote one additional DNS name in EUR without charging |
+| `order_automatic_ssl_domain` | Confirm and pay for the explicitly approved DNS-name quote |
+| `quote_automatic_ssl_renewal` | Quote the next eligible subscription term in EUR |
+| `order_automatic_ssl_renewal` | Prepay the explicitly approved next term from account balance |
+| `manage_automatic_ssl_subscription` | Cancel, remove a name, or correct an eligible name idempotently |
 
 Automatic SSL is a portable paid ACME subscription. It works with a compatible
 client on VPSnet or another provider; it is not limited to managed
