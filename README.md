@@ -593,6 +593,20 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 API-key creation, changes, and revocation require a browser/session login. They
 cannot be performed by an MCP connection authenticated with an API key.
 
+### Automatic SSL subscriptions
+| Tool | Description |
+|------|-------------|
+| `list_automatic_ssl_subscriptions` | List customer-owned Automatic SSL subscriptions without exposing ACME credentials |
+| `get_automatic_ssl_subscription` | Get one owned subscription, its domain set, renewal state, and readiness |
+| `quote_automatic_ssl_subscription` | Quote an exact domain set in EUR without charging |
+| `order_automatic_ssl_subscription` | Confirm and pay for the explicitly approved subscription quote |
+
+Automatic SSL is a portable paid ACME subscription. It works with a compatible
+client on VPSnet or another provider; it is not limited to managed
+applications. The private ACME server URL and EAB credentials are revealed only
+in the two-factor-protected customer portal. They are intentionally not an MCP
+tool or API-key response, so an assistant cannot copy them into model context.
+
 ### Paid TLS certificates
 | Tool | Description |
 |------|-------------|
