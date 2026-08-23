@@ -73,6 +73,14 @@ import {
   certificateOrderInputShape,
   certificateProductIdSchema,
   certificateSubscriptionIdSchema,
+  freeCertificateActionRequestBody,
+  freeCertificateActionRequestSchema,
+  freeCertificateCreateInputShape,
+  freeCertificateCreateRequestSchema,
+  freeCertificatePreflightInputShape,
+  freeCertificatePreflightRequestSchema,
+  freeCertificateRequestIdSchema,
+  freeCertificateStateSchema,
   safeCertificatePayload,
 } from "./certificate-contract.js";
 import {
@@ -237,6 +245,9 @@ const server = new McpServer(
       "Use get_domain_ordering_status before paid domain tests to see whether domain search and ordering are currently available.",
       "",
       "## TLS certificates and Automatic SSL",
+      "Free portable certificates are separate from paid portable certificates, paid Automatic SSL subscriptions, and application Managed HTTPS. Start with get_free_certificate_eligibility and preflight_free_certificate. Only create when preflight says issuable and the user explicitly approves the exact names, CA, validation, delivery, and key-custody mode.",
+      "For API/AI-managed deployment outside VPSnet, use customer_csr: generate and keep the private key on the destination, send only its public PKCS#10 CSR, then retrieve the public leaf and chain with download_free_certificate. In managed mode VPSnet stores an encrypted key for unattended early renewal, but that key is portal-only behind two-factor verification and is never available to MCP or API keys. Never imply that a public-only download is a deployable key pair.",
+      "Free-certificate issuance is asynchronous and quota-controlled. Poll get_free_certificate; use get_free_certificate_instruction for external-DNS CNAME delegation and download_free_certificate only after download_available=true. A queued request is not proof of issuance. Managed-key renewals are scheduled early with bounded jitter; customer_csr renewals require a new CSR. Read state before manage_free_certificate, explicitly approve revoke/cancel/renew, and after any ambiguous response re-read state before deciding whether another action is needed.",
       "Paid TLS certificates are portable account products, not managed-application-only features. They can be installed on customer Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, load-balancer, or other TLS endpoints.",
       "Managed HTTPS for VPSnet applications, Automatic SSL subscriptions for a customer ACME client, and portable certificate files are three separate choices. Do not place a paid order merely because an application already has managed platform HTTPS.",
       "Automatic SSL flow: list_certificate_catalog → quote_automatic_ssl_subscription → order_automatic_ssl_subscription. It works with compatible ACME clients on VPSnet or another provider. A base domain includes its www alias; apex and wildcard names are separate subscribed identifiers and may be ordered together. Choose auto_renew explicitly; every next term is still quoted and prepaid from balance during the final 30 days.",
@@ -3142,7 +3153,7 @@ server.registerTool(
   }
 );
 
-// --- Paid TLS certificates ---
+// --- TLS certificates ---
 
 const certificatePaymentSchema = z
   .object({
@@ -3162,6 +3173,262 @@ const certificateQuoteTokenSchema = z
 
 const certificatePath = (suffix = "") =>
   `/account/certificates${suffix}`;
+
+server.registerTool(
+  "get_free_certificate_eligibility",
+  {
+    description:
+      "Check whether this account may request no-cost public DV certificates, its current anti-abuse quota, supported key-custody modes, and only the public certificate authorities that are operational in the current environment. This never exposes provider account IDs, credentials, or private keys. Requires certificates:read.",
+    inputSchema: {},
+    annotations: {
+      title: "Check free-certificate eligibility",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async () => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath("/free/eligibility")
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-eligibility", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "preflight_free_certificate",
+  {
+    description:
+      "Plan a no-cost public DV certificate without issuing it or changing DNS. Returns the canonical names and every currently available validation, delivery, key-custody, and CA choice. Call this before create_free_certificate and follow only options marked available. Requires certificates:read.",
+    inputSchema: freeCertificatePreflightInputShape,
+    annotations: {
+      title: "Plan a free TLS certificate",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async (input) => {
+    const body = freeCertificatePreflightRequestSchema.parse(input);
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath("/free/preflight"),
+      body
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-preflight", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "list_free_certificates",
+  {
+    description:
+      "List customer-owned no-cost public-certificate requests and their safe lifecycle state. These are separate from paid portable certificates, paid Automatic SSL subscriptions, and application Managed HTTPS. Requires certificates:read.",
+    inputSchema: {
+      state: freeCertificateStateSchema.optional().describe("Optional exact lifecycle-state filter"),
+    },
+    annotations: {
+      title: "List free TLS certificates",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ state }) => {
+    const query = state === undefined ? "" : `?state=${encodeURIComponent(state)}`;
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/free${query}`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-list", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_free_certificate",
+  {
+    description:
+      "Read one owned no-cost certificate request, including public CA, renewal schedule, validation state, safe timeline, and whether its public certificate is ready. A queued request is not proof of issuance. Requires certificates:read.",
+    inputSchema: { free_certificate_request_id: freeCertificateRequestIdSchema },
+    annotations: {
+      title: "Get free TLS certificate",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ free_certificate_request_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(`/free/${encodeURIComponent(free_certificate_request_id)}`)
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-request", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "get_free_certificate_instruction",
+  {
+    description:
+      "Read the current DNS validation instruction for one owned no-cost certificate request. VPSnet-hosted DNS may be automatic; external DNS returns every durable CNAME delegation the customer must create. No ACME challenge token or provider credential is returned. Requires certificates:read.",
+    inputSchema: { free_certificate_request_id: freeCertificateRequestIdSchema },
+    annotations: {
+      title: "Get free-certificate validation instructions",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ free_certificate_request_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(
+        `/free/${encodeURIComponent(free_certificate_request_id)}/instruction`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-instruction", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "create_free_certificate",
+  {
+    description:
+      "Create one idempotent no-cost public DV certificate request after preflight. Call only after the user explicitly approves the exact DNS names, public CA, validation method, delivery method, and key-custody mode. For portable API/AI deployment use customer_csr and retain the private key on the destination. Managed mode permits unattended renewal, but its private key is portal-only behind two-factor verification and can never be retrieved through MCP. Requires certificates:manage.",
+    inputSchema: {
+      ...freeCertificateCreateInputShape,
+      acknowledge_public_certificate_request: z
+        .literal(true)
+        .describe("True only after the user approves this exact public-certificate request"),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Stable key for this exact free-certificate request; reuse only for an unchanged retry"
+      ),
+    },
+    annotations: {
+      title: "Create free TLS certificate",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ acknowledge_public_certificate_request, idempotencyKey, ...input }) => {
+    if (acknowledge_public_certificate_request !== true) {
+      throw new Error("Explicit approval of the exact public-certificate request is required.");
+    }
+    const body = freeCertificateCreateRequestSchema.parse(input);
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath("/free"),
+      body,
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-create", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "download_free_certificate",
+  {
+    description:
+      "Retrieve only the public leaf, issuer chain, and full chain for one issued no-cost certificate. It never decrypts, reconstructs, or returns a managed private key. A customer_csr result is deployable only together with the private key the customer retained when creating the CSR; managed private-key export remains portal-only with two-factor verification. Requires certificates:read.",
+    inputSchema: { free_certificate_request_id: freeCertificateRequestIdSchema },
+    annotations: {
+      title: "Download public free-certificate bundle",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ free_certificate_request_id }) => {
+    const { status, data } = await apiRequest(
+      "GET",
+      certificatePath(
+        `/free/${encodeURIComponent(free_certificate_request_id)}/certificate`
+      )
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-artifact", status, data)),
+      }],
+    };
+  }
+);
+
+server.registerTool(
+  "manage_free_certificate",
+  {
+    description:
+      "Request one free-certificate lifecycle action after reading its current state: early renew, revoke, recheck validation, or cancel before issuance. A customer_csr renewal requires a new public CSR for the unchanged authorized names; managed-key renewal normally happens automatically. Call only after explicit user approval. If the response is ambiguous, read get_free_certificate before deciding whether another action is needed. This tool cannot export a private key. Requires certificates:manage.",
+    inputSchema: {
+      free_certificate_request_id: freeCertificateRequestIdSchema,
+      request: freeCertificateActionRequestSchema,
+      acknowledge_free_certificate_action: z
+        .literal(true)
+        .describe("True only after the user approves this exact lifecycle action"),
+    },
+    annotations: {
+      title: "Manage free TLS certificate",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({
+    free_certificate_request_id,
+    request,
+    acknowledge_free_certificate_action,
+  }) => {
+    if (acknowledge_free_certificate_action !== true) {
+      throw new Error("Explicit free-certificate action approval is required.");
+    }
+    const { action, body } = freeCertificateActionRequestBody(request);
+    const { status, data } = await apiRequest(
+      "POST",
+      certificatePath(
+        `/free/${encodeURIComponent(free_certificate_request_id)}/actions/${encodeURIComponent(action)}`
+      ),
+      body
+    );
+    return {
+      content: [{
+        type: "text",
+        text: formatJson(safeCertificatePayload("free-action", status, data)),
+      }],
+    };
+  }
+);
 
 server.registerTool(
   "list_automatic_ssl_subscriptions",

@@ -4,7 +4,7 @@
 
 ## Features
 
-- **135+ tools** covering VPSNet service management, managed applications, Automatic SSL subscriptions, paid TLS certificates, DNS, domains, billing, API keys, and account operations
+- **190+ tools** covering VPSNet service management, managed applications, free and paid TLS certificates, Automatic SSL subscriptions, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
@@ -147,6 +147,15 @@ and EV orders can be installed on customer-controlled web servers, proxies,
 mail servers, load balancers, APIs, or other TLS-capable systems. Automatic SSL
 subscriptions instead connect a compatible ACME client on VPSnet or another
 provider and keep short-lived certificates current during the paid term.
+
+Eligible accounts can also request no-cost portable DV certificates through
+`get_free_certificate_eligibility` → `preflight_free_certificate` →
+`create_free_certificate`. For API or assistant deployment, create a CSR on the
+destination and keep its private key there; MCP accepts only the public CSR and
+later returns only the public certificate chain. VPSnet-managed keys support
+unattended early renewal, but their export remains portal-only behind two-factor
+verification. Free certificates, paid certificate files, paid Automatic SSL,
+and application Managed HTTPS are separate products and lifecycle surfaces.
 
 Use `list_certificate_catalog` to distinguish `portable_certificate` from
 `acme_subscription` offers. Automatic SSL follows
@@ -600,6 +609,24 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 
 API-key creation, changes, and revocation require a browser/session login. They
 cannot be performed by an MCP connection authenticated with an API key.
+
+### Free TLS certificates
+| Tool | Description |
+|------|-------------|
+| `get_free_certificate_eligibility` | Check account eligibility, quota, key modes, and currently ready public CAs |
+| `preflight_free_certificate` | Plan exact names, validation, delivery, custody, and CA without issuing |
+| `list_free_certificates` | List owned no-cost certificate requests and lifecycle state |
+| `get_free_certificate` | Get one owned request, renewal schedule, and safe timeline |
+| `get_free_certificate_instruction` | Read automatic-DNS status or every required external-DNS CNAME |
+| `create_free_certificate` | Create one explicitly approved, idempotent no-cost DV request |
+| `download_free_certificate` | Retrieve only the issued public leaf and chain, never a private key |
+| `manage_free_certificate` | Renew, revoke, recheck, or cancel an eligible request |
+
+For portable API or assistant installation, use `customer_csr` and retain the
+private key where the CSR was generated. A managed request can renew unattended,
+but MCP cannot export its private key. Issuance is asynchronous and quota-bound:
+poll `get_free_certificate`, follow `get_free_certificate_instruction`, and do
+not treat a queued request as issued.
 
 ### Automatic SSL subscriptions
 | Tool | Description |

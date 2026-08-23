@@ -22,7 +22,15 @@ export type CertificatePayloadKind =
   | "acme-subscription-domain-quote"
   | "acme-subscription-domain-confirmation"
   | "acme-subscription-renewal-quote"
-  | "acme-subscription-renewal-confirmation";
+  | "acme-subscription-renewal-confirmation"
+  | "free-eligibility"
+  | "free-preflight"
+  | "free-list"
+  | "free-request"
+  | "free-create"
+  | "free-instruction"
+  | "free-artifact"
+  | "free-action";
 
 export const certificateOrderIdSchema = z
   .string()
@@ -51,6 +59,26 @@ export const certificateSubscriptionIdSchema = z
   .string()
   .regex(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
   .describe("Customer-owned Automatic SSL subscription UUID returned by list_automatic_ssl_subscriptions");
+
+export const freeCertificateRequestIdSchema = z
+  .string()
+  .regex(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
+  .describe("Customer-owned free-certificate request UUID returned by list_free_certificates");
+
+export const freeCertificateStateSchema = z.enum([
+  "draft",
+  "pending_validation",
+  "validating",
+  "issuing",
+  "issued",
+  "renewing",
+  "failed",
+  "cancelled",
+  "revoked",
+  "expired",
+]);
+
+export const freeCertificateAuthoritySchema = z.enum(["letsencrypt", "zerossl", "google"]);
 
 export const certificateDnsIdentifierSchema = z
   .string()
@@ -193,6 +221,120 @@ export const certificateCsrSchema = z
   .describe(
     "Customer-generated PEM PKCS#10 CSR. The private key must remain with the customer and must never be sent to VPSnet or an AI assistant."
   );
+
+const freeCertificateAlternativeNamesSchema = z
+  .array(certificateDnsIdentifierSchema)
+  .max(99)
+  .superRefine((identifiers, context) => {
+    const seen = new Set<string>();
+    for (const [index, identifier] of identifiers.entries()) {
+      if (seen.has(identifier)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [index],
+          message: "Free-certificate DNS names must be unique",
+        });
+      }
+      seen.add(identifier);
+    }
+  })
+  .default([])
+  .describe("Optional unique lowercase DNS subject alternative names");
+
+const freeCertificateTargetOrderIdSchema = z
+  .number()
+  .int()
+  .positive()
+  .nullable()
+  .optional()
+  .describe("Optional owned VPS or Cloud VPS order ID returned by service tools");
+
+export const freeCertificatePreflightInputShape = {
+  hostname: certificateDnsIdentifierSchema.describe("Primary lowercase DNS name; wildcards begin with *."),
+  alternative_names: freeCertificateAlternativeNamesSchema,
+  target_order_id: freeCertificateTargetOrderIdSchema,
+  certificate_authority: freeCertificateAuthoritySchema
+    .nullable()
+    .optional()
+    .describe("Optional CA choice; omit to let preflight recommend a currently ready authority"),
+};
+
+export const freeCertificatePreflightRequestSchema = z
+  .object(freeCertificatePreflightInputShape)
+  .strict()
+  .superRefine((request, context) => {
+    if (request.alternative_names.includes(request.hostname)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["alternative_names"],
+        message: "Do not repeat the primary hostname as an alternative name",
+      });
+    }
+  });
+
+export const freeCertificateCreateInputShape = {
+  ...freeCertificatePreflightInputShape,
+  key_mode: z.enum(["managed", "customer_csr"]).describe(
+    "managed enables unattended renewal but its private key stays portal/2FA-only; customer_csr keeps the private key with the caller"
+  ),
+  csr: certificateCsrSchema
+    .nullable()
+    .optional()
+    .describe("Required only for customer_csr. Supply a public PKCS#10 CSR, never a private key"),
+  validation_method: z.enum(["dns_zone", "dns_cname"]).describe(
+    "Choose only a validation method that preflight reports available"
+  ),
+  delivery_method: z.enum(["download", "auto_install_guest", "assistant_install"]).describe(
+    "Choose only a delivery method that preflight reports available"
+  ),
+};
+
+export const freeCertificateCreateRequestSchema = z
+  .object(freeCertificateCreateInputShape)
+  .strict()
+  .superRefine((request, context) => {
+    if (request.alternative_names.includes(request.hostname)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["alternative_names"],
+        message: "Do not repeat the primary hostname as an alternative name",
+      });
+    }
+    if (request.key_mode === "customer_csr" && !request.csr) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["csr"],
+        message: "customer_csr mode requires a public PKCS#10 CSR",
+      });
+    }
+    if (request.key_mode === "managed" && request.csr != null) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["csr"],
+        message: "Managed mode does not accept a CSR",
+      });
+    }
+  });
+
+export const freeCertificateActionRequestSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("renew"),
+    csr: certificateCsrSchema.nullable().optional(),
+  }).strict(),
+  z.object({
+    action: z.literal("revoke"),
+    reason: z.enum(["unspecified", "key_compromise", "superseded", "cessation_of_operation"]),
+  }).strict(),
+  z.object({ action: z.literal("recheck") }).strict(),
+  z.object({ action: z.literal("cancel") }).strict(),
+]);
+
+export function freeCertificateActionRequestBody(
+  request: z.infer<typeof freeCertificateActionRequestSchema>
+): { action: string; body: Record<string, unknown> } {
+  const { action, ...body } = request;
+  return { action, body };
+}
 
 export const certificateOrderInputShape = {
   product_id: certificateProductIdSchema,
@@ -1010,6 +1152,358 @@ function safeAcmeSubscriptionRenewalQuote(value: unknown): Record<string, unknow
   };
 }
 
+const freeCertificateAuthorityNames: Record<string, string> = {
+  letsencrypt: "Let's Encrypt",
+  zerossl: "ZeroSSL",
+  google: "Google Trust Services",
+};
+
+function safeFreeProviderOption(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const id = freeCertificateAuthoritySchema.safeParse(source.id);
+  if (
+    !id.success
+    || source.name !== freeCertificateAuthorityNames[id.data]
+    || typeof source.default !== "boolean"
+  ) return null;
+  return { id: id.data, name: source.name, default: source.default };
+}
+
+function safeFreeKeyModeOption(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  if (
+    !["managed", "customer_csr"].includes(String(source.mode))
+    || typeof source.available !== "boolean"
+    || typeof source.default !== "boolean"
+    || (source.reason !== null && text(source.reason, 190) === null)
+  ) return null;
+  return {
+    mode: source.mode,
+    available: source.available,
+    reason: source.reason === null ? null : text(source.reason, 190),
+    default: source.default,
+  };
+}
+
+function safeFreeMethodOption(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  if (
+    ![
+      "dns_zone",
+      "dns_cname",
+      "http",
+      "download",
+      "auto_install_guest",
+      "assistant_install",
+    ].includes(String(source.method))
+    || typeof source.available !== "boolean"
+    || (source.reason !== null && text(source.reason, 190) === null)
+    || (source.automatic !== undefined && typeof source.automatic !== "boolean")
+  ) return null;
+  const option: Record<string, unknown> = {
+    method: source.method,
+    available: source.available,
+    reason: source.reason === null ? null : text(source.reason, 190),
+  };
+  if (typeof source.automatic === "boolean") option.automatic = source.automatic;
+  return option;
+}
+
+function safeFreeQuota(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const pending = nonNegativeInteger(source.pending_requests);
+  const maxPending = integer(source.max_pending_requests);
+  const used = nonNegativeInteger(source.registered_domains_used_7d);
+  const maximum = integer(source.max_registered_domains_7d);
+  const domains = Array.isArray(source.registered_domains)
+    ? source.registered_domains.map((domain) => certificateDnsIdentifierSchema.safeParse(domain))
+    : [];
+  if (
+    pending === null
+    || maxPending === null
+    || used === null
+    || maximum === null
+    || !Array.isArray(source.registered_domains)
+    || domains.some((domain) => !domain.success)
+    || new Set(domains.map((domain) => domain.success ? domain.data : "")).size !== domains.length
+  ) return null;
+  return {
+    pending_requests: pending,
+    max_pending_requests: maxPending,
+    registered_domains_used_7d: used,
+    max_registered_domains_7d: maximum,
+    registered_domains: domains.map((domain) => domain.success ? domain.data : ""),
+  };
+}
+
+function safeArray<T>(
+  value: unknown,
+  mapper: (item: unknown) => T | null,
+  maximum = 200
+): T[] | null {
+  if (!Array.isArray(value) || value.length > maximum) return null;
+  const mapped = value.map(mapper);
+  return mapped.some((item) => item === null) ? null : mapped as T[];
+}
+
+function safeFreeEligibility(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const providers = safeArray(source.certificate_authorities, safeFreeProviderOption, 3);
+  const modes = safeArray(source.key_modes, safeFreeKeyModeOption, 2);
+  const qualifiesVia = safeArray(
+    source.qualifies_via,
+    (item) => typeof item === "string" && /^[A-Za-z][A-Za-z0-9._-]{0,95}$/.test(item) ? item : null,
+    20
+  );
+  const quota = source.quota === undefined ? null : safeFreeQuota(source.quota);
+  if (
+    typeof source.eligible !== "boolean"
+    || (source.reason !== null && text(source.reason, 190) === null)
+    || providers === null
+    || modes === null
+    || qualifiesVia === null
+    || (source.quota !== undefined && quota === null)
+  ) return null;
+  const result: Record<string, unknown> = {
+    eligible: source.eligible,
+    reason: source.reason === null ? null : text(source.reason, 190),
+    qualifies_via: qualifiesVia,
+    key_modes: modes,
+    certificate_authorities: providers,
+  };
+  if (quota !== null) result.quota = quota;
+  return result;
+}
+
+function safeFreePreflight(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const hostname = certificateDnsIdentifierSchema.safeParse(source.hostname);
+  const registeredDomain = certificateDnsIdentifierSchema.safeParse(source.registered_domain);
+  const identifiers = safeArray(
+    source.identifiers,
+    (item) => {
+      const parsed = certificateDnsIdentifierSchema.safeParse(item);
+      return parsed.success ? parsed.data : null;
+    },
+    100
+  );
+  const validations = safeArray(source.validation_methods, safeFreeMethodOption, 3);
+  const deliveries = safeArray(source.delivery_methods, safeFreeMethodOption, 3);
+  const modes = safeArray(source.key_modes, safeFreeKeyModeOption, 2);
+  const providers = safeArray(source.certificate_authorities, safeFreeProviderOption, 3);
+  const recommended = record(source.recommended);
+  const recommendedProvider = recommended.certificate_authority === null
+    ? null
+    : freeCertificateAuthoritySchema.safeParse(recommended.certificate_authority);
+  if (
+    !hostname.success
+    || !registeredDomain.success
+    || identifiers === null
+    || identifiers.length === 0
+    || new Set(identifiers).size !== identifiers.length
+    || !identifiers.includes(hostname.success ? hostname.data : "")
+    || validations === null
+    || deliveries === null
+    || modes === null
+    || providers === null
+    || validations.some((option) => !["dns_zone", "dns_cname", "http"].includes(String(option.method)))
+    || deliveries.some((option) => !["download", "auto_install_guest", "assistant_install"].includes(String(option.method)))
+    || typeof source.issuable !== "boolean"
+    || (source.reason !== null && text(source.reason, 190) === null)
+    || ![null, "dns_zone", "dns_cname", "http"].includes(recommended.validation_method as string | null)
+    || ![null, "download", "auto_install_guest", "assistant_install"].includes(recommended.delivery_method as string | null)
+    || !["managed", "customer_csr"].includes(String(recommended.key_mode))
+    || (recommended.certificate_authority !== null && !recommendedProvider?.success)
+  ) return null;
+  return {
+    hostname: hostname.data,
+    identifiers,
+    registered_domain: registeredDomain.data,
+    issuable: source.issuable,
+    reason: source.reason === null ? null : text(source.reason, 190),
+    validation_methods: validations,
+    delivery_methods: deliveries,
+    key_modes: modes,
+    certificate_authorities: providers,
+    recommended: {
+      validation_method: recommended.validation_method,
+      delivery_method: recommended.delivery_method,
+      key_mode: recommended.key_mode,
+      certificate_authority: recommended.certificate_authority,
+    },
+  };
+}
+
+function safeFreeTimelineEvent(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const event = text(source.event, 96);
+  const createdAt = timestamp(source.created_at);
+  if (event === null || !["customer", "system", "admin"].includes(String(source.actor)) || createdAt === null) {
+    return null;
+  }
+  return { event, actor: source.actor, created_at: createdAt };
+}
+
+function safeFreeRequest(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const id = freeCertificateRequestIdSchema.safeParse(source.id);
+  const hostname = certificateDnsIdentifierSchema.safeParse(source.hostname);
+  const registeredDomain = certificateDnsIdentifierSchema.safeParse(source.registered_domain);
+  const state = freeCertificateStateSchema.safeParse(source.state);
+  const identifiers = safeArray(
+    source.identifiers,
+    (item) => {
+      const parsed = certificateDnsIdentifierSchema.safeParse(item);
+      return parsed.success ? parsed.data : null;
+    },
+    100
+  );
+  const authorityId = source.certificate_authority_id === null
+    ? null
+    : freeCertificateAuthoritySchema.safeParse(source.certificate_authority_id);
+  const authorityName = source.certificate_authority === null
+    ? null
+    : text(source.certificate_authority, 64);
+  const deliveryOrderId = nullableInteger(source.delivery_order_id);
+  const timeline = source.timeline === undefined
+    ? undefined
+    : safeArray(source.timeline, safeFreeTimelineEvent, 200);
+  const createdAt = timestamp(source.created_at);
+  if (
+    !id.success
+    || !hostname.success
+    || !registeredDomain.success
+    || !state.success
+    || identifiers === null
+    || identifiers.length === 0
+    || new Set(identifiers).size !== identifiers.length
+    || !identifiers.includes(hostname.success ? hostname.data : "")
+    || !["managed", "customer_csr"].includes(String(source.key_mode))
+    || !["dns_zone", "dns_cname"].includes(String(source.validation_method))
+    || !["download", "auto_install_guest", "assistant_install"].includes(String(source.delivery_method))
+    || (source.delivery_order_id !== null && deliveryOrderId === null)
+    || (source.certificate_authority_id !== null && !authorityId?.success)
+    || (source.certificate_authority !== null && authorityName === null)
+    || (authorityId === null) !== (authorityName === null)
+    || (authorityId !== null && authorityId.success && authorityName !== freeCertificateAuthorityNames[authorityId.data])
+    || [
+      "vpsnet_holds_private_key",
+      "auto_renew",
+      "renewal_requires_new_csr",
+      "download_available",
+      "revocable",
+      "revocation_pending",
+      "attention_required",
+    ].some((field) => typeof source[field] !== "boolean")
+    || ["issued_at", "not_before", "not_after", "renewal_due_at"]
+      .some((field) => source[field] !== null && timestamp(source[field]) === null)
+    || createdAt === null
+    || timeline === null
+  ) return null;
+  const result: Record<string, unknown> = {
+    id: id.data,
+    hostname: hostname.data,
+    identifiers,
+    registered_domain: registeredDomain.data,
+    state: state.data,
+    key_mode: source.key_mode,
+    vpsnet_holds_private_key: source.vpsnet_holds_private_key,
+    validation_method: source.validation_method,
+    delivery_method: source.delivery_method,
+    delivery_order_id: deliveryOrderId,
+    auto_renew: source.auto_renew,
+    renewal_requires_new_csr: source.renewal_requires_new_csr,
+    issued_at: timestamp(source.issued_at),
+    not_before: timestamp(source.not_before),
+    not_after: timestamp(source.not_after),
+    renewal_due_at: timestamp(source.renewal_due_at),
+    certificate_authority_id: authorityId !== null && authorityId.success ? authorityId.data : null,
+    certificate_authority: authorityName,
+    download_available: source.download_available,
+    revocable: source.revocable,
+    revocation_pending: source.revocation_pending,
+    attention_required: source.attention_required,
+    created_at: createdAt,
+  };
+  if (timeline !== undefined) result.timeline = timeline;
+  return result;
+}
+
+function safeFreeDnsRecord(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const name = text(source.name, 253);
+  const recordValue = text(source.value, 253);
+  const ttl = integer(source.ttl);
+  const dnsText = (candidate: string | null): candidate is string => candidate !== null
+    && candidate === candidate.toLowerCase()
+    && !/[\s\x00-\x1f\x7f]/.test(candidate)
+    && /^[a-z0-9_](?:[a-z0-9._-]{0,251}[a-z0-9.])?$/.test(candidate);
+  if (
+    source.type !== "CNAME"
+    || !dnsText(name)
+    || !dnsText(recordValue)
+    || ttl === null
+    || ttl < 60
+  ) return null;
+  return { type: "CNAME", name, value: recordValue, ttl };
+}
+
+function safeFreeInstruction(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const item = source.record === null ? null : safeFreeDnsRecord(source.record);
+  const records = safeArray(source.records, safeFreeDnsRecord, 100);
+  const noteKey = text(source.note_key, 190);
+  const lastCheck = source.last_check === undefined ? undefined : record(source.last_check);
+  if (
+    !["dns_zone", "dns_cname", "http"].includes(String(source.validation_method))
+    || typeof source.automatic !== "boolean"
+    || (source.record !== null && item === null)
+    || records === null
+    || typeof source.verified !== "boolean"
+    || noteKey === null
+    || (lastCheck !== undefined
+      && ((lastCheck.at !== null && timestamp(lastCheck.at) === null)
+        || (lastCheck.detail !== null && text(lastCheck.detail, 500) === null)))
+  ) return null;
+  const result: Record<string, unknown> = {
+    validation_method: source.validation_method,
+    automatic: source.automatic,
+    record: item,
+    records,
+    verified: source.verified,
+    note_key: noteKey,
+  };
+  if (lastCheck !== undefined) {
+    result.last_check = {
+      at: timestamp(lastCheck.at),
+      detail: lastCheck.detail === null ? null : text(lastCheck.detail, 500),
+    };
+  }
+  return result;
+}
+
+function safeFreeArtifact(value: unknown): Record<string, unknown> | null {
+  const source = record(value);
+  const pem = (candidate: unknown, allowEmpty = false): string | null => {
+    const value = text(candidate, 2_097_152);
+    if (value === null || value.includes("PRIVATE KEY")) return null;
+    if (allowEmpty && value === "") return value;
+    return value.includes("-----BEGIN CERTIFICATE-----") ? value : null;
+  };
+  const certificate = pem(source.certificate);
+  const chain = pem(source.chain, true);
+  const fullchain = pem(source.fullchain);
+  const notAfter = timestamp(source.not_after);
+  const fingerprint = typeof source.fingerprint_sha256 === "string"
+    && /^[a-f0-9]{64}$/.test(source.fingerprint_sha256)
+    ? source.fingerprint_sha256
+    : null;
+  if (certificate === null || chain === null || fullchain === null || notAfter === null || fingerprint === null) {
+    return null;
+  }
+  return { certificate, chain, fullchain, not_after: notAfter, fingerprint_sha256: fingerprint };
+}
+
 function safeError(status: number, value: unknown): Record<string, unknown> {
   const source = record(value);
   const errors = Object.entries(source)
@@ -1208,5 +1702,74 @@ export function safeCertificatePayload(
           refund_policy: text(source.refund_policy, 1000),
         };
     }
+    case "free-eligibility": {
+      const eligibility = safeFreeEligibility(source);
+      return eligibility === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : { success: true, ...eligibility };
+    }
+    case "free-preflight": {
+      const preflight = safeFreePreflight(source);
+      return preflight === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : { success: true, ...preflight };
+    }
+    case "free-list": {
+      const requests = safeArray(source.records, safeFreeRequest, 200);
+      return requests === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : { success: true, records: requests };
+    }
+    case "free-request": {
+      const request = safeFreeRequest(source.request);
+      return request === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : { success: true, request };
+    }
+    case "free-create": {
+      const request = safeFreeRequest(source.request);
+      const instruction = safeFreeInstruction(source.instruction);
+      const csrSha256 = source.csr_sha256 === null
+        ? null
+        : typeof source.csr_sha256 === "string" && /^[a-f0-9]{64}$/.test(source.csr_sha256)
+          ? source.csr_sha256
+          : undefined;
+      return request === null
+        || instruction === null
+        || csrSha256 === undefined
+        || typeof source.replayed !== "boolean"
+        ? safeError(502, { invalidCertificateResponse: true })
+        : {
+          success: true,
+          request,
+          instruction,
+          csr_sha256: csrSha256,
+          replayed: source.replayed,
+        };
+    }
+    case "free-instruction": {
+      const instruction = safeFreeInstruction(source);
+      return instruction === null
+        ? safeError(502, { invalidCertificateResponse: true })
+        : { success: true, ...instruction };
+    }
+    case "free-artifact": {
+      const artifact = safeFreeArtifact(source.artifact);
+      return artifact === null
+        || !["managed", "customer_csr"].includes(String(source.key_mode))
+        || source.private_key_included !== false
+        ? safeError(502, { invalidCertificateResponse: true })
+        : {
+          success: true,
+          key_mode: source.key_mode,
+          artifact,
+          private_key_included: false,
+        };
+    }
+    case "free-action":
+      return ["renew", "revoke", "recheck", "cancel"].includes(String(source.action))
+        && source.queued === true
+        ? { success: true, action: source.action, queued: true }
+        : safeError(502, { invalidCertificateResponse: true });
   }
 }
