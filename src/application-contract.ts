@@ -640,6 +640,34 @@ function composeServiceName(value: unknown): string | null {
   return name && /^[a-z0-9][a-z0-9_-]{0,62}$/.test(name) ? name : null;
 }
 
+function safeRegistryHost(value: unknown): string | null {
+  const registry = boundedString(value, 253);
+  if (!registry || registry !== registry.toLowerCase()) {
+    return null;
+  }
+
+  const match = /^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)(?::([1-9][0-9]{0,4}))?$/.exec(
+    registry
+  );
+  if (!match) {
+    return null;
+  }
+
+  const hostname = match[1];
+  const port = match[2];
+  if (
+    /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname)
+    || [".localhost", ".local", ".invalid", ".test", ".example"].some(
+      (suffix) => hostname.endsWith(suffix)
+    )
+    || (port !== undefined && Number(port) > 65535)
+  ) {
+    return null;
+  }
+
+  return registry;
+}
+
 const PRIVATE_KEY_BLOCK = /-----BEGIN ([A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?)-----[\s\S]*?-----END \1-----/gi;
 const TRUNCATED_PRIVATE_KEY_PREFIX = /^[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----/i;
 const TRUNCATED_PRIVATE_KEY_SUFFIX = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*$/i;
@@ -822,12 +850,9 @@ export function safeApplicationRegistryCredentialPayload(
   }
 
   const credentials = Array.isArray(payload.credentials)
-    ? payload.credentials.slice(0, 2).map((value) => {
+    ? payload.credentials.slice(0, 8).map((value) => {
         const credential = record(value);
-        const registry = credential.registry === "docker.io"
-          || credential.registry === "ghcr.io"
-          ? credential.registry
-          : null;
+        const registry = safeRegistryHost(credential.registry);
         return {
           id: boundedString(credential.id, 64),
           registry,
