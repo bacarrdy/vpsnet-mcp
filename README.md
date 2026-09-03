@@ -173,6 +173,29 @@ ambiguous state is reconciled with `refresh_automatic_ssl_subscription`, never
 by inventing a second mutation. Private ACME server and EAB credentials stay
 in the two-factor-protected customer portal and are intentionally unavailable
 to API keys and MCP, so they cannot enter model context.
+## Restoring a whole service
+
+`request_restore` is paid and destructive: it charges the restore price from the
+account balance and overwrites the **whole** service disk with the backup point,
+losing everything written since. It is a confirmation call, not a price
+enquiry — the API refuses a body that does not carry an explicit confirmation,
+and refuses the charge outright if the price has moved since it was disclosed.
+
+There is no dialog on this surface to collect that confirmation, so the tool
+does not manufacture it. `acknowledge_data_replacement` and
+`acknowledge_restore_charge` must each be `true`, and are only to be set after
+the user has actually approved the disk replacement and the charge — the same
+rule as `acknowledge_data_loss` on `manage_application`. Omitting either is a
+schema error, so an unattended caller cannot fall through to a charge: nothing
+is even quoted.
+
+`expected_total_charged` is the VAT-inclusive `total_charged` you read from
+`get_restore_status` and showed the user, passed back **unchanged**. Do not
+re-read it just before the call: it is meant to be the figure the customer
+agreed to, and a freshly fetched number would agree with whatever the price has
+become and defeat the check entirely. If the price has moved, the restore is
+refused as `restoreQuoteChanged` with the current total and nothing is charged;
+disclose the new figure, get approval again, and retry.
 
 ## Browsing inside a backup
 

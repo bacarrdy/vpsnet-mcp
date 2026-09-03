@@ -223,7 +223,7 @@ const server = new McpServer(
       "VPS product facts (unordered): 'firecracker' is VPS using Firecracker microVMs for Linux workloads; 'vds' is Cloud VPS (KVM) with High Availability, replicated Ceph NVMe storage, and Linux/Windows/BSD support; 'vps' is Container VPS using container virtualization; 'ds' is a dedicated single-tenant server. Match the user's requirements and returned plan capabilities; list position is not a recommendation. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire). Firecracker Functions is a separate usage-billed service with create/update/invoke/list tools, not part of ordering or managing a VPS, Cloud VPS, or Dedicated service.",
       "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
-      "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
+      "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first, then pass that disclosed get_restore_status total back as expected_total_charged together with both acknowledgements, so a price that moved is refused instead of charged. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
       "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. The server selects pages of 200 or 1,000 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, use result.pageSize rather than assuming 200 when moving backwards, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
       "Firecracker Functions run code in isolated microVMs and are usage-billed per invocation. create_function needs name, runtime_os_id and code; invoke_function with wait=true returns the result synchronously. Webhook-enabled functions get a public webhook URL for external triggers.",
       "On-demand servers are a coming-soon Firecracker compute service with full root SSH access. Customer quote/create operations are disabled and return tempVmComingSoon before payment or allocation. Use get_temp_vm_options to inspect the launch state; read and delete operations remain available for discovery and cleanup of existing test sessions.",
@@ -5039,26 +5039,122 @@ server.registerTool(
   }
 );
 
+/**
+ * Project a refused whole-service restore confirmation into something the
+ * caller can act on.
+ *
+ * The two refusals below arrive as a bare `{ "restoreQuoteChanged": true }` or
+ * `{ "restoreRequestInvalid": true }` body. An MCP caller never sees the HTTP
+ * status, so returned as-is they are a small JSON object that reads no
+ * differently from a successful restore — the one outcome an agent must not
+ * mistake. Both are refused by the API before any ledger row or payment
+ * exists, so in both cases nothing was restored and nothing was charged, and
+ * saying so is the whole point: it is what tells the caller a retry is safe.
+ */
+function restoreConfirmRefusal(
+  data: unknown
+): { isError: true; content: [{ type: "text"; text: string }] } | null {
+  const body = (data ?? {}) as Record<string, unknown>;
+  if (body.restoreQuoteChanged === true) {
+    return {
+      isError: true,
+      content: [{
+        type: "text",
+        text: formatJson({
+          success: false,
+          error_codes: ["restoreQuoteChanged"],
+          reason:
+            "The restore price moved between the quote and the confirmation, so the restore was refused and the account was not charged.",
+          fix:
+            "Do not resend the old figure. Call get_restore_status again, tell the user the total it now reports, get their approval for that new figure, then call request_restore again with expected_total_charged set to it and a fresh idempotencyKey (omit it to have one generated).",
+        }),
+      }],
+    };
+  }
+  if (body.restoreRequestInvalid === true) {
+    return {
+      isError: true,
+      content: [{
+        type: "text",
+        text: formatJson({
+          success: false,
+          error_codes: ["restoreRequestInvalid"],
+          reason:
+            "The API refused the confirmation body itself, so no restore was started and the account was not charged.",
+          fix:
+            "This is a client-side contract fault, not something the user can answer: the body this tool sends no longer matches what the restore endpoint accepts. Retrying sends the same body and is refused the same way — report the failure and tell the user to run the restore from the VPSnet panel instead.",
+        }),
+      }],
+    };
+  }
+  return null;
+}
+
 server.registerTool(
   "request_restore",
   {
     description:
-      "PAID: restore a service from a backup point. Charges the restore price (+VAT) from the ACCOUNT BALANCE immediately and overwrites the service disk with the backup content. DESTRUCTIVE and billed — always confirm the point and price (get_restore_status) with the user first. The tool runs the backend's quote → confirm flow itself under one Idempotency-Key (generated per call unless idempotencyKey is given), so a single call is a single paid attempt. Requires services:read, a full-access API key with paid operations enabled, the services:restore paid scope, and configured spend caps.",
+      "PAID: restore a service from a backup point. Charges the restore price (+VAT) from the ACCOUNT BALANCE immediately and overwrites the WHOLE service disk with the backup content — everything written since that point is lost. DESTRUCTIVE and billed. This is a confirmation call, not a request for a price: read get_restore_status first, show the user the exact backup point and that status's exact total_charged, tell them the disk is replaced, and obtain explicit approval for BOTH the charge and the replacement. Only then set acknowledge_data_replacement and acknowledge_restore_charge, and pass the very figure you disclosed as expected_total_charged. The tool runs the backend's quote → confirm flow itself under one Idempotency-Key (generated per call unless idempotencyKey is given), so a single call is a single paid attempt. If the price has moved since you disclosed it, nothing is charged: the restore is refused as restoreQuoteChanged, and you must show the user the new total and get their approval again. Requires services:read, a full-access API key with paid operations enabled, the services:restore paid scope, and configured spend caps.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       backup_point_id: z.number().describe("Restore point ID from list_restore_points"),
+      acknowledge_data_replacement: z
+        .literal(true)
+        .describe(
+          "True only after the user explicitly confirms that the whole service disk is overwritten with this backup point and that everything written since it is lost"
+        ),
+      acknowledge_restore_charge: z
+        .literal(true)
+        .describe(
+          "True only after the user explicitly approves the exact total_charged returned by get_restore_status being taken from the account balance"
+        ),
+      expected_total_charged: z
+        .number()
+        .finite()
+        .nonnegative()
+        .describe(
+          "The exact VAT-inclusive total_charged you read from get_restore_status and disclosed to the user, passed back unchanged. Never re-read it just before this call: it is the customer's agreed price, and sending a freshly fetched number would defeat the fence that refuses a moved price instead of quietly charging it."
+        ),
       idempotencyKey: paidIdempotencyKeySchema
         .optional()
         .describe(
           "Optional stable key to retry or replay ONE exact earlier restore attempt without paying twice. Omit it for a new restore — a fresh key is generated for the call."
         ),
     },
+    annotations: {
+      title: "Restore service from backup",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
   },
-  async ({ orderNo, backup_point_id, idempotencyKey }) => {
+  async ({
+    orderNo,
+    backup_point_id,
+    acknowledge_data_replacement,
+    acknowledge_restore_charge,
+    expected_total_charged,
+    idempotencyKey,
+  }) => {
     // The backend contract for API-key callers is quote → confirm with the
     // SAME Idempotency-Key plus the quoteToken minted by the quote step. A
     // bare confirm is refused (idempotencyKeyRequired / quoteTokenRequired),
     // so both steps happen here, exactly like order_service.
+    //
+    // Since backend 1fbcf253a the confirm is also a confirmation of an
+    // already-disclosed price: ServiceRestoreController::restoreInput(true)
+    // refuses it with 422 restoreRequestInvalid unless both acknowledgements
+    // are literally true and expectedTotalCharged is a finite number >= 0,
+    // and refuses the charge with 409 restoreQuoteChanged when the live quote
+    // has moved more than half a cent from it. Every POST to
+    // /restore/requests goes through that check, replays included, so the
+    // three fields go on the replay body too. The allow-list there is exact:
+    // any key outside it is a 422, so nothing else may be added.
+    const confirmation = {
+      acknowledgeDataReplacement: acknowledge_data_replacement,
+      acknowledgeRestoreCharge: acknowledge_restore_charge,
+      expectedTotalCharged: expected_total_charged,
+    };
     const key = idempotencyKey ?? randomUUID();
     const quote = await apiRequest(
       "POST",
@@ -5084,18 +5180,58 @@ server.registerTool(
       const replay = await apiRequest(
         "POST",
         `/account/services/${orderNo}/restore/requests`,
-        { backup_point_id },
+        { backup_point_id, ...confirmation },
         { "Idempotency-Key": key }
       );
-      return { content: [{ type: "text", text: formatJson(replay.data) }] };
+      // restoreInput() runs ahead of the replay lookup, so a replay is refused
+      // by the same fence as a first attempt and needs the same explanation.
+      return (
+        restoreConfirmRefusal(replay.data)
+        ?? { content: [{ type: "text", text: formatJson(replay.data) }] }
+      );
+    }
+    // The server re-checks the drift and refuses before any ledger row or
+    // payment exists, so this is not what makes the confirm safe -- it is
+    // what makes the refusal legible. A bare 409 restoreQuoteChanged does not
+    // carry the new price, and the confirm would have consumed this key, so
+    // stop here instead and hand back the number the user has to approve
+    // next. Same tolerance as the server's QUOTE_TOLERANCE.
+    const liveTotal = (quote.data as
+      | { quote?: { total_charged?: number } }
+      | null)?.quote?.total_charged;
+    if (
+      typeof liveTotal === "number"
+      && Math.abs(liveTotal - expected_total_charged) > 0.005
+    ) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: formatJson({
+            success: false,
+            error_codes: ["restoreQuoteChanged"],
+            expected_total_charged,
+            current_total_charged: liveTotal,
+            reason:
+              "The restore price moved after it was disclosed, so nothing was confirmed and nothing was charged.",
+            fix:
+              "Tell the user the new total, get their approval for it, then call request_restore again with expected_total_charged set to that new total and a fresh idempotencyKey (omit it to have one generated).",
+          }),
+        }],
+      };
     }
     const { data } = await apiRequest(
       "POST",
       `/account/services/${orderNo}/restore/requests`,
-      { backup_point_id, quoteToken },
+      { backup_point_id, quoteToken, ...confirmation },
       { "Idempotency-Key": key, "X-Quote-Token": quoteToken }
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    // The pre-check above only knows the total this quote returned; the price
+    // can still move before the confirm lands, and the server checks it again.
+    return (
+      restoreConfirmRefusal(data)
+      ?? { content: [{ type: "text", text: formatJson(data) }] }
+    );
   }
 );
 
