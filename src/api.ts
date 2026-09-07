@@ -44,8 +44,10 @@ export async function apiRequest(
   init.signal = controller.signal;
 
   let res: Response;
+  let text: string;
   try {
     res = await fetch(url, init);
+    text = await res.text();
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       throw new Error(`VPSnet API request timed out after ${timeoutMs}ms: ${method} ${path}`);
@@ -56,7 +58,6 @@ export async function apiRequest(
     clearTimeout(timeout);
   }
 
-  const text = await res.text();
   let data: unknown;
   try {
     data = text ? JSON.parse(text) : null;
