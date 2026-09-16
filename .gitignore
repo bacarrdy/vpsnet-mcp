@@ -3,3 +3,10 @@ build/
 .mcp.json
 .env
 .npmrc
+
+# API key sidecar — never commit a live key
+.vpsnet-mcp-key
+.vpsnet-mcp-key*
+
+# local worktrees must never be staged as gitlinks
+.worktrees/
