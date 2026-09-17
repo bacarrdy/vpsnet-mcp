@@ -83,6 +83,31 @@ function resolveApiKey(): string {
 // ship the key to an arbitrary host with no protocol, credential or host check.
 const TRUSTED_API_HOST = /(^|\.)vpsnet\.com$/;
 
+// Loopback is exempt from the https and allowlist rules, and only loopback.
+// The control exists to stop a full-access key being shipped to an arbitrary
+// *remote* host; a base that resolves to this machine cannot exfiltrate it, and
+// refusing loopback bought no security while breaking every local harness and
+// every developer running the server against a local API.
+function isLoopbackHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  if (host === "localhost" || host === "::1" || host === "[::1]") {
+    return true;
+  }
+
+  // 127.0.0.0/8, and only in dotted-quad form -- no DNS name is trusted here.
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (v4 === null) {
+    return false;
+  }
+
+  const octets = v4.slice(1).map((part) => Number.parseInt(part, 10));
+  if (octets.some((octet) => Number.isFinite(octet) === false || octet < 0 || octet > 255)) {
+    return false;
+  }
+
+  return octets[0] === 127;
+}
+
 function resolveApiBase(): string {
   const raw =
     (process.env.VPSNET_API_URL || "").trim() || sidecarApiUrl() || "https://api.vpsnet.com";
@@ -94,13 +119,20 @@ function resolveApiBase(): string {
     throw new Error(`Invalid VPSNET_API_URL: ${raw}`);
   }
 
-  if (url.protocol !== "https:") {
+  const loopback = isLoopbackHost(url.hostname);
+
+  if (url.protocol !== "https:" && (loopback === false || url.protocol !== "http:")) {
     throw new Error("VPSNET_API_URL must use https.");
   }
   if (url.username || url.password || url.search || url.hash) {
     throw new Error("VPSNET_API_URL must not carry credentials, query or fragment.");
   }
-  if (TRUSTED_API_HOST.test(url.hostname) === false) {
+  // `url.origin` drops any path, so a base with one would silently send requests
+  // somewhere other than where it says. Refuse it instead of quietly rewriting.
+  if (url.pathname !== "" && url.pathname !== "/") {
+    throw new Error(`VPSNET_API_URL must not carry a path: ${url.pathname}`);
+  }
+  if (loopback === false && TRUSTED_API_HOST.test(url.hostname) === false) {
     throw new Error(`Refusing to send the API key to untrusted host ${url.hostname}.`);
   }
 
