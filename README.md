@@ -34,6 +34,23 @@ Before installing, ensure you have:
 
 3. **Active [VPSnet.com](https://www.vpsnet.com) account** with an API key (see [Getting an API key](#getting-an-api-key))
 
+## Credential configuration paths
+
+`VPSNET_API_KEY` is the preferred per-launch credential and takes precedence over files.
+For file-based configuration, set `VPSNET_CONFIG_DIR` to the absolute directory
+containing `.vpsnet-mcp-key` or `.mcp.json`. The key file takes precedence over
+`mcpServers.vpsnet.env.VPSNET_API_KEY` in that JSON file. Alternatively,
+`VPSNET_API_KEY_FILE` selects one absolute key-file path; an unreadable or invalid
+explicit file fails startup instead of choosing another account.
+
+Without `VPSNET_CONFIG_DIR`, files are read only from the process's launch directory
+(`cwd`). This is the same for `node /path/to/vpsnet-mcp/build/index.js` and `npx
+vpsnet-mcp`: the package installation/cache directory and parent directories are
+never searched. Set the directory explicitly when an editor or MCP client launches
+from a different working directory. Keep credential files out of version control.
+`VPSNET_API_URL` takes precedence over the URL in that same `.mcp.json`; the existing
+trusted-host and HTTPS checks apply to either source.
+
 ## Managed applications
 
 Managed Applications, manual SSH, DNS, APIs, and other deployment surfaces are
