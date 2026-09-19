@@ -1,81 +1,12 @@
-import { existsSync, readFileSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 import { annotateAuthFailure } from "./auth-failure.js";
+import { createApiConfiguration } from "./api-configuration.js";
 
 const DEFAULT_API_TIMEOUT_MS = 45_000;
-const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const SIDECAR_KEY_FILE = join(PROJECT_ROOT, ".vpsnet-mcp-key");
-const PROJECT_MCP_JSON = join(PROJECT_ROOT, ".mcp.json");
-
-function readTextIfExists(path: string): string {
-  try {
-    if (!existsSync(path)) {
-      return "";
-    }
-    return readFileSync(path, "utf8");
-  } catch {
-    return "";
-  }
-}
-
-function mcpJsonEnv(): { VPSNET_API_KEY?: string; VPSNET_API_URL?: string } {
-  const mcpJson = readTextIfExists(PROJECT_MCP_JSON);
-  if (!mcpJson) {
-    return {};
-  }
-  try {
-    const parsed = JSON.parse(mcpJson) as {
-      mcpServers?: { vpsnet?: { env?: { VPSNET_API_KEY?: string; VPSNET_API_URL?: string } } };
-    };
-    return parsed.mcpServers?.vpsnet?.env || {};
-  } catch {
-    return {};
-  }
-}
-
-function fileApiKey(): string {
-  const fromFile = readTextIfExists(SIDECAR_KEY_FILE)
-    .split(/\r?\n/)[0]
-    .trim();
-  return fromFile.startsWith("vpsnet_") ? fromFile : "";
-}
-
-function mcpJsonApiKey(): string {
-  const fromJson = (mcpJsonEnv().VPSNET_API_KEY || "").trim();
-  return fromJson.startsWith("vpsnet_") ? fromJson : "";
-}
-
-function sidecarApiUrl(): string {
-  return (mcpJsonEnv().VPSNET_API_URL || "").trim();
-}
-
-// The environment variable is the explicit, per-launch signal the MCP client
-// passes in, so it always wins. The on-disk sidecars are a fallback for a launch
-// that forgot to pass it, never an override: a stray file next to the
-// checkout must not silently re-point the server at another account or host.
-function resolveApiKeyWithSource(): { key: string; source: string } {
-  const envKey = (process.env.VPSNET_API_KEY || "").trim();
-  if (envKey) {
-    return { key: envKey, source: "VPSNET_API_KEY environment variable" };
-  }
-
-  const fromFile = fileApiKey();
-  if (fromFile) {
-    return { key: fromFile, source: SIDECAR_KEY_FILE };
-  }
-
-  const fromJson = mcpJsonApiKey();
-  if (fromJson) {
-    return { key: fromJson, source: PROJECT_MCP_JSON };
-  }
-
-  return { key: "", source: "" };
-}
-
-function resolveApiKey(): string {
-  return resolveApiKeyWithSource().key;
-}
+const configuration = createApiConfiguration(process.env, process.cwd());
+const { keyFile: SIDECAR_KEY_FILE, mcpJson: PROJECT_MCP_JSON } = configuration.paths;
+const resolveApiKeyWithSource = () => configuration.apiKey();
+const resolveApiKey = () => resolveApiKeyWithSource().key;
+const sidecarApiUrl = () => configuration.apiUrl();
 
 // The resolved base is where a full-access `vpsnet_` key gets sent, so it is
 // validated rather than concatenated. Without this a malformed or hostile value
