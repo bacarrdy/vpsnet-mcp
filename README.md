@@ -757,7 +757,8 @@ short-lived quote token.
 | `list_dns_templates` | List backend-defined DNS record templates |
 | `apply_dns_template` | Preview or apply one DNS record template |
 | `delete_dns_zone` | Delete a forward DNS zone |
-| `verify_dns_zone` | Verify ownership and publish a pending zone |
+| `verify_dns_zone` | Verify ownership (TXT publicly or at the previous provider) and publish a pending zone |
+| `reissue_dns_zone_verification` | Replace a lost ownership TXT value for a pending zone |
 | `get_dnssec` | Get DNSSEC state and public DNSKEY/DS material |
 | `set_dnssec` | Enable or safely disable DNSSEC signing |
 | `upsert_dns_record` | Create or replace a forward DNS desired-state record |
