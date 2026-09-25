@@ -5888,7 +5888,7 @@ server.registerTool(
   "create_dns_zone",
   {
     description:
-      "Create a forward DNS zone in pending verification state. Native zones are managed here; secondary zones AXFR from public primary DNS servers and require TSIG. Returns a one-time TXT verification value. Requires dns:write when using an API key.",
+      "Create a forward DNS zone in pending verification state. Native zones are managed here; secondary zones AXFR from public primary DNS servers and require TSIG. Returns the TXT verification value ONCE in verificationRecord (name _vpsnet-dns.<zone>) - keep it; a lost value is replaced with reissue_dns_zone_verification. The API records the nameservers the parent zone delegates the name to, so the TXT can still be proven at that previous provider after the domain is pointed at VPSnet. warnings: delegatedToPlatform (the domain already points at VPSnet nameservers - keep them, do not point it back) or parentServedByPlatform (the TXT goes in the parent zone); zone.verification.next_step says what to do next. Requires dns:write when using an API key.",
     inputSchema: {
       zone: z.string().describe("Zone name, e.g. example.com"),
       kind: dnsZoneKindSchema
@@ -6086,13 +6086,28 @@ server.registerTool(
   "verify_dns_zone",
   {
     description:
-      "Check the zone ownership TXT record and publish the zone if it matches. Requires dns:write when using an API key.",
+      "Check the zone's ownership TXT value (_vpsnet-dns.<zone>) and publish the zone when it matches: publicly, or served authoritatively by the nameservers the parent zone delegated the name to when the zone was created (the previous DNS provider) - so a domain already pointed at ns1/ns2.vpsnet.com is verified by adding the TXT at the previous provider, never by moving the nameservers back. Delegation to VPSnet nameservers alone is never proof. A refusal (verificationMissing) returns verification.checks (every place checked and what was found) and verification.next_step: add_txt | add_txt_at_previous_provider | add_txt_in_parent_zone | contact_support (only VPSnet support can confirm the domain; the zone is kept, not deleted, while the domain points at VPSnet). lookupUnavailable (HTTP 503) means the platform could not run the DNS check - retry later; it is not a missing record. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: z.number().describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/verify`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "reissue_dns_zone_verification",
+  {
+    description:
+      "Replace a pending DNS zone's ownership TXT value when the one returned by create_dns_zone was lost (only its hash is stored). Returns the new value once in verificationRecord; the previous value stops being accepted, so the TXT record must be updated to the new value. Only for zones in pending_verification. Rate limited to 5 per minute. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: z.number().describe("DNS zone ID"),
+    },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/verification/reissue`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
