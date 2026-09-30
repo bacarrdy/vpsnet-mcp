@@ -113,8 +113,23 @@ import {
   tempVmTtlSchema,
 } from "./temp-vm-contract.js";
 
+// Accepted by GET /account/services/{orderNo}/graphs (GraphsController).
+const GRAPH_METRICS = [
+  "cpu", "ram", "ssd", "storage", "swap", "lavg", "io", "inode", "net", "proc",
+  "fc_block", "fc_net_native", "fc_pressure",
+] as const;
+const GRAPH_PERIODS = ["5m", "15m", "30m", "1h", "12h", "1d", "3d", "7d", "30d", "60d", "90d", "1y"] as const;
+
+// A numeric event id, or the lowercase/uppercase `noty` UUID an action returned.
+const EVENT_ID_SCHEMA = z
+  .union([
+    z.number().int().positive(),
+    z.string().regex(/^(?:[0-9]{1,20}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/),
+  ])
+  .describe("Numeric `event` id or `noty` UUID returned by the action");
+
 const server = new McpServer(
-  { name: "vpsnet", version: "2.0.0" },
+  { name: "vpsnet", version: "2.1.0" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -206,7 +221,7 @@ const server = new McpServer(
       "create_backup requires: period (YYYY-MM-DD date from options), directories (e.g. '/'), and payment object.",
       "",
       "## Async operations",
-      "All service actions (start/stop/restart/OS reinstall) are async — they return a noty UUID for tracking progress via WebSocket.",
+      "All service actions (start/stop/restart/OS reinstall, hostname, password, SSH key deploy) are async — they return a numeric `event` id or a `noty` UUID; pass either to get_event or wait_for_event to follow the action to completed or error.",
       "",
       "## Renewal",
       "Payment object for renewal is the same format: { payment: 1, successUrl: '', cancelUrl: '' } for balance.",
@@ -535,17 +550,76 @@ server.registerTool(
 server.registerTool(
   "get_service_graphs",
   {
-    description: "Get performance graphs (CPU, RAM, disk, network) Requires services:read when called with an API key.",
+    description:
+      "Get one performance graph series for a service: pick a metric and a period. fc_block, fc_net_native and fc_pressure exist only for Firecracker VPS. fields narrows io/net/fc_* metrics to some series. A wrong metric, period or field answers 422 with invalidParameter and allowedValues. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
+      metric: z
+        .enum(GRAPH_METRICS)
+        .describe("Metric: cpu, ram, ssd (disk use; storage is the same), swap, lavg (load average), io, inode, net, proc, or a Firecracker-only fc_* metric"),
+      period: z.enum(GRAPH_PERIODS).describe("Time window ending now"),
+      fields: z
+        .array(z.string().regex(/^[a-z_]+$/))
+        .min(1)
+        .optional()
+        .describe("Only these series. io: ior, iow, iops. net: rx, tx, rxp, txp. fc_block: read_bytes, write_bytes, read_ops, write_ops, queue_events, throttle_events. fc_net_native: rx_bytes, tx_bytes, rx_packets, tx_packets, queue_events. fc_pressure: major_faults, minor_faults, swap_in, swap_out, oom_kills, alloc_stalls, async_scan, direct_scan, async_reclaim, direct_reclaim."),
     },
   },
-  async ({ orderNo }) => {
+  async ({ orderNo, metric, period, fields }) => {
+    const query = new URLSearchParams({ m: metric, p: period });
+    if (fields !== undefined) {
+      query.set("f", fields.join(","));
+    }
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/graphs`
+      `/account/services/${orderNo}/graphs?${query.toString()}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_event",
+  {
+    description:
+      "Read the state of an asynchronous action: created, proccessing (sic), completed or error, with its message and payload. Accepts the numeric event id (start/stop/restart/console/suspend/resume return `event`) or the `noty` UUID (hostname, root password, SSH key deploy, OS reinstall, IPv6, extra settings and plan changes return `noty`). Service events need services:read; account events need account:read. Read-only.",
+    inputSchema: {
+      id: EVENT_ID_SCHEMA,
+    },
+  },
+  async ({ id }) => {
+    const { data } = await apiRequest("GET", `/account/events/${encodeURIComponent(String(id))}`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "wait_for_event",
+  {
+    description:
+      "Poll an asynchronous action until it is completed or error, or until timeout_seconds pass (default 120, max 600), every 3 seconds. Same ids as get_event. Returns the last state and waited_seconds; timed_out=true means the action is still running, not that it failed. Read-only.",
+    inputSchema: {
+      id: EVENT_ID_SCHEMA,
+      timeout_seconds: z.number().int().min(5).max(600).optional().describe("How long to wait (default 120)"),
+    },
+  },
+  async ({ id, timeout_seconds }) => {
+    const limitMs = (timeout_seconds ?? 120) * 1000;
+    const started = Date.now();
+    let last: unknown = null;
+    for (;;) {
+      const { status, data } = await apiRequest("GET", `/account/events/${encodeURIComponent(String(id))}`);
+      last = data;
+      const state = (data as { state?: unknown } | null)?.state;
+      const waited = Math.round((Date.now() - started) / 1000);
+      if (status < 200 || status >= 300 || state === "completed" || state === "error") {
+        return { content: [{ type: "text", text: formatJson({ ...(data as object), waited_seconds: waited, timed_out: false }) }] };
+      }
+      if (Date.now() - started + 3000 > limitMs) {
+        return { content: [{ type: "text", text: formatJson({ ...(last as object), waited_seconds: waited, timed_out: true }) }] };
+      }
+      await inspectionSleep(3000);
+    }
   }
 );
 
@@ -2256,7 +2330,7 @@ server.registerTool(
 server.registerTool(
   "start_service",
   {
-    description: "Start a stopped VPS. Returns noty UUID for tracking. Requires services:manage and a full-access API key.",
+    description: "Start a stopped VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2270,7 +2344,7 @@ server.registerTool(
 server.registerTool(
   "stop_service",
   {
-    description: "Stop a running VPS. Returns noty UUID for tracking. Requires services:manage and a full-access API key.",
+    description: "Stop a running VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2284,7 +2358,7 @@ server.registerTool(
 server.registerTool(
   "restart_service",
   {
-    description: "Restart a VPS. Returns noty UUID for tracking. Requires services:manage and a full-access API key.",
+    description: "Restart a VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
     },
@@ -2364,7 +2438,7 @@ server.registerTool(
   "change_hostname",
   {
     description:
-      "Queue a customer-managed hostname change for a Container VPS, VPS, or Cloud VPS. VPSnet-managed vpsnet.cloud names are reserved. The returned noty UUID tracks the asynchronous action. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
+      "Queue a customer-managed hostname change for a Container VPS, VPS, or Cloud VPS. VPSnet-managed vpsnet.cloud names are reserved. The returned noty UUID tracks the asynchronous action (get_event / wait_for_event). Also refused (422 reservedHostname): localhost, localdomain, www, ns and ns0-ns99 as bare names, names below .localhost or .internal, and names containing vpsnet. The hostname rule: at least 3 characters, at most 5 dot-separated labels of 1-30 letters, digits or inner hyphens. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       hostname: serviceHostnameSchema,
@@ -2585,7 +2659,7 @@ server.registerTool(
   "deploy_ssh_key",
   {
     description:
-      "Deploy an SSH key to VPS. Returns noty UUID for tracking. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here. Requires services:manage and a full-access API key.",
+      "Deploy an SSH key to VPS. Returns a noty UUID; follow it with wait_for_event. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       ssh_key: z.number().describe("SSH key ID from list_ssh_keys"),
@@ -2692,14 +2766,14 @@ server.registerTool(
   "calculate_plan_change",
   {
     description:
-      "Preview plan change cost and new expiry. Plan changes are FREE — recalculates remaining time. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
+      "Preview a plan change. No payment is taken: the unused value of the current plan is converted at the new plan's price, so an upgrade moves the expiry EARLIER and a downgrade moves it later. Returns expirationDate, currentExpirationDate, expirationChangeDays (negative = shorter) and paymentRequired=false; show the customer both dates. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       plan: z.number().describe("Plan ID from get_plan_options"),
       resources: z
         .array(z.number())
         .describe(
-          "Array of numeric resource value IDs — one per resource type (RAM, SSD, IP, etc.). Get IDs from get_plan_resources response: each resource type has 'values' array, pick one value's 'id' per type. Use isDefault=1 values for defaults. Do NOT pass empty array."
+          "Array of numeric resource value IDs — one per resource type (RAM, SSD, IP, etc.). Get IDs from get_plan_resources response: each resource type has 'values' array, pick one value's 'id' per type. A type left out keeps its current value; an id the target plan does not offer is refused with 422 invalidResources."
         ),
     },
   },
@@ -2717,14 +2791,14 @@ server.registerTool(
   "change_plan",
   {
     description:
-      "Change VPS plan (FREE). Recalculates expiry based on price difference. Always call calculate_plan_change first to preview. Use get_plan_resources to get resource IDs for the target plan. Requires services:manage and a full-access API key.",
+      "Change VPS plan. No payment is taken; the remaining value is converted at the new price, so an upgrade shortens the service period. Always call calculate_plan_change first and confirm the new expiry with the customer. Use get_plan_resources to get resource IDs for the target plan. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: z.string().describe("Order number"),
       plan: z.number().describe("Plan ID from get_plan_options"),
       resources: z
         .array(z.number())
         .describe(
-          "Array of numeric resource value IDs — one per resource type (RAM, SSD, IP, etc.). Get IDs from get_plan_resources response: each resource type has 'values' array, pick one value's 'id' per type. Use isDefault=1 values for defaults. Do NOT pass empty array."
+          "Array of numeric resource value IDs — one per resource type (RAM, SSD, IP, etc.). Get IDs from get_plan_resources response: each resource type has 'values' array, pick one value's 'id' per type. A type left out keeps its current value; an id the target plan does not offer is refused with 422 invalidResources."
         ),
     },
   },
@@ -3091,7 +3165,7 @@ server.registerTool(
   "list_api_keys",
   {
     description:
-      "Show the API key this request authenticated with. The backend scopes this endpoint to the calling key itself (the response sets apiKeyScopedToSelf), so other keys on the account are never listed here. Creating new keys and managing or revoking other keys is available only in the VPSnet panel.",
+      "Show the API key this request authenticated with: scope (read/full/ai), granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit (requests per minute), plus permission_options listing every scope the panel can grant. The backend scopes this endpoint to the calling key itself (apiKeyScopedToSelf), so other keys on the account are never listed here. By design an API key can never create, change or revoke API keys (403 apiKeyForbidden, reason api_keys_cannot_manage_api_keys): that is done in the VPSnet panel while signed in. Read-only.",
     inputSchema: {},
   },
   async () => {
@@ -3104,7 +3178,7 @@ server.registerTool(
   "get_api_key",
   {
     description:
-      "Get metadata for one active API key. For API-key callers only the calling key's own ID is accessible — introspecting other keys is refused and is panel-only. The full key and stored secrets are never returned.",
+      "Get metadata for one active API key: scope, granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit. For API-key callers only the calling key's own ID is accessible — any other id answers 403 apiKeyForbidden, even when it does not exist. The full key and stored secrets are never returned. Read-only.",
     inputSchema: {
       id: z.number().int().positive().describe("API key ID from list_api_keys (the calling key's own ID)"),
     },

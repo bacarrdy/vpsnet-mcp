@@ -132,16 +132,93 @@ export async function apiRequest(
   }
 
   let data: unknown;
+  let parsed = false;
   try {
     data = text ? JSON.parse(text) : null;
+    parsed = true;
   } catch {
     data = { error: text || res.statusText };
+  }
+
+  if (res.ok === false) {
+    if (parsed === false) {
+      // Not an API answer at all: an HTML or plain-text page from the web
+      // server in front of the API (an IP allowlist 403, a 502 from an
+      // overloaded upstream). Never hand that page to the model as if it were
+      // the API speaking; say what happened, with the status, in one line.
+      return {
+        status: res.status,
+        data: describeNonApiResponse(res.status, res.headers.get("content-type"), text, new URL(url).host),
+      };
+    }
+
+    data = withHttpStatus(res.status, data, res.headers.get("retry-after"));
   }
 
   // The account API signals auth problems with a bare status plus a message.
   // Explain them here, at the single choke point, so every tool reports the
   // real cause instead of an unactionable "Unauthorized".
   return { status: res.status, data: annotateAuthFailure(res.status, data) };
+}
+
+/**
+ * Structured tool error for a non-2xx answer whose body is not JSON.
+ */
+export function describeNonApiResponse(
+  status: number,
+  contentType: string | null,
+  body: string,
+  host: string
+): Record<string, unknown> {
+  const isHtml = /html/i.test(contentType || "") || /^\s*</.test(body);
+  const excerpt = body
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+
+  let reason: string;
+  if (status === 403 && isHtml) {
+    reason =
+      `HTTP 403 from the web server in front of ${host}, not from the VPSnet API: ` +
+      "the address this MCP server calls from is not allowed to reach this host " +
+      "(IP allowlist). Run the MCP server from an allowed address, or ask for the address to be allowed.";
+  } else if (status === 502 || status === 503 || status === 504) {
+    reason =
+      `HTTP ${status} from the web server in front of ${host}: the API did not answer in time. ` +
+      "Nothing is known to have changed; retry after a short pause.";
+  } else if (status === 404) {
+    reason =
+      `HTTP 404 from ${host}: no such route. The API may be older or newer than this MCP server build.`;
+  } else {
+    reason = `HTTP ${status} from ${host} with a non-JSON body; the VPSnet API did not produce this answer.`;
+  }
+
+  return {
+    success: false,
+    error: reason,
+    http_status: status,
+    non_api_response: true,
+    ...(excerpt ? { body_excerpt: excerpt } : {}),
+  };
+}
+
+function withHttpStatus(status: number, data: unknown, retryAfter: string | null): unknown {
+  if (data === null || typeof data !== "object" || Array.isArray(data)) {
+    return { success: false, http_status: status, body: data };
+  }
+
+  const record = data as Record<string, unknown>;
+  const extra: Record<string, unknown> = {};
+  if (record.http_status === undefined) {
+    extra.http_status = status;
+  }
+  const retry = Number.parseInt(retryAfter || "", 10);
+  if (Number.isFinite(retry) && retry > 0 && record.retry_after === undefined) {
+    extra.retry_after = retry;
+  }
+
+  return Object.keys(extra).length === 0 ? data : { ...record, ...extra };
 }
 
 export function formatJson(data: unknown): string {

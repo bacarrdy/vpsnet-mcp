@@ -63,8 +63,10 @@ test("API timeouts cover headers and body, and later requests recover", async (t
     });
   }
 
-  assert.deepEqual(await apiRequest("GET", "/plain-error"), {
-    status: 502,
-    data: { error: "upstream unavailable" },
-  });
+  const plain = await apiRequest("GET", "/plain-error");
+  assert.equal(plain.status, 502);
+  assert.equal(plain.data.http_status, 502);
+  assert.equal(plain.data.non_api_response, true);
+  assert.equal(plain.data.body_excerpt, "upstream unavailable");
+  assert.match(plain.data.error, /^HTTP 502 .*retry after a short pause/);
 });
