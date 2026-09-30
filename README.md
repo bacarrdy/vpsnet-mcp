@@ -506,7 +506,14 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `VPSNET_API_KEY` | Yes | Your VPSnet.com API key |
-| `VPSNET_API_URL` | No | API base URL (defaults to `https://api.vpsnet.com`) |
+| `VPSNET_API_URL` | No | API base URL (defaults to `https://api.vpsnet.com`); any `https://*.vpsnet.com` host, e.g. a staging API |
+| `VPSNET_API_TIMEOUT_MS` | No | Per-request timeout (default 45000) |
+
+Requests go out from the machine that runs this server, not from your browser. A
+host that admits only listed addresses (a staging API does) answers such a
+request with an HTML `403` page from its web server; the tool result then says
+so (`non_api_response: true`, `http_status: 403`) instead of passing the page on.
+Every error result carries `http_status`; a `429` also carries `retry_after`.
 
 ## Tools
 
@@ -521,7 +528,9 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 |------|-------------|
 | `list_services` | List all active VPS services |
 | `get_service` | Get detailed info for a service |
-| `get_service_graphs` | Get performance graphs (CPU, RAM, disk, network) |
+| `get_service_graphs` | Get one graph series: metric (cpu, ram, ssd, net, io, …) and period (5m … 1y) |
+| `get_event` | Read an async action's state by its `event` id or `noty` UUID |
+| `wait_for_event` | Poll an async action until completed or error (or a timeout) |
 | `get_service_history` | Get action history for a service |
 
 ### Managed Applications
@@ -593,7 +602,7 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 |------|-------------|
 | `get_plan_options` | Get available plans for upgrade/downgrade; KVM/Firecracker targets that would shrink disk are unavailable |
 | `get_plan_resources` | Get configurable resources for a plan |
-| `calculate_plan_change` | Preview plan change cost and new expiry |
+| `calculate_plan_change` | Preview a plan change: no payment, the remaining value is converted, so an upgrade moves the expiry earlier |
 | `change_plan` | Change VPS plan |
 
 ### Renewal & Billing
