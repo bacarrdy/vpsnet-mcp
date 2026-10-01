@@ -6,6 +6,7 @@ export const tempVmIdSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .describe("on-demand server session ID returned by list_temp_vms");
 
 export const tempVmProfileSchema = z
@@ -23,6 +24,7 @@ export const tempVmOsIdSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .describe(
     "Optional enabled Firecracker guest OS ID. Omit it to use the current default; Functions runtime images are rejected."
   );

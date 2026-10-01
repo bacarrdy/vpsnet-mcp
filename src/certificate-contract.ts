@@ -41,18 +41,21 @@ export const certificateProductIdSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .describe("Published product ID returned by list_certificate_catalog");
 
 export const certificateOfferIdSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .describe("Published EUR offer ID returned by the selected catalog product");
 
 export const certificateOfferGenerationSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .describe("Exact offer generation returned by the catalog; stale generations are rejected");
 
 export const certificateSubscriptionIdSchema = z
@@ -245,6 +248,7 @@ const freeCertificateTargetOrderIdSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .nullable()
   .optional()
   .describe("Optional owned VPS or Cloud VPS order ID returned by service tools");
@@ -351,16 +355,19 @@ export const certificateOrderInputShape = {
     .number()
     .int()
     .positive()
+    .max(Number.MAX_SAFE_INTEGER)
     .describe("Owned administrator contact ID selected in the VPSnet certificate order form"),
   technical_contact_id: z
     .number()
     .int()
     .positive()
+    .max(Number.MAX_SAFE_INTEGER)
     .describe("Owned technical contact ID selected in the VPSnet certificate order form"),
   organization_contact_id: z
     .number()
     .int()
     .positive()
+    .max(Number.MAX_SAFE_INTEGER)
     .nullable()
     .optional()
     .describe("Owned organization contact ID when required for OV or EV validation"),

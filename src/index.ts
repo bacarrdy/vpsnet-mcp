@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
+import { installToolResultErrorFlag } from "./tool-result.js";
 import {
   applicationAccessConfigurationRequestBody,
   applicationAccessSchema,
@@ -119,17 +120,24 @@ const GRAPH_METRICS = [
   "fc_block", "fc_net_native", "fc_pressure",
 ] as const;
 const GRAPH_PERIODS = ["5m", "15m", "30m", "1h", "12h", "1d", "3d", "7d", "30d", "60d", "90d", "1y"] as const;
+const GRAPH_FIELDS: Partial<Record<typeof GRAPH_METRICS[number], readonly string[]>> = {
+  io: ["ior", "iow", "iops"],
+  net: ["rx", "tx", "rxp", "txp"],
+  fc_block: ["read_bytes", "write_bytes", "read_ops", "write_ops", "queue_events", "throttle_events"],
+  fc_net_native: ["rx_bytes", "tx_bytes", "rx_packets", "tx_packets", "queue_events"],
+  fc_pressure: ["major_faults", "minor_faults", "swap_in", "swap_out", "oom_kills", "alloc_stalls", "async_scan", "direct_scan", "async_reclaim", "direct_reclaim"],
+};
 
 // A numeric event id, or the lowercase/uppercase `noty` UUID an action returned.
 const EVENT_ID_SCHEMA = z
   .union([
-    z.number().int().positive(),
+    z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     z.string().regex(/^(?:[0-9]{1,20}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/),
   ])
   .describe("Numeric `event` id or `noty` UUID returned by the action");
 
 const server = new McpServer(
-  { name: "vpsnet", version: "2.1.0" },
+  { name: "vpsnet", version: "2.1.1" },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -280,9 +288,11 @@ const server = new McpServer(
   }
 );
 
+installToolResultErrorFlag(server);
+
 // Helper to build service settings path
 const svc = (orderNo: string, action: string) =>
-  `/account/services/${orderNo}/${action}`;
+  `/account/services/${encodeURIComponent(serviceOrderNoSchema.parse(orderNo))}/${action}`;
 
 const idempotencyKeySchema = z
   .string()
@@ -300,7 +310,14 @@ const serviceOrderNoSchema = z
   .string()
   .min(1)
   .max(64)
-  .describe("Tenant-owned service order number, e.g. VP88318");
+  .regex(/^[A-Za-z0-9-]+$/, "Use the exact service order number returned by list_services")
+  .describe("Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP88318 or VP88318-1");
+
+const positiveIdSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+const snapshotNameSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);
+const invocationIdSchema = z.string().min(1).max(64).regex(/^[A-Za-z0-9-]+$/);
+const invoiceHashSchema = z.string().min(1).max(64).regex(/^[A-Za-z0-9]+$/);
+const dnsTemplateIdSchema = z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
 const serviceHostnameSchema = z
   .string()
@@ -341,10 +358,7 @@ const servicePtrSchema = z
     "PTR hostname. Canonical length 3-253, labels 1-63 ASCII alphanumeric/hyphen characters, no leading/trailing hyphen; an optional trailing dot is removed"
   );
 
-const applicationOrderNoSchema = z
-  .string()
-  .regex(/^[A-Z]{2}[0-9]+$/)
-  .describe("Tenant-owned service order number, e.g. VP88146");
+const applicationOrderNoSchema = serviceOrderNoSchema;
 
 const applicationInstallationIdSchema = z
   .string()
@@ -370,7 +384,7 @@ const applicationVariablesSchema = z
   );
 
 function applicationPath(orderNo: string, suffix: string): string {
-  return `/account/services/${encodeURIComponent(orderNo)}/applications/${suffix}`;
+  return `/account/services/${encodeURIComponent(serviceOrderNoSchema.parse(orderNo))}/applications/${suffix}`;
 }
 
 function safeApplicationMutationResult(
@@ -535,13 +549,13 @@ server.registerTool(
     description:
       "Get detailed info for a service by order number. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number, e.g. VP57068"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}`
+      `/account/services/${encodeURIComponent(orderNo)}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -553,26 +567,30 @@ server.registerTool(
     description:
       "Get one performance graph series for a service: pick a metric and a period. fc_block, fc_net_native and fc_pressure exist only for Firecracker VPS. fields narrows io/net/fc_* metrics to some series. A wrong metric, period or field answers 422 with invalidParameter and allowedValues. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       metric: z
         .enum(GRAPH_METRICS)
         .describe("Metric: cpu, ram, ssd (disk use; storage is the same), swap, lavg (load average), io, inode, net, proc, or a Firecracker-only fc_* metric"),
       period: z.enum(GRAPH_PERIODS).describe("Time window ending now"),
       fields: z
-        .array(z.string().regex(/^[a-z_]+$/))
+        .array(z.string().max(32).regex(/^[a-z_]+$/))
         .min(1)
+        .max(10)
         .optional()
         .describe("Only these series. io: ior, iow, iops. net: rx, tx, rxp, txp. fc_block: read_bytes, write_bytes, read_ops, write_ops, queue_events, throttle_events. fc_net_native: rx_bytes, tx_bytes, rx_packets, tx_packets, queue_events. fc_pressure: major_faults, minor_faults, swap_in, swap_out, oom_kills, alloc_stalls, async_scan, direct_scan, async_reclaim, direct_reclaim."),
     },
   },
   async ({ orderNo, metric, period, fields }) => {
+    if (fields !== undefined && fields.some((field) => !GRAPH_FIELDS[metric]?.includes(field))) {
+      throw new Error(`Invalid graph fields for ${metric}; allowed fields: ${(GRAPH_FIELDS[metric] || []).join(", ") || "none"}`);
+    }
     const query = new URLSearchParams({ m: metric, p: period });
     if (fields !== undefined) {
       query.set("f", fields.join(","));
     }
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/graphs?${query.toString()}`
+      `/account/services/${encodeURIComponent(orderNo)}/graphs?${query.toString()}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -628,13 +646,13 @@ server.registerTool(
   {
     description: "Get action history for a service Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/history`
+      `/account/services/${encodeURIComponent(orderNo)}/history`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -658,7 +676,7 @@ server.registerTool(
   async ({ orderNo }) => {
     const { status, data } = await apiRequest(
       "GET",
-      svc(encodeURIComponent(orderNo), "rescue")
+      svc(orderNo, "rescue")
     );
     return {
       content: [{
@@ -698,7 +716,7 @@ server.registerTool(
 
     const current = await apiRequest(
       "GET",
-      svc(encodeURIComponent(orderNo), "rescue")
+      svc(orderNo, "rescue")
     );
     const statusPayload = parseServiceRescueStatus(current.data);
     const advertised = statusPayload?.rescue.capability.images.some(
@@ -724,7 +742,7 @@ server.registerTool(
 
     const { status, data } = await apiRequest(
       "POST",
-      svc(encodeURIComponent(orderNo), "rescue"),
+      svc(orderNo, "rescue"),
       serviceRescueEnterRequestBody(image),
       { "Idempotency-Key": idempotencyKey }
     );
@@ -774,7 +792,7 @@ server.registerTool(
 
     const current = await apiRequest(
       "GET",
-      svc(encodeURIComponent(orderNo), "rescue")
+      svc(orderNo, "rescue")
     );
     const statusPayload = parseServiceRescueStatus(current.data);
     const currentSession = statusPayload?.rescue.session;
@@ -799,7 +817,7 @@ server.registerTool(
 
     const { status, data } = await apiRequest(
       "DELETE",
-      svc(encodeURIComponent(orderNo), "rescue"),
+      svc(orderNo, "rescue"),
       undefined,
       { "Idempotency-Key": idempotencyKey }
     );
@@ -1433,7 +1451,7 @@ server.registerTool(
     const basePath = applicationPath(orderNo, "custom-projects");
     const { status, data } = await runApplicationAsyncOperation(
       `${basePath}/validate`,
-      (id) => `${basePath}/validations/${id}`,
+      (id) => `${basePath}/validations/${encodeURIComponent(String(id))}`,
       "validation",
       { compose_yaml, registry_credential_ids }
     );
@@ -1546,7 +1564,7 @@ server.registerTool(
     const basePath = applicationPath(orderNo, "custom-projects");
     const validation = await runApplicationAsyncOperation(
       `${basePath}/validate`,
-      (id) => `${basePath}/validations/${id}`,
+      (id) => `${basePath}/validations/${encodeURIComponent(String(id))}`,
       "validation",
       { compose_yaml, registry_credential_ids }
     );
@@ -1645,7 +1663,7 @@ server.registerTool(
     const basePath = applicationPath(orderNo, "custom-projects");
     const validation = await runApplicationAsyncOperation(
       `${basePath}/validate`,
-      (id) => `${basePath}/validations/${id}`,
+      (id) => `${basePath}/validations/${encodeURIComponent(String(id))}`,
       "validation",
       { compose_yaml, registry_credential_ids }
     );
@@ -1828,7 +1846,7 @@ server.registerTool(
     const basePath = applicationPath(orderNo, "container-discoveries");
     const { status, data } = await runApplicationAsyncOperation(
       basePath,
-      (id) => `${basePath}/${id}`,
+      (id) => `${basePath}/${encodeURIComponent(String(id))}`,
       "discovery"
     );
     return {
@@ -1868,7 +1886,7 @@ server.registerTool(
       `${discoveryPath}/adoptions`,
       (id) => applicationPath(
         orderNo,
-        `compose-adoptions/${id}`
+        `compose-adoptions/${encodeURIComponent(String(id))}`
       ),
       "adoption",
       { compose_project }
@@ -2332,7 +2350,7 @@ server.registerTool(
   {
     description: "Start a stopped VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2346,7 +2364,7 @@ server.registerTool(
   {
     description: "Stop a running VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2360,7 +2378,7 @@ server.registerTool(
   {
     description: "Restart a VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2375,7 +2393,7 @@ server.registerTool(
     description:
       "Open VNC console access to a running VPS. Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2390,7 +2408,7 @@ server.registerTool(
     description:
       "Suspend a running Cloud VPS (KVM/VDS) service. Changes service state to suspended. Returns a tracking event ID. VDS/Cloud VPS only; the service must be running. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2405,7 +2423,7 @@ server.registerTool(
     description:
       "Resume a suspended Cloud VPS (KVM/VDS) service. Changes service state back to running. Returns a tracking event ID. VDS/Cloud VPS only; the service must be suspended. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2478,7 +2496,7 @@ server.registerTool(
     description:
       "Change VPS root password. Rules: 6-40 chars, alphanumeric, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       password: z
         .string()
         .describe(
@@ -2560,7 +2578,7 @@ server.registerTool(
   {
     description: "Flush iptables rules on VPS (useful when locked out) Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2618,7 +2636,7 @@ server.registerTool(
   {
     description: "Enable or disable IPv6 on VPS Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       value: z.boolean().describe("true to enable, false to disable"),
     },
   },
@@ -2638,7 +2656,7 @@ server.registerTool(
     description:
       "Toggle extra VPS settings: ppp, fuse, tuntap, or nfs Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       name: z
         .enum(["ppp", "fuse", "tuntap", "nfs"])
         .describe("Setting name"),
@@ -2661,8 +2679,8 @@ server.registerTool(
     description:
       "Deploy an SSH key to VPS. Returns a noty UUID; follow it with wait_for_event. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      ssh_key: z.number().describe("SSH key ID from list_ssh_keys"),
+      orderNo: serviceOrderNoSchema,
+      ssh_key: positiveIdSchema.describe("SSH key ID from list_ssh_keys"),
     },
   },
   async ({ orderNo, ssh_key }) => {
@@ -2682,7 +2700,7 @@ server.registerTool(
   {
     description: "Get available OS templates for reinstall Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2700,7 +2718,7 @@ server.registerTool(
     description:
       "Reinstall OS on VPS. WARNING: destroys all data! If the service supports snapshots (Cloud VPS or Firecracker VPS), take one first — it's free for an initial window, so it's cheap insurance you can roll back to; then DELETE it once the reinstall succeeds, because after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire) — never leave snapshots lying around. Container VPS and Dedicated have no snapshots, so there is no rollback safety net — confirm with the user before reinstalling. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       osVersion: z
         .number()
         .describe("OS version ID from get_os_options"),
@@ -2732,7 +2750,7 @@ server.registerTool(
     description:
       "Get available plans for upgrade/downgrade. Plan changes are FREE. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2749,14 +2767,14 @@ server.registerTool(
   {
     description: "Get configurable resources for a specific plan Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      plan: z.number().describe("Plan ID from get_plan_options"),
+      orderNo: serviceOrderNoSchema,
+      plan: positiveIdSchema.describe("Plan ID from get_plan_options"),
     },
   },
   async ({ orderNo, plan }) => {
     const { data } = await apiRequest(
       "GET",
-      svc(orderNo, `plans-options/${plan}/options`)
+      svc(orderNo, `plans-options/${encodeURIComponent(String(plan))}/options`)
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -2768,8 +2786,8 @@ server.registerTool(
     description:
       "Preview a plan change. No payment is taken: the unused value of the current plan is converted at the new plan's price, so an upgrade moves the expiry EARLIER and a downgrade moves it later. Returns expirationDate, currentExpirationDate, expirationChangeDays (negative = shorter) and paymentRequired=false; show the customer both dates. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      plan: z.number().describe("Plan ID from get_plan_options"),
+      orderNo: serviceOrderNoSchema,
+      plan: positiveIdSchema.describe("Plan ID from get_plan_options"),
       resources: z
         .array(z.number())
         .describe(
@@ -2795,8 +2813,8 @@ server.registerTool(
     description:
       "Change VPS plan. No payment is taken; the remaining value is converted at the new price, so an upgrade shortens the service period. Always call calculate_plan_change first and confirm the new expiry with the customer. Use get_plan_resources to get resource IDs for the target plan. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      plan: z.number().describe("Plan ID from get_plan_options"),
+      orderNo: serviceOrderNoSchema,
+      plan: positiveIdSchema.describe("Plan ID from get_plan_options"),
       resources: z
         .array(z.number())
         .describe(
@@ -2821,7 +2839,7 @@ server.registerTool(
   {
     description: "Get billing period and auto-renewal options Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -2838,7 +2856,7 @@ server.registerTool(
   {
     description: "Enable or disable auto-renewal for a service. Note: enabling auto-renewal will automatically charge the account balance at each renewal (creating an invoice) without further confirmation. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       state: z.boolean().describe("true to enable, false to disable"),
       period: z
         .number()
@@ -2864,8 +2882,8 @@ server.registerTool(
     description:
       "Manually renew a service for a specific period. COST WARNING: this charges the account balance / creates an invoice immediately, and renewal payments are NON-REFUNDABLE once confirmed. Verify the service and period with the user before calling. Payment object: { payment: 1, successUrl: '', cancelUrl: '' } for balance payment. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      period: z.number().describe("Period ID from get_period_options"),
+      orderNo: serviceOrderNoSchema,
+      period: positiveIdSchema.describe("Period ID from get_period_options"),
       payment: z
         .object({
           payment: z
@@ -2912,7 +2930,7 @@ server.registerTool(
   async ({ type }) => {
     const { data } = await apiRequest(
       "GET",
-      `/order/configuration/${type}/plans`
+      `/order/configuration/${encodeURIComponent(type)}/plans`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -2924,13 +2942,13 @@ server.registerTool(
     description:
       "Get configurable options (OS, resources, periods) for a plan",
     inputSchema: {
-      plan: z.number().describe("Plan ID from get_order_plans"),
+      plan: positiveIdSchema.describe("Plan ID from get_order_plans"),
     },
   },
   async ({ plan }) => {
     const { data } = await apiRequest(
       "GET",
-      `/order/configuration/${plan}/options`
+      `/order/configuration/${encodeURIComponent(String(plan))}/options`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -2948,8 +2966,8 @@ server.registerTool(
       "sshKey and rootPassword are mutually exclusive — provide one or the other.",
     ].join(" "),
     inputSchema: {
-      plan: z.number().describe("Plan ID from get_order_plans"),
-      os: z.number().optional().describe("OS version ID from get_order_options"),
+      plan: positiveIdSchema.describe("Plan ID from get_order_plans"),
+      os: positiveIdSchema.optional().describe("OS version ID from get_order_options"),
       rootPassword: z
         .string()
         .optional()
@@ -2962,7 +2980,7 @@ server.registerTool(
         .describe(
           "SSH key ID from list_ssh_keys to deploy. Mutually exclusive with rootPassword"
         ),
-      period: z.number().optional().describe("Billing period ID from get_order_options"),
+      period: positiveIdSchema.optional().describe("Billing period ID from get_order_options"),
       resources: z
         .array(z.number())
         .optional()
@@ -2997,12 +3015,15 @@ server.registerTool(
     if (sshKey !== undefined) body.sshKey = sshKey;
     if (period !== undefined) body.period = period;
     if (resources) body.resources = resources;
-    const { data: quoteData } = await apiRequest(
+    const { status: quoteStatus, data: quoteData } = await apiRequest(
       "POST",
       "/order/configuration/quote",
       body,
       { "Idempotency-Key": idempotencyKey }
     );
+    if (quoteStatus >= 400 || (quoteData as { success?: unknown } | null)?.success === false) {
+      return { content: [{ type: "text", text: formatJson(quoteData) }], isError: true };
+    }
     const quoteToken = (quoteData as { quoteToken?: string }).quoteToken;
     if (!quoteToken) {
       throw new Error("Order quote did not return quoteToken");
@@ -3025,7 +3046,7 @@ server.registerTool(
   {
     description: "Get backup status and configuration for a service Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -3042,7 +3063,7 @@ server.registerTool(
   {
     description: "Get backup history for a service Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
@@ -3060,7 +3081,7 @@ server.registerTool(
     description:
       "Create a new backup. Returns noty UUID for tracking. First call get_backup_status to see available period dates and price. Backup is a paid operation (price shown in get_backup_status). Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       period: z
         .string()
         .describe(
@@ -3116,11 +3137,11 @@ server.registerTool(
   {
     description: "Get a specific SSH key by ID",
     inputSchema: {
-      id: z.number().describe("SSH key ID"),
+      id: positiveIdSchema.describe("SSH key ID"),
     },
   },
   async ({ id }) => {
-    const { data } = await apiRequest("GET", `/account/ssh-keys/${id}`);
+    const { data } = await apiRequest("GET", `/account/ssh-keys/${encodeURIComponent(String(id))}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -3149,13 +3170,13 @@ server.registerTool(
   {
     description: "Delete an SSH key from the account",
     inputSchema: {
-      id: z.number().describe("SSH key ID"),
+      id: positiveIdSchema.describe("SSH key ID"),
     },
   },
   async ({ id }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/ssh-keys/${id}`
+      `/account/ssh-keys/${encodeURIComponent(String(id))}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -3182,11 +3203,11 @@ server.registerTool(
     description:
       "Get metadata for one active API key: scope, granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit. For API-key callers only the calling key's own ID is accessible — any other id answers 403 apiKeyForbidden, even when it does not exist. The full key and stored secrets are never returned. Read-only.",
     inputSchema: {
-      id: z.number().int().positive().describe("API key ID from list_api_keys (the calling key's own ID)"),
+      id: positiveIdSchema.describe("API key ID from list_api_keys (the calling key's own ID)"),
     },
   },
   async ({ id }) => {
-    const { data } = await apiRequest("GET", `/account/api-keys/${id}`);
+    const { data } = await apiRequest("GET", `/account/api-keys/${encodeURIComponent(String(id))}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -3197,7 +3218,7 @@ server.registerTool(
     description:
       "Get the recorded request activity for this API key: recent matched route patterns and statuses, resolved and separately labelled caller-claimed source addresses, endpoint/source totals, and retained daily history. API-key callers can inspect only the same key that authenticated the MCP connection. Key values, headers, query strings, path values, and request bodies are never returned. To protect the control plane during abusive bursts, audit writes are capped per key per minute and retained detail has a separate per-key row ceiling; totals describe recorded rows and are not a billing ledger.",
     inputSchema: {
-      id: z.number().int().positive().describe("API key ID from list_api_keys (the calling key's own ID)"),
+      id: positiveIdSchema.describe("API key ID from list_api_keys (the calling key's own ID)"),
       limit: z.number().int().min(1).max(200).optional().describe("Recent request rows to return (default 50, maximum 200)"),
     },
   },
@@ -3205,7 +3226,7 @@ server.registerTool(
     const query = limit === undefined ? "" : `?limit=${encodeURIComponent(String(limit))}`;
     const { data } = await apiRequest(
       "GET",
-      `/account/api-keys/${id}/activity${query}`
+      `/account/api-keys/${encodeURIComponent(String(id))}/activity${query}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -3217,13 +3238,13 @@ server.registerTool(
     description:
       "Get exact paid VPSnet AI usage for this inference API key: committed and currently reserved spend for the UTC day and month, request and token totals by public VPSnet model profile, configured spend limits, remaining spend, and notification preferences. API-key callers can inspect only the same key that authenticated the MCP connection. Internal provider model names are never returned. This is read-only and does not change limits, notifications, or billing.",
     inputSchema: {
-      id: z.number().int().positive().describe("Inference API key ID from list_api_keys (the calling key's own ID)"),
+      id: positiveIdSchema.describe("Inference API key ID from list_api_keys (the calling key's own ID)"),
     },
   },
   async ({ id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/api-keys/${id}/inference-usage`
+      `/account/api-keys/${encodeURIComponent(String(id))}/inference-usage`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -4328,11 +4349,11 @@ server.registerTool(
   {
     description: "Get one owned domain with current nameservers and any pending domain action. Requires domains:read when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
     },
   },
   async ({ domain_id }) => {
-    const { data } = await apiRequest("GET", `/account/domains/${domain_id}`);
+    const { data } = await apiRequest("GET", `/account/domains/${encodeURIComponent(String(domain_id))}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4355,7 +4376,7 @@ server.registerTool(
     description:
       "Queue an asynchronous nameserver change for an owned domain. Nameservers must be hostnames, not IP addresses; same-domain nameserver IP records are managed separately. This does not manage DNS records or PTR. Requires domains:manage when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       nameservers: z.array(nameserverHostnameSchema).min(2).max(13).describe("2-13 nameserver hostnames, e.g. ns1.vpsnet.com, ns2.vpsnet.com. IP addresses are not accepted."),
       idempotencyKey: idempotencyKeySchema.optional().describe("Optional idempotency key for the queued domain action"),
     },
@@ -4364,7 +4385,7 @@ server.registerTool(
     const headers = idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined;
     const { data } = await apiRequest(
       "POST",
-      `/account/domains/${domain_id}/nameservers`,
+      `/account/domains/${encodeURIComponent(String(domain_id))}/nameservers`,
       {
         nameservers,
         ...(idempotencyKey ? { idempotencyKey } : {}),
@@ -4381,11 +4402,11 @@ server.registerTool(
     description:
       "List same-domain nameserver IP records for an owned domain, e.g. ns1.example.com -> 203.0.113.10. Requires domains:read when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
     },
   },
   async ({ domain_id }) => {
-    const { data } = await apiRequest("GET", `/account/domains/${domain_id}/glue`);
+    const { data } = await apiRequest("GET", `/account/domains/${encodeURIComponent(String(domain_id))}/glue`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4396,7 +4417,7 @@ server.registerTool(
     description:
       "Queue creating or updating a same-domain nameserver IP record for an owned domain. Hostname must be below the domain, addresses must be public IPs, and this does not create DNS A/AAAA records or PTR. Requires domains:manage when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       hostname: glueHostnameSchema,
       addresses: z.array(gluePublicIpSchema).min(1).max(13).describe("Public IPv4/IPv6 addresses for this nameserver host"),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
@@ -4405,7 +4426,7 @@ server.registerTool(
   async ({ domain_id, hostname, addresses, idempotencyKey }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/domains/${domain_id}/glue`,
+      `/account/domains/${encodeURIComponent(String(domain_id))}/glue`,
       { hostname, addresses, idempotencyKey },
       { "Idempotency-Key": idempotencyKey }
     );
@@ -4419,15 +4440,15 @@ server.registerTool(
     description:
       "Queue deleting a same-domain nameserver IP record for an owned domain. Remove or change domain nameserver delegation first if the hostname is still delegated. Requires domains:manage when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
-      record_id: z.number().describe("Record ID from list_domain_glue_records"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
+      record_id: positiveIdSchema.describe("Record ID from list_domain_glue_records"),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
     },
   },
   async ({ domain_id, record_id, idempotencyKey }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/domains/${domain_id}/glue/${record_id}`,
+      `/account/domains/${encodeURIComponent(String(domain_id))}/glue/${encodeURIComponent(String(record_id))}`,
       { idempotencyKey },
       { "Idempotency-Key": idempotencyKey }
     );
@@ -4441,11 +4462,11 @@ server.registerTool(
     description:
       "List parent-zone DNSSEC DS records for an owned domain. Requires domains:read when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
     },
   },
   async ({ domain_id }) => {
-    const { data } = await apiRequest("GET", `/account/domains/${domain_id}/dnssec-ds`);
+    const { data } = await apiRequest("GET", `/account/domains/${encodeURIComponent(String(domain_id))}/dnssec-ds`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4456,7 +4477,7 @@ server.registerTool(
     description:
       "Queue adding DNSSEC DS records at the parent zone for an owned domain. Requires domains:manage when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       ds: z
         .string()
         .min(8)
@@ -4467,7 +4488,7 @@ server.registerTool(
   async ({ domain_id, ds, idempotencyKey }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/domains/${domain_id}/dnssec-ds`,
+      `/account/domains/${encodeURIComponent(String(domain_id))}/dnssec-ds`,
       // The API's preferred key is ds_records; bare `ds` is only a
       // compatibility fallback, so do not depend on it.
       { ds_records: ds, idempotencyKey },
@@ -4483,7 +4504,7 @@ server.registerTool(
     description:
       "Queue deleting DNSSEC DS records at the parent zone for an owned domain. Requires domains:manage when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       ds: z
         .string()
         .min(8)
@@ -4494,7 +4515,7 @@ server.registerTool(
   async ({ domain_id, ds, idempotencyKey }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/domains/${domain_id}/dnssec-ds`,
+      `/account/domains/${encodeURIComponent(String(domain_id))}/dnssec-ds`,
       // The API's preferred key is ds_records; bare `ds` is only a
       // compatibility fallback, so do not depend on it.
       { ds_records: ds, idempotencyKey },
@@ -4509,7 +4530,7 @@ server.registerTool(
   {
     description: "Check read-only domain availability. Requires domains:read when using an API key.",
     inputSchema: {
-      domain: z.string().describe("Domain to check, e.g. example.lt or example.com"),
+      domain: z.string().min(1).max(253).describe("Domain to check, e.g. example.lt or example.com"),
     },
   },
   async ({ domain }) => {
@@ -4583,12 +4604,12 @@ server.registerTool(
   {
     description: "Update an existing domain contact. Requires domains:manage when using an API key.",
     inputSchema: {
-      id: z.number().describe("Domain contact ID"),
+      id: positiveIdSchema.describe("Domain contact ID"),
       ...domainContactInputSchema,
     },
   },
   async ({ id, ...input }) => {
-    const { data } = await apiRequest("POST", `/account/domains/contacts/${id}`, input);
+    const { data } = await apiRequest("POST", `/account/domains/contacts/${encodeURIComponent(String(id))}`, input);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4598,11 +4619,11 @@ server.registerTool(
   {
     description: "Delete an unused domain contact. Contacts referenced by domains are rejected. Requires domains:manage when using an API key.",
     inputSchema: {
-      id: z.number().describe("Domain contact ID"),
+      id: positiveIdSchema.describe("Domain contact ID"),
     },
   },
   async ({ id }) => {
-    const { data } = await apiRequest("DELETE", `/account/domains/contacts/${id}`);
+    const { data } = await apiRequest("DELETE", `/account/domains/contacts/${encodeURIComponent(String(id))}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4614,10 +4635,10 @@ server.registerTool(
     inputSchema: {
       domain: z.string().describe("Domain to register, e.g. example.lt"),
       years: z.number().optional().describe("Registration period in years"),
-      registrant_contact_id: z.number().optional().describe("Registrant contact ID; defaults to account default contact"),
-      admin_contact_id: z.number().optional().describe("Admin contact ID"),
-      tech_contact_id: z.number().optional().describe("Technical contact ID"),
-      billing_contact_id: z.number().optional().describe("Billing contact ID"),
+      registrant_contact_id: positiveIdSchema.optional().describe("Registrant contact ID; defaults to account default contact"),
+      admin_contact_id: positiveIdSchema.optional().describe("Admin contact ID"),
+      tech_contact_id: positiveIdSchema.optional().describe("Technical contact ID"),
+      billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted."),
       whois_privacy: whoisPrivacySchema,
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
@@ -4642,10 +4663,10 @@ server.registerTool(
     inputSchema: {
       domain: z.string().describe("Domain to transfer"),
       authCode: z.string().describe("Transfer auth/EPP code"),
-      registrant_contact_id: z.number().optional().describe("Registrant contact ID; defaults to account default contact"),
-      admin_contact_id: z.number().optional().describe("Admin contact ID"),
-      tech_contact_id: z.number().optional().describe("Technical contact ID"),
-      billing_contact_id: z.number().optional().describe("Billing contact ID"),
+      registrant_contact_id: positiveIdSchema.optional().describe("Registrant contact ID; defaults to account default contact"),
+      admin_contact_id: positiveIdSchema.optional().describe("Admin contact ID"),
+      tech_contact_id: positiveIdSchema.optional().describe("Technical contact ID"),
+      billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted."),
       whois_privacy: whoisPrivacySchema,
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
@@ -4679,10 +4700,10 @@ server.registerTool(
     inputSchema: {
       domain: z.string().describe("Domain to register, exactly as quoted"),
       years: z.number().optional().describe("Registration period in years, exactly as quoted"),
-      registrant_contact_id: z.number().optional().describe("Registrant contact ID used in quote"),
-      admin_contact_id: z.number().optional().describe("Admin contact ID used in quote"),
-      tech_contact_id: z.number().optional().describe("Technical contact ID used in quote"),
-      billing_contact_id: z.number().optional().describe("Billing contact ID used in quote"),
+      registrant_contact_id: positiveIdSchema.optional().describe("Registrant contact ID used in quote"),
+      admin_contact_id: positiveIdSchema.optional().describe("Admin contact ID used in quote"),
+      tech_contact_id: positiveIdSchema.optional().describe("Technical contact ID used in quote"),
+      billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID used in quote"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("Nameserver hostnames used in quote"),
       whois_privacy: whoisPrivacySchema,
       idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
@@ -4709,10 +4730,10 @@ server.registerTool(
     inputSchema: {
       domain: z.string().describe("Domain to transfer, exactly as quoted"),
       authCode: z.string().describe("Transfer auth/EPP code used in quote; stored encrypted server-side after confirm"),
-      registrant_contact_id: z.number().optional().describe("Registrant contact ID used in quote"),
-      admin_contact_id: z.number().optional().describe("Admin contact ID used in quote"),
-      tech_contact_id: z.number().optional().describe("Technical contact ID used in quote"),
-      billing_contact_id: z.number().optional().describe("Billing contact ID used in quote"),
+      registrant_contact_id: positiveIdSchema.optional().describe("Registrant contact ID used in quote"),
+      admin_contact_id: positiveIdSchema.optional().describe("Admin contact ID used in quote"),
+      tech_contact_id: positiveIdSchema.optional().describe("Technical contact ID used in quote"),
+      billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID used in quote"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("Nameserver hostnames used in quote"),
       whois_privacy: whoisPrivacySchema,
       idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
@@ -4737,7 +4758,7 @@ server.registerTool(
   {
     description: "Create a VPSNet-priced renewal quote for an owned domain. Renewal pricing follows the existing domain record. Requires paid domains:renew scope/caps for API keys.",
     inputSchema: {
-      domain_id: z.number().optional().describe("Owned domain ID"),
+      domain_id: positiveIdSchema.optional().describe("Owned domain ID"),
       domain: z.string().optional().describe("Owned domain name if domain_id is not used"),
       years: z.number().optional().describe("Renewal period in years"),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
@@ -4760,7 +4781,7 @@ server.registerTool(
   {
     description: "Confirm a quoted domain renewal and pay from the VPSNet account. Domain renewal payments are non-refundable once confirmed and the renewal is queued only after payment succeeds. Requires the same idempotencyKey and quoteToken from quote_domain_renew.",
     inputSchema: {
-      domain_id: z.number().optional().describe("Owned domain ID used in quote"),
+      domain_id: positiveIdSchema.optional().describe("Owned domain ID used in quote"),
       domain: z.string().optional().describe("Owned domain name used in quote"),
       years: z.number().optional().describe("Renewal period used in quote"),
       idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
@@ -4785,7 +4806,7 @@ server.registerTool(
   {
     description: "Create a restore quote for an owned domain in redemption. The final price is returned before payment. Requires paid domains:renew scope/caps for API keys.",
     inputSchema: {
-      domain_id: z.number().optional().describe("Owned domain ID"),
+      domain_id: positiveIdSchema.optional().describe("Owned domain ID"),
       domain: z.string().optional().describe("Owned domain name if domain_id is not used"),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
     },
@@ -4807,7 +4828,7 @@ server.registerTool(
   {
     description: "Confirm a quoted domain restore and pay from the VPSNet account. Domain restore payments are non-refundable once confirmed and the restore is queued only after payment succeeds. Requires the same idempotencyKey and quoteToken from quote_domain_restore.",
     inputSchema: {
-      domain_id: z.number().optional().describe("Owned domain ID used in quote"),
+      domain_id: positiveIdSchema.optional().describe("Owned domain ID used in quote"),
       domain: z.string().optional().describe("Owned domain name used in quote"),
       idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_restore"),
@@ -4831,7 +4852,7 @@ server.registerTool(
   {
     description: "Enable or disable automatic renewal for an owned domain. Auto-renew charges the VPSNet account; automatic domain renewal payments are non-refundable once confirmed.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       enabled: z.boolean().describe("Whether automatic renewal should be enabled"),
       renewal_period_years: z.number().min(1).max(10).optional().describe("Renewal period in years; defaults to the current domain setting"),
     },
@@ -4839,7 +4860,7 @@ server.registerTool(
   async ({ domain_id, enabled, renewal_period_years }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/domains/${domain_id}/auto-renew`,
+      `/account/domains/${encodeURIComponent(String(domain_id))}/auto-renew`,
       {
         enabled,
         ...(renewal_period_years ? { renewal_period_years } : {}),
@@ -4855,13 +4876,13 @@ server.registerTool(
     description:
       "Get the registrar transfer-lock status for an owned domain (locked / unlocked / unsupported). A locked domain cannot be transferred away until unlocked. Changing the lock is intentionally not available via API key (use the control panel). Requires domains:read when using an API key.",
     inputSchema: {
-      domain_id: z.number().describe("Owned domain ID from list_domains"),
+      domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
     },
   },
   async ({ domain_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/domains/${domain_id}/registrar-lock`
+      `/account/domains/${encodeURIComponent(String(domain_id))}/registrar-lock`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -4873,13 +4894,13 @@ server.registerTool(
     description:
       "List the DNS attach options for a service: its public IPv4/IPv6 addresses, the account's editable forward DNS zones, and DNS records already pointing at the service. Use before attach_service_dns_record. Requires dns:read when using an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number, e.g. VP57068"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/domains`
+      `/account/services/${encodeURIComponent(orderNo)}/domains`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -4891,8 +4912,8 @@ server.registerTool(
     description:
       "Point a DNS name at a service in one call: creates an A/AAAA/CNAME record in an owned forward DNS zone using the service's own IP (A/AAAA default to the service IP when ip is omitted; the ip, when given, must belong to the service). Not for secondary/suspended zones. For arbitrary record content use upsert_dns_record instead. Requires dns:write when using an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number of the service, e.g. VP57068"),
-      zone_id: z.number().describe("Owned forward DNS zone ID from list_dns_zones"),
+      orderNo: serviceOrderNoSchema,
+      zone_id: positiveIdSchema.describe("Owned forward DNS zone ID from list_dns_zones"),
       name: z
         .string()
         .describe("Record name inside the zone, e.g. 'www' or '@' for the apex"),
@@ -4915,7 +4936,7 @@ server.registerTool(
     if (ttl !== undefined) body.ttl = ttl;
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/domains`,
+      `/account/services/${encodeURIComponent(orderNo)}/domains`,
       body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -4928,13 +4949,13 @@ server.registerTool(
     description:
       "List disk snapshots for a Cloud VPS (KVM/VDS) service, with the snapshot billing policy (free window, then billed per GB while kept) and a usage summary. Firecracker VPS uses list_firecracker_snapshots instead. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number, e.g. VD12345"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/snapshots`
+      `/account/services/${encodeURIComponent(orderNo)}/snapshots`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -4946,7 +4967,7 @@ server.registerTool(
     description:
       "Create a disk snapshot of a Cloud VPS (KVM/VDS) service. Free for a short window, then billed per GB while kept (see list_snapshots policy). Take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Only one snapshot action can run at a time; snapshot count is limited per service. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       description: z.string().optional().describe("Optional snapshot description"),
     },
   },
@@ -4955,7 +4976,7 @@ server.registerTool(
     if (description !== undefined) body.description = description;
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/snapshots`,
+      `/account/services/${encodeURIComponent(orderNo)}/snapshots`,
       body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -4968,14 +4989,14 @@ server.registerTool(
     description:
       "Roll a Cloud VPS (KVM/VDS) service back to a disk snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Tip: take a snapshot before any risky or automated change — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      snapname: z.string().describe("Snapshot name from list_snapshots"),
+      orderNo: serviceOrderNoSchema,
+      snapname: snapshotNameSchema.describe("Snapshot name from list_snapshots"),
     },
   },
   async ({ orderNo, snapname }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/snapshots/${encodeURIComponent(snapname)}/rollback`
+      `/account/services/${encodeURIComponent(orderNo)}/snapshots/${encodeURIComponent(snapname)}/rollback`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -4986,14 +5007,14 @@ server.registerTool(
   {
     description: "Delete a Cloud VPS (KVM/VDS) disk snapshot. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      snapname: z.string().describe("Snapshot name from list_snapshots"),
+      orderNo: serviceOrderNoSchema,
+      snapname: snapshotNameSchema.describe("Snapshot name from list_snapshots"),
     },
   },
   async ({ orderNo, snapname }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/services/${orderNo}/snapshots/${encodeURIComponent(snapname)}`
+      `/account/services/${encodeURIComponent(orderNo)}/snapshots/${encodeURIComponent(snapname)}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5005,13 +5026,13 @@ server.registerTool(
     description:
       "List temporary snapshots for a Firecracker VPS service, including billing state (free window, then a per-GB keep rate) and expiry. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number, e.g. VP57068"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/firecracker/snapshots`
+      `/account/services/${encodeURIComponent(orderNo)}/firecracker/snapshots`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5023,7 +5044,7 @@ server.registerTool(
     description:
       "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept until its automatic expiry. Take a snapshot before any risky or automated change, and delete it once the change succeeds to stop keep billing early. Check list_firecracker_snapshots for the exact policy and expiry fields. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
       description: z
         .string()
         .optional()
@@ -5035,7 +5056,7 @@ server.registerTool(
     if (description !== undefined) body.description = description;
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/firecracker/snapshots`,
+      `/account/services/${encodeURIComponent(orderNo)}/firecracker/snapshots`,
       body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -5048,14 +5069,14 @@ server.registerTool(
     description:
       "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Firecracker snapshots expire automatically but remain billed after the free window until deletion or expiry, so delete an unneeded snapshot to stop keep billing early. Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
+      orderNo: serviceOrderNoSchema,
+      snapshot_id: positiveIdSchema.describe("Snapshot ID from list_firecracker_snapshots"),
     },
   },
   async ({ orderNo, snapshot_id }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/firecracker/snapshots/${snapshot_id}/rollback`
+      `/account/services/${encodeURIComponent(orderNo)}/firecracker/snapshots/${encodeURIComponent(String(snapshot_id))}/rollback`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5066,14 +5087,14 @@ server.registerTool(
   {
     description: "Delete a Firecracker VPS temporary snapshot (stops its keep billing). Requires services:manage and a full-access API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      snapshot_id: z.number().describe("Snapshot ID from list_firecracker_snapshots"),
+      orderNo: serviceOrderNoSchema,
+      snapshot_id: positiveIdSchema.describe("Snapshot ID from list_firecracker_snapshots"),
     },
   },
   async ({ orderNo, snapshot_id }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/services/${orderNo}/firecracker/snapshots/${snapshot_id}`
+      `/account/services/${encodeURIComponent(orderNo)}/firecracker/snapshots/${encodeURIComponent(String(snapshot_id))}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5085,13 +5106,13 @@ server.registerTool(
     description:
       "Get the unified restore state for a service: retention days, restore price, and any restore request in progress. Cloud VPS and Firecracker VPS have automatic daily off-node backups restored through this flow. Requires services:read plus the services:restore paid scope when called with an API key (the response includes account balance).",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/restore/status`
+      `/account/services/${encodeURIComponent(orderNo)}/restore/status`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5103,13 +5124,13 @@ server.registerTool(
     description:
       "List available backup restore points for a service (automatic off-node backups). Use a point id with request_restore. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/restore/points`
+      `/account/services/${encodeURIComponent(orderNo)}/restore/points`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5172,8 +5193,8 @@ server.registerTool(
     description:
       "PAID: restore a service from a backup point. Charges the restore price (+VAT) from the ACCOUNT BALANCE immediately and overwrites the WHOLE service disk with the backup content — everything written since that point is lost. DESTRUCTIVE and billed. This is a confirmation call, not a request for a price: read get_restore_status first, show the user the exact backup point and that status's exact total_charged, tell them the disk is replaced, and obtain explicit approval for BOTH the charge and the replacement. Only then set acknowledge_data_replacement and acknowledge_restore_charge, and pass the very figure you disclosed as expected_total_charged. The tool runs the backend's quote → confirm flow itself under one Idempotency-Key (generated per call unless idempotencyKey is given), so a single call is a single paid attempt. If the price has moved since you disclosed it, nothing is charged: the restore is refused as restoreQuoteChanged, and you must show the user the new total and get their approval again. Requires services:read, a full-access API key with paid operations enabled, the services:restore paid scope, and configured spend caps.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
-      backup_point_id: z.number().describe("Restore point ID from list_restore_points"),
+      orderNo: serviceOrderNoSchema,
+      backup_point_id: positiveIdSchema.describe("Restore point ID from list_restore_points"),
       acknowledge_data_replacement: z
         .literal(true)
         .describe(
@@ -5234,7 +5255,7 @@ server.registerTool(
     const key = idempotencyKey ?? randomUUID();
     const quote = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/restore/requests/quote`,
+      `/account/services/${encodeURIComponent(orderNo)}/restore/requests/quote`,
       { backup_point_id },
       { "Idempotency-Key": key }
     );
@@ -5255,7 +5276,7 @@ server.registerTool(
       // request and replays it without charging again.
       const replay = await apiRequest(
         "POST",
-        `/account/services/${orderNo}/restore/requests`,
+        `/account/services/${encodeURIComponent(orderNo)}/restore/requests`,
         { backup_point_id, ...confirmation },
         { "Idempotency-Key": key }
       );
@@ -5298,7 +5319,7 @@ server.registerTool(
     }
     const { data } = await apiRequest(
       "POST",
-      `/account/services/${orderNo}/restore/requests`,
+      `/account/services/${encodeURIComponent(orderNo)}/restore/requests`,
       { backup_point_id, quoteToken, ...confirmation },
       { "Idempotency-Key": key, "X-Quote-Token": quoteToken }
     );
@@ -5331,7 +5352,7 @@ server.registerTool(
   async ({ orderNo }) => {
     const { status, data } = await apiRequest(
       "GET",
-      svc(encodeURIComponent(orderNo), "restore/files/points")
+      svc(orderNo, "restore/files/points")
     );
     return {
       content: [{
@@ -5408,7 +5429,7 @@ server.registerTool(
     if (filter !== undefined) {
       const probe = await apiRequest(
         "GET",
-        svc(encodeURIComponent(orderNo), "restore/files/points")
+        svc(orderNo, "restore/files/points")
       );
       if (
         probe.status < 200
@@ -5434,7 +5455,7 @@ server.registerTool(
 
     const { status, data } = await apiRequest(
       "POST",
-      svc(encodeURIComponent(orderNo), "restore/files/browses"),
+      svc(orderNo, "restore/files/browses"),
       fileBrowseRequestBody({
         backupPointId,
         sourceBrowseId,
@@ -5473,7 +5494,7 @@ server.registerTool(
     const { status, data } = await apiRequest(
       "GET",
       svc(
-        encodeURIComponent(orderNo),
+        orderNo,
         `restore/files/browses/${encodeURIComponent(browse_id)}`
       )
     );
@@ -5492,13 +5513,13 @@ server.registerTool(
     description:
       "Check whether the QEMU guest agent is running inside a Cloud VPS (KVM/VDS). Useful before OS-level operations that depend on the agent. Requires services:read when called with an API key.",
     inputSchema: {
-      orderNo: z.string().describe("Order number"),
+      orderNo: serviceOrderNoSchema,
     },
   },
   async ({ orderNo }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${orderNo}/guest-agent`
+      `/account/services/${encodeURIComponent(orderNo)}/guest-agent`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5528,7 +5549,7 @@ const functionBodyFromInput = (input: Record<string, unknown>) => {
 
 const functionFieldsSchema = {
   name: z.string().optional().describe("Function name"),
-  runtime_os_id: z.number().optional().describe("Runtime OS ID (see list_functions response for available runtimes)"),
+  runtime_os_id: positiveIdSchema.optional().describe("Runtime OS ID (see list_functions response for available runtimes)"),
   entrypoint: z.string().optional().describe("Entrypoint command/handler"),
   description: z.string().optional().describe("Description (max 2000 chars)"),
   code: z.string().optional().describe("Function source code"),
@@ -5559,13 +5580,13 @@ server.registerTool(
   {
     description: "Get one Firecracker Function with code, config, and webhook details.",
     inputSchema: {
-      function_id: z.number().describe("Function ID from list_functions"),
+      function_id: positiveIdSchema.describe("Function ID from list_functions"),
     },
   },
   async ({ function_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/firecracker/functions/${function_id}`
+      `/account/firecracker/functions/${encodeURIComponent(String(function_id))}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5594,7 +5615,7 @@ server.registerTool(
     description:
       "Update a Firecracker Function's code or configuration. Call get_function first. If integrity.unreadable_fields names code or environment, the backend refuses the update unless the user explicitly approves replacing every unavailable value from a trusted copy and acknowledge_unreadable_replacement=true is passed. Leave that flag false for ordinary updates.",
     inputSchema: {
-      function_id: z.number().describe("Function ID from list_functions"),
+      function_id: positiveIdSchema.describe("Function ID from list_functions"),
       ...functionFieldsSchema,
       acknowledge_unreadable_replacement: z.boolean().optional().describe(
         "Explicit customer approval to replace code or environment named by integrity.unreadable_fields; default false"
@@ -5604,7 +5625,7 @@ server.registerTool(
   async ({ function_id, ...input }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/firecracker/functions/${function_id}`,
+      `/account/firecracker/functions/${encodeURIComponent(String(function_id))}`,
       functionBodyFromInput(input as Record<string, unknown>)
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -5616,13 +5637,13 @@ server.registerTool(
   {
     description: "Delete a Firecracker Function.",
     inputSchema: {
-      function_id: z.number().describe("Function ID from list_functions"),
+      function_id: positiveIdSchema.describe("Function ID from list_functions"),
     },
   },
   async ({ function_id }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/firecracker/functions/${function_id}`
+      `/account/firecracker/functions/${encodeURIComponent(String(function_id))}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5634,7 +5655,7 @@ server.registerTool(
     description:
       "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations. One Idempotency-Key is generated per tool call unless idempotency_key is supplied; reuse an explicit key only for an exact retry so the same logical step is not double-run or double-billed (response may include replayed=true).",
     inputSchema: {
-      function_id: z.number().describe("Function ID from list_functions"),
+      function_id: positiveIdSchema.describe("Function ID from list_functions"),
       input: z
         .string()
         .optional()
@@ -5661,7 +5682,7 @@ server.registerTool(
     const key = idempotency_key ?? randomUUID();
     const { data } = await apiRequest(
       "POST",
-      `/account/firecracker/functions/${function_id}/invoke`,
+      `/account/firecracker/functions/${encodeURIComponent(String(function_id))}/invoke`,
       body,
       { "Idempotency-Key": key }
     );
@@ -5674,13 +5695,13 @@ server.registerTool(
   {
     description: "List invocations of a Firecracker Function with status, duration, and cost.",
     inputSchema: {
-      function_id: z.number().describe("Function ID from list_functions"),
+      function_id: positiveIdSchema.describe("Function ID from list_functions"),
     },
   },
   async ({ function_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/firecracker/functions/${function_id}/invocations`
+      `/account/firecracker/functions/${encodeURIComponent(String(function_id))}/invocations`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5691,14 +5712,14 @@ server.registerTool(
   {
     description: "Get one invocation of a Firecracker Function including output/logs and usage cost.",
     inputSchema: {
-      function_id: z.number().describe("Function ID from list_functions"),
-      invocation_id: z.string().describe("Invocation ID from list_function_invocations"),
+      function_id: positiveIdSchema.describe("Function ID from list_functions"),
+      invocation_id: invocationIdSchema.describe("Invocation ID from list_function_invocations"),
     },
   },
   async ({ function_id, invocation_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/firecracker/functions/${function_id}/invocations/${encodeURIComponent(invocation_id)}`
+      `/account/firecracker/functions/${encodeURIComponent(String(function_id))}/invocations/${encodeURIComponent(invocation_id)}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6007,11 +6028,11 @@ server.registerTool(
   {
     description: "Get a DNS zone and desired records. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
-    const { data } = await apiRequest("GET", `/account/dns/zones/${zone_id}`);
+    const { data } = await apiRequest("GET", `/account/dns/zones/${encodeURIComponent(String(zone_id))}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6022,13 +6043,13 @@ server.registerTool(
     description:
       "Run customer-facing DNS health diagnostics for a zone: delegation, public SOA, DNSSEC signal, and common record hygiene checks. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/dns/zones/${zone_id}/diagnostics`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/diagnostics`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6040,13 +6061,13 @@ server.registerTool(
     description:
       "Export a native forward DNS zone's desired-state records as a BIND-style zone file. System-managed SOA/apex NS/DNSSEC wire records and PTR/reverse DNS are not exported here. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/dns/zones/${zone_id}/export`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/export`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6058,7 +6079,7 @@ server.registerTool(
     description:
       "Import BIND-style forward DNS records into a native zone. Set replace=true to replace non-system desired-state records; false upserts imported records. PTR/reverse DNS, SOA, DNSSEC wire records, apex NS, and LUA are skipped or rejected by the API. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
       zonefile: z
         .string()
         .min(1)
@@ -6073,7 +6094,7 @@ server.registerTool(
   async ({ zone_id, zonefile, replace }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/dns/zones/${zone_id}/import`,
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/import`,
       {
         zonefile,
         ...(replace !== undefined ? { replace } : {}),
@@ -6089,13 +6110,13 @@ server.registerTool(
     description:
       "List backend-defined DNS record templates for a native forward zone, such as web service, Google Workspace, Microsoft 365, mail security, Null MX and CAA lockdown. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/dns/zones/${zone_id}/templates`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/templates`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6107,9 +6128,8 @@ server.registerTool(
     description:
       "Apply a backend-defined DNS template to a native forward zone. Records still pass the same API validation, quotas and conflict rules as manual record writes. Prefer preview=true first to show the user exactly which records a template would write before changing the zone. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
-      template: z
-        .string()
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
+      template: dnsTemplateIdSchema
         .describe("Template ID returned by list_dns_templates, e.g. web_service, null_mx, google_workspace, microsoft_365, mail_security, caa_letsencrypt"),
       parameters: z
         .record(z.union([z.string(), z.number(), z.boolean()]))
@@ -6132,7 +6152,7 @@ server.registerTool(
   async ({ zone_id, template, parameters, preview, overwrite }) => {
     const { data } = await apiRequest(
       "POST",
-      `/account/dns/zones/${zone_id}/templates/${encodeURIComponent(template)}`,
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/templates/${encodeURIComponent(template)}`,
       {
         ...(parameters !== undefined ? { parameters } : {}),
         ...(preview !== undefined ? { preview } : {}),
@@ -6149,11 +6169,11 @@ server.registerTool(
     description:
       "Delete a forward DNS zone. Published zones are queued for removal from the managed DNS platform. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
-    const { data } = await apiRequest("DELETE", `/account/dns/zones/${zone_id}`);
+    const { data } = await apiRequest("DELETE", `/account/dns/zones/${encodeURIComponent(String(zone_id))}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6164,11 +6184,11 @@ server.registerTool(
     description:
       "Check the zone's ownership TXT value (_vpsnet-dns.<zone>) and publish the zone when it matches: publicly, or served authoritatively by the nameservers the parent zone delegated the name to when the zone was created (the previous DNS provider) - so a domain already pointed at ns1/ns2.vpsnet.com is verified by adding the TXT at the previous provider, never by moving the nameservers back. Delegation to VPSnet nameservers alone is never proof. A refusal (verificationMissing) returns verification.checks (every place checked and what was found) and verification.next_step: add_txt | add_txt_at_previous_provider | add_txt_in_parent_zone | contact_support (only VPSnet support can confirm the domain; the zone is kept, not deleted, while the domain points at VPSnet). lookupUnavailable (HTTP 503) means the platform could not run the DNS check - retry later; it is not a missing record. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
-    const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/verify`);
+    const { data } = await apiRequest("POST", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/verify`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6179,11 +6199,11 @@ server.registerTool(
     description:
       "Replace a pending DNS zone's ownership TXT value when the one returned by create_dns_zone was lost (only its hash is stored). Returns the new value once in verificationRecord; the previous value stops being accepted, so the TXT record must be updated to the new value. Only for zones in pending_verification. Rate limited to 5 per minute. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
-    const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/verification/reissue`);
+    const { data } = await apiRequest("POST", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/verification/reissue`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6194,11 +6214,11 @@ server.registerTool(
     description:
       "Get DNSSEC state and public DNSKEY/DS material for a native DNS zone. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
-    const { data } = await apiRequest("GET", `/account/dns/zones/${zone_id}/dnssec`);
+    const { data } = await apiRequest("GET", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/dnssec`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6209,7 +6229,7 @@ server.registerTool(
     description:
       "Enable or disable DNSSEC signing for a native DNS zone. If parent DS records still exist outside VPSNet, remove them first and set parent_ds_removed=true before disabling signing. Secondary-zone DNSSEC is controlled on the primary server. Requires dnssec:manage when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
       enabled: z.boolean().describe("true to enable/sign the zone, false to disable/remove signing"),
       parent_ds_removed: z
         .boolean()
@@ -6218,7 +6238,7 @@ server.registerTool(
     },
   },
   async ({ zone_id, enabled, parent_ds_removed }) => {
-    const { data } = await apiRequest("POST", `/account/dns/zones/${zone_id}/dnssec`, {
+    const { data } = await apiRequest("POST", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/dnssec`, {
       enabled,
       parent_ds_removed,
     });
@@ -6232,7 +6252,7 @@ server.registerTool(
     description:
       "Create or replace a forward DNS record in desired state for a native zone. PTR and *.arpa are rejected; use change_rdns for reverse DNS. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
       name: z
         .string()
         .describe("Record name. Use @ for apex, or a relative name inside the zone."),
@@ -6255,7 +6275,7 @@ server.registerTool(
     if (comment !== undefined) body.comment = comment;
     const { data } = await apiRequest(
       "POST",
-      `/account/dns/zones/${zone_id}/records`,
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/records`,
       body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -6268,8 +6288,8 @@ server.registerTool(
     description:
       "Edit an existing forward DNS record by its ID (PUT) — change value, TTL, or comment without replacing it. System-managed records cannot be edited. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
-      record_id: z.number().describe("DNS record ID to update"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
+      record_id: positiveIdSchema.describe("DNS record ID to update"),
       name: z
         .string()
         .describe("Record name. Use @ for apex, or a relative name inside the zone."),
@@ -6292,7 +6312,7 @@ server.registerTool(
     if (comment !== undefined) body.comment = comment;
     const { data } = await apiRequest(
       "PUT",
-      `/account/dns/zones/${zone_id}/records/${record_id}`,
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/records/${encodeURIComponent(String(record_id))}`,
       body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -6305,14 +6325,14 @@ server.registerTool(
     description:
       "Delete a forward DNS record from desired state. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
-      record_id: z.number().describe("DNS record ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
+      record_id: positiveIdSchema.describe("DNS record ID"),
     },
   },
   async ({ zone_id, record_id }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/dns/zones/${zone_id}/records/${record_id}`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/records/${encodeURIComponent(String(record_id))}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6337,13 +6357,13 @@ server.registerTool(
     description:
       "Get the recent change history for a DNS zone and its records (action, record, who, when). Useful for auditing what changed. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/dns/zones/${zone_id}/history`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/history`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6354,13 +6374,13 @@ server.registerTool(
   {
     description: "List DNS updater tokens for a DNS zone (DDNS A/AAAA and ACME DNS-01 TXT). Returned data never includes the full token value. Requires dns:read when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/dns/zones/${zone_id}/ddns-tokens`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/ddns-tokens`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6372,7 +6392,7 @@ server.registerTool(
     description:
       "Create a narrow DNS updater token for one hostname/pattern inside a verified customer-owned zone. purpose=ddns allows A/AAAA updater use; purpose=acme allows TXT only under _acme-challenge for DNS-01. Set allow_from to restrict updater source IPs/CIDRs. The full token is returned once. Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
       purpose: z
         .enum(["ddns", "acme"])
         .optional()
@@ -6407,7 +6427,7 @@ server.registerTool(
     if (expires_at) body.expires_at = expires_at;
     const { data } = await apiRequest(
       "POST",
-      `/account/dns/zones/${zone_id}/ddns-tokens`,
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/ddns-tokens`,
       body
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
@@ -6419,14 +6439,14 @@ server.registerTool(
   {
     description: "Revoke a DNS updater token (DDNS or ACME). Requires dns:write when using an API key.",
     inputSchema: {
-      zone_id: z.number().describe("DNS zone ID"),
-      token_id: z.number().describe("DDNS token ID"),
+      zone_id: positiveIdSchema.describe("DNS zone ID"),
+      token_id: positiveIdSchema.describe("DDNS token ID"),
     },
   },
   async ({ zone_id, token_id }) => {
     const { data } = await apiRequest(
       "DELETE",
-      `/account/dns/zones/${zone_id}/ddns-tokens/${token_id}`
+      `/account/dns/zones/${encodeURIComponent(String(zone_id))}/ddns-tokens/${encodeURIComponent(String(token_id))}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6439,11 +6459,11 @@ server.registerTool(
   {
     description: "List invoices with pagination",
     inputSchema: {
-      page: z.number().optional().describe("Page number"),
+      page: positiveIdSchema.optional().describe("Page number"),
     },
   },
   async ({ page }) => {
-    const query = page ? `?page=${page}` : "";
+    const query = page ? `?page=${encodeURIComponent(String(page))}` : "";
     const { data } = await apiRequest(
       "GET",
       `/account/history/invoices${query}`
@@ -6457,13 +6477,13 @@ server.registerTool(
   {
     description: "Get a specific invoice by hash",
     inputSchema: {
-      hash: z.string().describe("Invoice hash"),
+      hash: invoiceHashSchema.describe("Invoice hash from list_invoices"),
     },
   },
   async ({ hash }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/history/invoices/${hash}`
+      `/account/history/invoices/${encodeURIComponent(hash)}`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -6474,11 +6494,11 @@ server.registerTool(
   {
     description: "List payment history with pagination",
     inputSchema: {
-      page: z.number().optional().describe("Page number"),
+      page: positiveIdSchema.optional().describe("Page number"),
     },
   },
   async ({ page }) => {
-    const query = page ? `?page=${page}` : "";
+    const query = page ? `?page=${encodeURIComponent(String(page))}` : "";
     const { data } = await apiRequest(
       "GET",
       `/account/history/payments${query}`
@@ -6522,16 +6542,13 @@ server.registerTool(
     description:
       "Get itemized usage-billing statements for the account (per-period totals by family, e.g. Firecracker Functions usage, VDS snapshots, AI premium). This is where metered/usage-based charges show up, separate from invoices. Paginated.",
     inputSchema: {
-      page: z
-        .number()
-        .int()
-        .positive()
+      page: positiveIdSchema
         .optional()
         .describe("Page number for pagination (default 1)"),
     },
   },
   async ({ page }) => {
-    const query = page !== undefined ? `?page=${page}` : "";
+    const query = page !== undefined ? `?page=${encodeURIComponent(String(page))}` : "";
     const { data } = await apiRequest(
       "GET",
       `/account/history/usage-statements${query}`
@@ -6555,7 +6572,7 @@ server.registerTool(
   async ({ type }) => {
     const { data } = await apiRequest(
       "GET",
-      `/public/prices/${type}/plans`
+      `/public/prices/${encodeURIComponent(type)}/plans`
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }

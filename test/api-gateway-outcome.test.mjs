@@ -36,7 +36,7 @@ test("MCP distinguishes lost mutation responses from GET and reviewed POST reads
   t.after(async () => client.close());
   async function call(name, args) {
     const result = await client.callTool({ name, arguments: args });
-    assert.notEqual(result.isError, true);
+    assert.equal(result.isError, true);
     return JSON.parse(result.content[0].text);
   }
 

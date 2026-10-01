@@ -897,6 +897,12 @@ This server needs a **management** API key. Every failure below is reported by
 the tools with an `auth_problem` object containing the cause and the fix, so
 read that rather than guessing from the HTTP status.
 
+Tool failures carry `isError: true` while preserving the API error details and
+recovery guidance. Unknown mutation outcomes must be checked before another
+attempt. Service order numbers must be copied from `list_services`; ASCII
+letters, digits, and hyphens are supported, including multi-order suffixes.
+Malformed or oversized URL identifiers are rejected before an API request.
+
 | What you see | What it means | Fix |
 |---|---|---|
 | `aiScopedApiKeyCannotManageAccount` (403) | The key is an **AI-scoped key**. Those are issued only for VPSnet AI assistant inference and are deliberately refused on the entire account API. Granting scopes cannot change this — the restriction is on the key type. | Create a separate key with scope `full` (or `read` for GET-only use) and use that here. Keep the AI-scoped key for inference. |

@@ -24,6 +24,7 @@ export const fileBrowsePointIdSchema = z
   .number()
   .int()
   .positive()
+  .max(Number.MAX_SAFE_INTEGER)
   .describe("Backup point ID returned by list_restore_file_points");
 
 export const fileBrowseIdSchema = z

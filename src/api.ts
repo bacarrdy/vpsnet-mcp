@@ -1,5 +1,6 @@
 import { annotateAuthFailure } from "./auth-failure.js";
 import { createApiConfiguration } from "./api-configuration.js";
+import { validateApiPath } from "./api-path.js";
 
 const DEFAULT_API_TIMEOUT_MS = 45_000;
 const configuration = createApiConfiguration(process.env, process.cwd());
@@ -99,6 +100,10 @@ export async function apiRequest(
   // Explicitly annotate reviewed POST reads; other non-read methods fail closed.
   semantics?: { readOnly: true }
 ): Promise<{ status: number; data: unknown }> {
+  if (!["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    throw new Error("Invalid VPSnet API request method.");
+  }
+  validateApiPath(path);
   const url = `${resolveApiBase()}${path}`;
   const headers: Record<string, string> = {
     "X-API-KEY": resolveApiKey(),
