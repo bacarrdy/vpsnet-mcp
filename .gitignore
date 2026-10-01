@@ -2,7 +2,14 @@ node_modules/
 build/
 .mcp.json
 .env
+.env.*
 .npmrc
+.npmrc.*
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
 
 # API key sidecar — never commit a live key
 .vpsnet-mcp-key

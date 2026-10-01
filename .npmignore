@@ -1,0 +1,26 @@
+# package.json also explicitly allows only the compiled runtime modules.
+# Never publish local credentials, configuration, keys, or audit material.
+.env
+.env.*
+.npmrc
+.npmrc.*
+.mcp.json
+.vpsnet-mcp-key*
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+.ssh/
+.git/
+.worktrees/
+node_modules/
+src/
+test/
+tests/
+audit/
+coverage/
+*.log
+*.map
+*.tgz

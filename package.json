@@ -13,7 +13,16 @@
     "prepublishOnly": "npm run build"
   },
   "files": [
-    "build"
+    "build/api-configuration.js",
+    "build/api.js",
+    "build/application-contract.js",
+    "build/auth-failure.js",
+    "build/certificate-contract.js",
+    "build/custom-project-contract.js",
+    "build/file-restore-contract.js",
+    "build/index.js",
+    "build/service-rescue-contract.js",
+    "build/temp-vm-contract.js"
   ],
   "repository": "github:bacarrdy/vpsnet-mcp",
   "homepage": "https://github.com/bacarrdy/vpsnet-mcp",
