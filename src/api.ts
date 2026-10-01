@@ -95,7 +95,9 @@ export async function apiRequest(
   method: string,
   path: string,
   body?: Record<string, unknown>,
-  extraHeaders?: Record<string, string>
+  extraHeaders?: Record<string, string>,
+  // Explicitly annotate reviewed POST reads; other non-read methods fail closed.
+  semantics?: { readOnly: true }
 ): Promise<{ status: number; data: unknown }> {
   const url = `${resolveApiBase()}${path}`;
   const headers: Record<string, string> = {
@@ -141,14 +143,20 @@ export async function apiRequest(
   }
 
   if (res.ok === false) {
-    if (parsed === false) {
+    if (parsed === false || (text.trim() === "" && [502, 503, 504].includes(res.status))) {
       // Not an API answer at all: an HTML or plain-text page from the web
       // server in front of the API (an IP allowlist 403, a 502 from an
       // overloaded upstream). Never hand that page to the model as if it were
       // the API speaking; say what happened, with the status, in one line.
       return {
         status: res.status,
-        data: describeNonApiResponse(res.status, res.headers.get("content-type"), text, new URL(url).host),
+        data: describeNonApiResponse(
+          res.status,
+          res.headers.get("content-type"),
+          text,
+          new URL(url).host,
+          semantics?.readOnly === true || ["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())
+        ),
       };
     }
 
@@ -168,7 +176,8 @@ export function describeNonApiResponse(
   status: number,
   contentType: string | null,
   body: string,
-  host: string
+  host: string,
+  readOnly = false
 ): Record<string, unknown> {
   const isHtml = /html/i.test(contentType || "") || /^\s*</.test(body);
   const excerpt = body
@@ -178,15 +187,20 @@ export function describeNonApiResponse(
     .slice(0, 160);
 
   let reason: string;
+  const gatewayFailure = status === 502 || status === 503 || status === 504;
   if (status === 403 && isHtml) {
     reason =
       `HTTP 403 from the web server in front of ${host}, not from the VPSnet API: ` +
       "the address this MCP server calls from is not allowed to reach this host " +
       "(IP allowlist). Run the MCP server from an allowed address, or ask for the address to be allowed.";
-  } else if (status === 502 || status === 503 || status === 504) {
+  } else if (gatewayFailure) {
     reason =
-      `HTTP ${status} from the web server in front of ${host}: the API did not answer in time. ` +
-      "Nothing is known to have changed; retry after a short pause.";
+      `HTTP ${status} from the web server in front of ${host}: no conclusive API response was received. ` +
+      (readOnly
+        ? "This read-only request can be retried after a short pause."
+        : "The request outcome is unknown. Do not automatically repeat it. " +
+          "Inspect the current resource state or any returned event/status first. " +
+          "If the operation supports idempotency, follow its recovery contract using the original key and unchanged payload; do not create a new key.");
   } else if (status === 404) {
     reason =
       `HTTP 404 from ${host}: no such route. The API may be older or newer than this MCP server build.`;
@@ -199,6 +213,10 @@ export function describeNonApiResponse(
     error: reason,
     http_status: status,
     non_api_response: true,
+    ...(gatewayFailure ? {
+      outcome_unknown: !readOnly,
+      retry_guidance: readOnly ? "retry_read" : "inspect_state_before_retry",
+    } : {}),
     ...(excerpt ? { body_excerpt: excerpt } : {}),
   };
 }

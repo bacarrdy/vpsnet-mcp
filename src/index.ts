@@ -2781,7 +2781,9 @@ server.registerTool(
     const { data } = await apiRequest(
       "POST",
       svc(orderNo, "plans-options/calculate"),
-      { plan, resources }
+      { plan, resources },
+      undefined,
+      { readOnly: true }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
