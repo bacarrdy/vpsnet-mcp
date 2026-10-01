@@ -71,9 +71,9 @@ test("API-key tools expose only operations supported by API-key authentication",
   assert.match(source, /server\.registerTool\(\s*"get_api_key"/);
   assert.match(source, /server\.registerTool\(\s*"get_api_key_activity"/);
   assert.match(source, /server\.registerTool\(\s*"get_api_key_inference_usage"/);
-  assert.match(source, /"GET",\s*`\/account\/api-keys\/\$\{id\}`/);
-  assert.match(source, /`\/account\/api-keys\/\$\{id\}\/activity\$\{query\}`/);
-  assert.match(source, /`\/account\/api-keys\/\$\{id\}\/inference-usage`/);
+  assert.match(source, /"GET",\s*`\/account\/api-keys\/\$\{encodeURIComponent\(String\(id\)\)\}`/);
+  assert.match(source, /`\/account\/api-keys\/\$\{encodeURIComponent\(String\(id\)\)\}\/activity\$\{query\}`/);
+  assert.match(source, /`\/account\/api-keys\/\$\{encodeURIComponent\(String\(id\)\)\}\/inference-usage`/);
   assert.match(source, /\.min\(1\)\.max\(200\)\.optional\(\)/);
   assert.match(source, /audit writes are capped per key per minute/);
   assert.match(source, /retained detail has a separate per-key row ceiling/);

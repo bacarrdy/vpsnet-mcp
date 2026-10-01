@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "type": "module",
   "description": "MCP server for managing VPSnet.com services, applications, DNS, domains, billing, and server lifecycle operations",
   "bin": {
@@ -22,7 +22,9 @@
     "build/file-restore-contract.js",
     "build/index.js",
     "build/service-rescue-contract.js",
-    "build/temp-vm-contract.js"
+    "build/temp-vm-contract.js",
+    "build/api-path.js",
+    "build/tool-result.js"
   ],
   "repository": "github:bacarrdy/vpsnet-mcp",
   "homepage": "https://github.com/bacarrdy/vpsnet-mcp",
