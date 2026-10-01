@@ -68,5 +68,5 @@ test("API timeouts cover headers and body, and later requests recover", async (t
   assert.equal(plain.data.http_status, 502);
   assert.equal(plain.data.non_api_response, true);
   assert.equal(plain.data.body_excerpt, "upstream unavailable");
-  assert.match(plain.data.error, /^HTTP 502 .*retry after a short pause/);
+  assert.match(plain.data.error, /^HTTP 502 .*read-only request can be retried after a short pause/);
 });
