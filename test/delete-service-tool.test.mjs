@@ -15,7 +15,11 @@ test("delete_service cannot be called without the user's confirmation", () => {
   const start = source.indexOf('"delete_service"');
   const block = source.slice(start, source.indexOf("// --- Service Settings ---"));
   assert.match(block, /confirmed:\s*z\s*\.literal\(true\)/);
-  assert.match(block, /if \(confirmed !== true\)/);
+  // The literal is the guard: no dead runtime check behind it, and the handler
+  // does not even read `confirmed`.
+  assert.doesNotMatch(block, /confirmed !== true/);
+  assert.match(block, /async \(\{ orderNo \}\) =>/);
+  assert.match(block, /renewalPending/);
   assert.match(block, /destructiveHint: true/);
   assert.match(block, /serviceStillPaid/);
 });
