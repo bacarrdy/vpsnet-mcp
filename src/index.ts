@@ -2436,7 +2436,7 @@ server.registerTool(
   "delete_service",
   {
     description:
-      "Permanently delete one of the customer's own EXPIRED services now, instead of waiting for the quarantine to end. Only an expired Cloud VPS, Firecracker VPS or VPS service is accepted; the data is destroyed and cannot be recovered, and nothing is refunded because nothing is owed. A service that still has paid time (running, stopped or suspended) is refused with serviceStillPaid; dedicated servers are refused with dedicatedDeleteUnavailable; a service with an action in progress is refused with actionInProgress. Confirm the exact service with the user first and set confirmed=true. Returns deleted=true when the removal already finished, otherwise deleting=true (it completes within about an hour); repeating the call is safe. Requires services:manage and a full-access API key.",
+      "Permanently delete one of the customer's own EXPIRED services now, instead of waiting for the quarantine to end. Only an expired Cloud VPS, Firecracker VPS or VPS service is accepted; the data is destroyed and cannot be recovered, and nothing is refunded because nothing is owed. A service that still has paid time (running, stopped or suspended) is refused with serviceStillPaid; dedicated servers are refused with dedicatedDeleteUnavailable; a service with an action in progress is refused with actionInProgress; a service with a renewal payment still pending is refused with renewalPending. Confirm the exact service with the user first and set confirmed=true. Returns deleted=true when the removal already finished, otherwise deleting=true (it completes within about an hour); repeating the call is safe. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       confirmed: z
@@ -2452,21 +2452,8 @@ server.registerTool(
       idempotentHint: true,
     },
   },
-  async ({ orderNo, confirmed }) => {
-    if (confirmed !== true) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: formatJson({
-              success: false,
-              error_codes: ["deleteNotConfirmed"],
-            }),
-          },
-        ],
-      };
-    }
+  // `confirmed` is z.literal(true): the schema rejects anything else before this runs.
+  async ({ orderNo }) => {
     const { data } = await apiRequest("POST", svc(orderNo, "delete"), {
       confirmDelete: true,
     });
