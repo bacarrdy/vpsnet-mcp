@@ -54,7 +54,7 @@ async function harness(t) {
 
 test("every service tool rejects malformed order numbers before HTTP", async (t) => {
   const { client, requests, tools } = await harness(t);
-  assert.equal(tools.length, 197);
+  assert.equal(tools.length, 198);
   const serviceTools = tools.filter((tool) => tool.inputSchema.properties?.orderNo);
   assert.ok(serviceTools.length > 60);
   for (const tool of serviceTools) {

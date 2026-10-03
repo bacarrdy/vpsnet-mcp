@@ -573,6 +573,7 @@ Every error result carries `http_status`; a `429` also carries `retry_after`.
 | `console_service` | Request an out-of-band console session for a running VPS |
 | `suspend_service` | Suspend a running Cloud VPS |
 | `resume_service` | Resume a suspended Cloud VPS |
+| `delete_service` | Permanently delete the customer's own expired service now (expired only) |
 
 ### Service Settings
 | Tool | Description |
