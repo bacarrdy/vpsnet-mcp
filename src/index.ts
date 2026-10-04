@@ -2716,7 +2716,7 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Requires services:manage and a full-access API key.",
+      "Reinstall OS on VPS or a dedicated server. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS and Dedicated have no snapshots. VPS acceptance returns a noty UUID; dedicated acceptance returns a reinstall job ID in the reinstall field (HTTP 202), not a noty event or proof of completion. Follow get_service_history for progress. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. DEDICATED servers: key login only (no root password; sshKeyId optional, the server's current key is kept otherwise), osVersion must be one of get_os_options for that server, and confirmDataLoss must be true after the user has confirmed that everything on all server disks will be erased; the reinstall takes several minutes. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       osVersion: z
@@ -2726,7 +2726,19 @@ server.registerTool(
         .string()
         .optional()
         .describe(
-          "New root password (auto-generated if omitted). 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit"
+          "New root password (auto-generated if omitted). 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Not accepted for dedicated servers."
+        ),
+      sshKeyId: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("SSH key ID from list_ssh_keys. Dedicated servers: optional, the current key is kept if omitted."),
+      confirmDataLoss: z
+        .boolean()
+        .optional()
+        .describe(
+          "Dedicated servers only: must be true, set only after the user confirmed that everything on all server disks will be erased."
         ),
       confirmSnapshotDelete: z
         .boolean()
@@ -2736,9 +2748,11 @@ server.registerTool(
         ),
     },
   },
-  async ({ orderNo, osVersion, rootPassword, confirmSnapshotDelete }) => {
+  async ({ orderNo, osVersion, rootPassword, sshKeyId, confirmDataLoss, confirmSnapshotDelete }) => {
     const body: Record<string, unknown> = { osVersion };
     if (rootPassword) body.rootPassword = rootPassword;
+    if (sshKeyId !== undefined) body.sshKey = sshKeyId;
+    if (confirmDataLoss === true) body.confirmReinstall = true;
     if (confirmSnapshotDelete === true) body.confirmSnapshotDelete = true;
     const { data } = await apiRequest(
       "POST",

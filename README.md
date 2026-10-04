@@ -595,7 +595,7 @@ Every error result carries `http_status`; a `429` also carries `retry_after`.
 | Tool | Description |
 |------|-------------|
 | `get_os_options` | Get available OS templates |
-| `reinstall_os` | Reinstall VPS OS (destroys existing data). Cloud/Firecracker VPS also delete existing snapshots and require explicit `confirmSnapshotDelete` when snapshots exist; those snapshots cannot provide rollback after reinstall. Returns a `noty` acceptance event; follow service history for completion. |
+| `reinstall_os` | Reinstall OS: VPS returns a `noty` event; dedicated returns a `reinstall` job ID. Dedicated erases all server disks and requires explicit `confirmDataLoss`. Cloud/Firecracker VPS also delete existing snapshots and require explicit `confirmSnapshotDelete` when snapshots exist; those snapshots cannot provide rollback after reinstall. |
 
 ### Plan Changes (free)
 | Tool | Description |

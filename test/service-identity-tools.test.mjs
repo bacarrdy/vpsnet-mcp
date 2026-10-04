@@ -96,3 +96,16 @@ test("API-key tools expose only operations supported by API-key authentication",
     /creation, changes, and revocation require a browser\/session login/
   );
 });
+
+test("reinstall_os can reinstall a dedicated server only with an explicit data-loss confirmation", () => {
+  const start = source.indexOf('"reinstall_os"');
+  const block = source.slice(start, source.indexOf("// --- Plan Change (FREE) ---"));
+  assert.match(block, /sshKeyId: z\s*\.number\(\)\s*\.int\(\)\s*\.positive\(\)\s*\.optional\(\)/);
+  assert.match(block, /confirmDataLoss: z\s*\.boolean\(\)\s*\.optional\(\)/);
+  // The confirmation is forwarded only when the caller said true; it is never defaulted on.
+  assert.match(block, /if \(confirmDataLoss === true\) body\.confirmReinstall = true;/);
+  assert.doesNotMatch(block, /confirmReinstall = confirmDataLoss/);
+  assert.match(block, /if \(sshKeyId !== undefined\) body\.sshKey = sshKeyId;/);
+  assert.match(block, /DEDICATED servers: key login only/);
+  assert.match(block, /get_service_history/);
+});
