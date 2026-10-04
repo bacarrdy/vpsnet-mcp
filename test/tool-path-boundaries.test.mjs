@@ -128,3 +128,15 @@ test("valid service formats and supported route segments retain their intended U
   await client.callTool({ name: "apply_dns_template", arguments: { zone_id: 1, template: "web_service", preview: true } });
   assert.equal(requests.at(-1).url, "/account/dns/zones/1/templates/web_service");
 });
+
+
+test("dedicated reinstall advertises all-disk erasure in tool and confirmation metadata", async (t) => {
+  const { tools, requests } = await harness(t);
+  const reinstall = tools.find((tool) => tool.name === "reinstall_os");
+  assert.ok(reinstall);
+  assert.match(reinstall.description, /everything on all server disks will be erased/);
+  assert.match(reinstall.inputSchema.properties.confirmDataLoss.description, /everything on all server disks will be erased/);
+  assert.doesNotMatch(reinstall.description, /system disk will be erased/);
+  assert.equal(reinstall.inputSchema.properties.confirmDataLoss.default, undefined);
+  assert.equal(requests.length, 0, "reading the destructive-operation contract must not invoke the API");
+});
