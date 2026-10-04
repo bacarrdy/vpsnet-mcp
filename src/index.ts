@@ -7,6 +7,7 @@ import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
 import { installToolResultErrorFlag } from "./tool-result.js";
+import { explainDedicatedReadiness } from "./dedicated-readiness.js";
 import {
   applicationAccessConfigurationRequestBody,
   applicationAccessSchema,
@@ -547,7 +548,7 @@ server.registerTool(
   "get_service",
   {
     description:
-      "Get detailed info for a service by order number. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
+      "Get detailed info for a service by order number. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Dedicated (ds) servers: ipsSource/osSource and facts.source say whether addresses and OS are installed facts ('installation', verified by the installer) or only what was ordered ('catalogue', facts.asOrdered=true) - never present catalogue values as delivered facts. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2348,7 +2349,7 @@ server.registerTool(
 server.registerTool(
   "start_service",
   {
-    description: "Start a stopped VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
+    description: "Start a stopped VPS. Not for dedicated (ds) servers: their power actions use a separate dedicated endpoint this server does not expose, so do not call this for a ds order. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2362,7 +2363,7 @@ server.registerTool(
 server.registerTool(
   "stop_service",
   {
-    description: "Stop a running VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
+    description: "Stop a running VPS. Not for dedicated (ds) servers: their power actions use a separate dedicated endpoint this server does not expose, so do not call this for a ds order. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2376,7 +2377,7 @@ server.registerTool(
 server.registerTool(
   "restart_service",
   {
-    description: "Restart a VPS. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
+    description: "Restart a VPS. Not for dedicated (ds) servers: their power actions use a separate dedicated endpoint this server does not expose, so do not call this for a ds order. Returns a numeric event id; follow it with wait_for_event. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2391,7 +2392,7 @@ server.registerTool(
   "console_service",
   {
     description:
-      "Open VNC console access to a running VPS. Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running. Requires services:manage and a full-access API key.",
+      "Open VNC console access to a running VPS (not for dedicated ds servers: their console uses a separate dedicated endpoint this server does not expose). Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2961,7 +2962,7 @@ server.registerTool(
   "get_order_options",
   {
     description:
-      "Get configurable options (OS, resources, periods) for a plan",
+      "Get configurable options (OS, resources, periods) for a plan. For a dedicated (ds) plan the answer also carries catalog and, when it cannot be ordered, availability { status: 'unavailable', reason: 'dedicated_sold_out' | 'dedicated_preparation_unavailable' }: do not offer such a plan as orderable.",
     inputSchema: {
       plan: positiveIdSchema.describe("Plan ID from get_order_plans"),
     },
@@ -2979,12 +2980,13 @@ server.registerTool(
   "order_service",
   {
     description: [
-      "Order a new VPS. Requires sufficient account balance for balance payment.",
+      "Order a new service (Container VPS, Cloud VPS, Firecracker VPS or dedicated server). Requires sufficient account balance for balance payment.",
       "Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }.",
       "API-key orders first call the server quote endpoint, then confirm with the returned quoteToken. The API key must have paid scope/caps enabled.",
       "Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other.",
+      "DEDICATED (ds): an SSH key is REQUIRED (key login only; rootPassword is not supported) and the key needs the ds:order paid scope. Check get_order_options(plan).availability first: status 'unavailable' means sold out or not prepared. The readiness gate runs at confirm, after the quote: a refusal comes back as HTTP 503 with dedicatedPreparationUnavailable and a typed readinessReason (e.g. customer_network_not_ready, stock_qualification_missing, stock_not_available, order_input_invalid), explained in dedicated_readiness. It happens before payment: nothing is charged and no server is reserved. Report the reason; never present it as a generic failure or retry blindly.",
     ].join(" "),
     inputSchema: {
       plan: positiveIdSchema.describe("Plan ID from get_order_plans"),
@@ -3008,8 +3010,8 @@ server.registerTool(
         .describe(
           "Array of numeric resource value IDs from get_order_options, e.g. [901, 907, 902]"
         ),
-      idempotencyKey: idempotencyKeySchema.describe(
-        "Required for paid API-key orders. Stable unique key for this exact order attempt, e.g. UUID."
+      idempotencyKey: paidIdempotencyKeySchema.describe(
+        "Required for paid API-key orders. Stable unique key (at least 16 characters, the API refuses shorter ones) for this exact order attempt, e.g. UUID."
       ),
       payment: z
         .object({
@@ -3056,7 +3058,7 @@ server.registerTool(
       body,
       { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    return { content: [{ type: "text", text: formatJson(explainDedicatedReadiness(data)) }] };
   }
 );
 
