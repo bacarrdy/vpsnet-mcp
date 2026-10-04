@@ -244,7 +244,7 @@ const server = new McpServer(
       "",
       "## Snapshots, restore and Firecracker Functions",
       "VPS product facts (unordered): 'firecracker' is VPS using Firecracker microVMs for Linux workloads; 'vds' is Cloud VPS (KVM) with High Availability, replicated Ceph NVMe storage, and Linux/Windows/BSD support; 'vps' is Container VPS using container virtualization; 'ds' is a dedicated single-tenant server. Match the user's requirements and returned plan capabilities; list position is not a recommendation. Snapshot tools: Cloud VPS uses list/create/rollback/delete_snapshot; Firecracker VPS uses the *_firecracker_snapshot tools (temporary: free window, then billed per GB while kept, auto-expire). Firecracker Functions is a separate usage-billed service with create/update/invoke/list tools, not part of ordering or managing a VPS, Cloud VPS, or Dedicated service.",
-      "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before any risky, destructive, or automated change (reinstall, rollback, bulk edits, unattended scripts) — it's free for an initial window, so it's cheap insurance you can roll back to. DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
+      "Snapshot-first is a default habit ON SERVICES THAT SUPPORT SNAPSHOTS — only Cloud VPS (vds) and Firecracker VPS have snapshots; Container VPS (vps) and Dedicated (ds) do NOT. Where supported, take a snapshot before risky changes such as bulk edits or unattended scripts — it's free for an initial window, so it's cheap insurance you can roll back to. OS reinstall is an exception: it deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion and obtain the user's explicit confirmation of snapshot deletion before setting reinstall_os.confirmSnapshotDelete to true. For other changes, DELETE the snapshot once the change succeeds and you no longer need it — after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire), so never leave snapshots lying around. For Container VPS and Dedicated (no snapshots), be extra careful with destructive actions since there is no rollback safety net.",
       "Snapshot rollback is DESTRUCTIVE (disk state after the snapshot is lost) — always confirm with the user first.",
       "Cloud VPS and Firecracker VPS have automatic daily off-node backups. Restoring is PAID: get_restore_status shows the price, list_restore_points shows points, request_restore charges the account balance immediately and overwrites the service disk — confirm point and price with the user first, then pass that disclosed get_restore_status total back as expected_total_charged together with both acknowledgements, so a price that moved is refused instead of charged. request_restore performs the server quote → confirm flow itself with one Idempotency-Key; API keys need services:read, full access, paid operations enabled, the services:restore paid scope, and spend caps.",
       "Looking INSIDE a backup is free and completely separate from paying to restore. list_restore_file_points, browse_restore_files, and get_restore_file_browse only read a backup's directory listing: they never charge the account, never overwrite the disk, and never restore a file. Browsing is asynchronous — poll get_restore_file_browse until state is succeeded. The server selects pages of 200 or 1,000 entries: keep paging with offset=result.nextOffset while nextOffset is non-null, use result.pageSize rather than assuming 200 when moving backwards, and say so when you are showing one page of a larger directory. Branch on result.listingStatus rather than on truncated alone — truncated=true with nextOffset=null is a legitimate capped scan (listingStatus 'partial'): that listing is a bounded slice that cannot be paged further, so present it as a lower bound instead of retrying. Folder search (the filter argument) needs a node capability that older workers lack; check searchAvailable from list_restore_file_points first. If search is unavailable the tool returns an error rather than an unfiltered listing — never present unfiltered entries as search results. Restoring selected files back onto the server is a paid operation that is not exposed here; direct the user to the VPSnet panel for it.",
@@ -2716,7 +2716,7 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys all data! If the service supports snapshots (Cloud VPS or Firecracker VPS), take one first — it's free for an initial window, so it's cheap insurance you can roll back to; then DELETE it once the reinstall succeeds, because after the free window it is billed per GB while kept (Cloud VPS snapshots do NOT auto-expire) — never leave snapshots lying around. Container VPS and Dedicated have no snapshots, so there is no rollback safety net — confirm with the user before reinstalling. Returns noty UUID. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Requires services:manage and a full-access API key.",
+      "Reinstall OS on VPS. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       osVersion: z
@@ -2728,11 +2728,18 @@ server.registerTool(
         .describe(
           "New root password (auto-generated if omitted). 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit"
         ),
+      confirmSnapshotDelete: z
+        .boolean()
+        .optional()
+        .describe(
+          "Cloud VPS and Firecracker VPS only: set true only after the user explicitly confirms deletion of the existing snapshots shown by get_os_options.snapshotDeletion. They cannot provide rollback after reinstall. Never inferred or enabled automatically."
+        ),
     },
   },
-  async ({ orderNo, osVersion, rootPassword }) => {
+  async ({ orderNo, osVersion, rootPassword, confirmSnapshotDelete }) => {
     const body: Record<string, unknown> = { osVersion };
     if (rootPassword) body.rootPassword = rootPassword;
+    if (confirmSnapshotDelete === true) body.confirmSnapshotDelete = true;
     const { data } = await apiRequest(
       "POST",
       svc(orderNo, "change-os"),
