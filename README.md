@@ -100,7 +100,9 @@ zones, each with `zone_id`, `name`, `action` and `approve_dns: true`. An empty
 `name` or `"@"` is the zone's bare domain, so `example.com` can sit next to
 `www.example.com`. `action` is `redirect` (default; a 301 to the main address
 that keeps the path and query) or `serve` (opens the same application). Adding
-or removing an additional address never changes the main address. Additional
+or removing an additional address never changes the main address. The list is
+the complete wanted set: an access change that omits `additional_addresses`
+removes the saved ones, so pass them again to keep them. Additional
 addresses are refused on every other access mode, and VPSnet charges nothing
 for them.
 

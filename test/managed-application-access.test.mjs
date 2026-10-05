@@ -252,4 +252,5 @@ test("configure application access tool description names the additional address
   assert.match(tool.description, /additional_addresses/);
   assert.match(tool.description, /bare domain/);
   assert.match(tool.description, /never changed/);
+  assert.match(tool.description, /omits additional_addresses removes the saved ones/);
 });
