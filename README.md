@@ -94,6 +94,16 @@ VPSnet-managed DNS zone. `external_https` records an existing customer-managed
 HTTPS address; VPSnet does not configure or validate its DNS, TLS certificate,
 or reverse proxy.
 
+A `managed_https` access may also list `additional_addresses` (up to 4 per
+endpoint, 8 per application): other names in the customer's own VPSnet DNS
+zones, each with `zone_id`, `name`, `action` and `approve_dns: true`. An empty
+`name` or `"@"` is the zone's bare domain, so `example.com` can sit next to
+`www.example.com`. `action` is `redirect` (default; a 301 to the main address
+that keeps the path and query) or `serve` (opens the same application). Adding
+or removing an additional address never changes the main address. Additional
+addresses are refused on every other access mode, and VPSnet charges nothing
+for them.
+
 `list_application_registry_credentials` exposes only private registry credential
 metadata. Registry token creation and rotation are intentionally not MCP tools:
 use the VPSnet panel or direct REST API so a token never enters a model prompt or

@@ -97,6 +97,26 @@ const externalHttpsUrlSchema = z.string().max(500).refine((value) => {
   }
 }, "External access must be a credential-free HTTPS URL without a query or fragment");
 
+/**
+ * An additional address of a managed_https endpoint: another name in one of the
+ * customer's own VPSnet DNS zones that leads to the same application. An empty
+ * name or "@" is the zone's bare domain (for example `example.com` next to
+ * `www.example.com`). `redirect` answers 301 to the main address and keeps the
+ * path and query; `serve` opens the same application. Wire shape: design
+ * app-additional-addresses-design-1005 section 2.3.
+ */
+export const applicationAdditionalAddressSchema = z.object({
+  zone_id: z.number().int().min(1),
+  name: z
+    .string()
+    .max(190)
+    .regex(
+      /^(?:@|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)?)$/
+    ),
+  action: z.enum(["redirect", "serve"]).default("redirect"),
+  approve_dns: z.literal(true),
+}).strict();
+
 export const applicationSingleAccessSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("platform_https") }).strict(),
   z.object({ mode: z.literal("private") }).strict(),
@@ -112,6 +132,10 @@ export const applicationSingleAccessSchema = z.discriminatedUnion("mode", [
         /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/
       ),
     approve_dns: z.literal(true),
+    additional_addresses: z
+      .array(applicationAdditionalAddressSchema)
+      .max(4)
+      .optional(),
   }).strict(),
 ]);
 
