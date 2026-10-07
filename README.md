@@ -633,7 +633,7 @@ Every error result carries `http_status`; a `429` also carries `retry_after`.
 |------|-------------|
 | `get_order_plans` | Get available plans for an explicitly selected service product |
 | `get_order_options` | Get configurable options for a plan |
-| `order_service` | Order a new VPS |
+| `order_service` | Order a new VPS (optionally attached to one of your private networks with `privateNetworkId`) |
 
 ### Backups
 | Tool | Description |
