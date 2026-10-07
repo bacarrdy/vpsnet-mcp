@@ -314,6 +314,10 @@ const serviceOrderNoSchema = z
   .describe("Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP88318 or VP88318-1");
 
 const positiveIdSchema = z.number().int().positive().max(Number.MAX_SAFE_INTEGER);
+// Same shape OrderPrivateNetworkAdmission::admit() accepts for an order-time network.
+const privateNetworkIdSchema = z
+  .string()
+  .regex(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 const snapshotNameSchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);
 const invocationIdSchema = z.string().min(1).max(64).regex(/^[A-Za-z0-9-]+$/);
 const invoiceHashSchema = z.string().min(1).max(64).regex(/^[A-Za-z0-9]+$/);
@@ -2971,6 +2975,7 @@ server.registerTool(
       "Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other.",
+      "privateNetworkId (optional): the UUID of one of your private networks to attach the new server to at order time, the same choice the order form offers; the server checks the network in the quote and refuses the order with a reason when it cannot be attached. Omit it for an order without a private network.",
     ].join(" "),
     inputSchema: {
       plan: positiveIdSchema.describe("Plan ID from get_order_plans"),
@@ -2994,6 +2999,11 @@ server.registerTool(
         .describe(
           "Array of numeric resource value IDs from get_order_options, e.g. [901, 907, 902]"
         ),
+      privateNetworkId: privateNetworkIdSchema
+        .optional()
+        .describe(
+          "UUID of one of your private networks to attach the new server to (shown in the control panel under Networking). Sent to both the quote and the confirm; omit for no private network"
+        ),
       idempotencyKey: idempotencyKeySchema.describe(
         "Required for paid API-key orders. Stable unique key for this exact order attempt, e.g. UUID."
       ),
@@ -3015,8 +3025,9 @@ server.registerTool(
         ),
     },
   },
-  async ({ plan, os, rootPassword, sshKey, period, resources, idempotencyKey, payment }) => {
+  async ({ plan, os, rootPassword, sshKey, period, resources, privateNetworkId, idempotencyKey, payment }) => {
     const body: Record<string, unknown> = { plan, payment, idempotencyKey };
+    if (privateNetworkId !== undefined) body.privateNetworkId = privateNetworkId;
     if (os !== undefined) body.os = os;
     if (rootPassword) body.rootPassword = rootPassword;
     if (sshKey !== undefined) body.sshKey = sshKey;
