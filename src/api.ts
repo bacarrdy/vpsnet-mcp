@@ -97,8 +97,8 @@ export async function apiRequest(
   path: string,
   body?: Record<string, unknown>,
   extraHeaders?: Record<string, string>,
-  // Explicitly annotate reviewed POST reads; other non-read methods fail closed.
-  semantics?: { readOnly: true }
+  // Explicitly annotate reviewed POST reads and consuming GETs; other non-read methods fail closed.
+  semantics?: { readOnly: boolean }
 ): Promise<{ status: number; data: unknown }> {
   if (!["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"].includes(method)) {
     throw new Error("Invalid VPSnet API request method.");
@@ -160,7 +160,7 @@ export async function apiRequest(
           res.headers.get("content-type"),
           text,
           new URL(url).host,
-          semantics?.readOnly === true || ["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())
+          semantics?.readOnly ?? ["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())
         ),
       };
     }

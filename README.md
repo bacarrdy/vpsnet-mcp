@@ -859,6 +859,134 @@ enabled.
 | `get_system_status` | Get VPSnet.com system status |
 | `get_faq` | Get frequently asked questions |
 
+### SDN networking
+
+Networking permissions must be granted explicitly: `networking:read` or
+`networking:manage`; the ordinary full/read defaults do not include them.
+Start with capabilities, then read the exact owned resource and its generation.
+The backend enforces tenant ownership, availability and server 2FA locks.
+Accepted, paid, and ready are separate states; poll the matching operation or
+resource. DNS changes are polled through the network's `settings.dns_change`.
+
+New private/public load balancers, VPNs and public addresses use an explicit
+quote → common checkout → order-status flow. Quote tools always send
+`prepare_after_payment=true`: no provisioning happens before payment.
+Show the quote's exact EUR `gross_amount`, obtain approval, and pass the same
+`idempotencyKey`, `quote_id` and `quoteToken` to `order_network_product`.
+API keys additionally need full access, enabled paid operations,
+`networking:order`, and spend limits. Read `get_network_payment_methods` and
+select `system=balance`; non-balance checkout is refused for API keys.
+If confirmation is uncertain, recover by the original quote ID and key.
+Public load balancer tiers `alb_proxy_3`/`alb_proxy_5` use request kind
+`proxy_lb`; private tier `nlb` uses `private_lb`. Availability and prices come
+from the live product catalog. A legacy unpaid appliance-create endpoint is
+not an alternative to checkout.
+
+Device configuration pickup is a one-time **management** action, even though
+its HTTP method is GET. Generate the reveal key pair outside MCP, submit only
+the X25519 public key, save the returned sealed ciphertext, and decrypt it
+outside the conversation. Neither private keys nor plaintext WireGuard
+configuration are requested or decrypted by these tools. Never automatically
+repeat a pickup after an uncertain response.
+
+The current backend has no customer network rename, existing-port fixed-IP
+edit, appliance retry, or native site-to-site API in this release. Fixed DHCP
+addresses are selected at attach; removing/recreating an attachment requires
+separate approval and is not represented as an in-place edit. Legacy unpaid
+LB/VPN create routes, legacy stock-before-payment purchases and enabling
+automatic renewal via API keys are deliberately not exposed. Existing public
+binding management remains available; new public addresses use account
+ownership and common checkout. A tool being listed does not enable a backend
+feature gate.
+
+| Tool | Description |
+|------|-------------|
+| `get_network_payment_methods` | Read payment-method metadata without starting payment |
+| `get_networking_capabilities` | Read account networking availability, quota, creation options and eligible order-time attachments |
+| `get_networking_features` | Read current networking feature gates, DNS options and supported contract extensions. |
+| `get_networking_overview` | Read owned networks, quota and operation snapshot |
+| `get_networking_topology` | Read the account topology with network-scoped identities |
+| `list_networking_operations` | Read recent network operations and operations_has_more |
+| `get_networking_operation` | Read an accepted network or port operation |
+| `list_private_networks` | List owned private networks, including deletion awaiting verified cleanup. |
+| `get_private_network` | Read one owned network including DHCP reservations, DNS change progress, generation and project_id. |
+| `create_private_network` | Create a private network intent |
+| `delete_private_network` | Request deletion of an empty network |
+| `retry_private_network` | Retry the failed current network operation only; preserve its current generation |
+| `set_private_network_dns` | Change DHCP DNS servers in place |
+| `set_private_network_names` | Replace the complete internal DNS zone label and alias list |
+| `list_private_network_ports` | Read owned network ports, their fixed DHCP addresses, generations and attachment states |
+| `list_service_private_ports` | Read private ports and order attachment recovery state for one owned service order number. |
+| `list_network_attachment_candidates` | Read attachable services and each attachment_mode |
+| `attach_private_network_port` | Attach an owned service; omit ipv4 for automatic allocation or pass a fixed usable address |
+| `detach_private_network_port` | Detach the owned server port |
+| `retry_private_network_port` | Retry the failed current port operation with the PORT generation and any required restart approval. |
+| `get_network_vpn_summary` | Read the network's VPN summary, including truthful absence |
+| `get_network_routed_egress` | Read this network's NAT/internet access, public address and qualification state. |
+| `set_network_routed_egress` | Request the currently supported NAT transition for an owned network; the backend may refuse mode changes |
+| `get_security_group_capabilities` | Read security-group availability and whether the network default policy can be changed. |
+| `list_network_security_groups` | List groups in the owned project |
+| `create_network_security_group` | Create a named allow-rule set |
+| `update_network_security_group` | Replace the complete group name and rule list at its expected revision |
+| `delete_network_security_group` | Delete an unreferenced customer group at its expected revision; referenced groups are refused. |
+| `clone_network_security_group` | Clone an owned group into a new name; use the source group's current revision. |
+| `get_network_security_policy` | Read default policy, assigned groups and policy application state |
+| `set_network_default_security_policy` | Change accept/deny for servers without custom groups |
+| `set_private_port_security_groups` | Replace the port's complete customer-group list |
+| `retry_network_security_policy` | Retry the failed network security policy using its current desired state. |
+| `retire_network_security_policy` | Retire the policy only after its server ports are gone |
+| `get_network_appliance_capabilities` | Read available load balancer providers/tiers, public qualification, VPN capabilities and quota |
+| `list_network_appliances` | Read owned load balancers and VPN gateways with one stream cursor. |
+| `get_network_appliance_billing` | Read current customer-visible recurring appliance lines and currency. |
+| `get_network_appliance_operation` | Poll an accepted appliance operation |
+| `list_network_load_balancers` | List private and public load balancers and customer-safe health/qualification state. |
+| `get_network_load_balancer` | Read one owned load balancer, listeners, members, generation and health |
+| `estimate_network_load_balancer` | Read a technical load balancer estimate for this exact configuration |
+| `delete_network_load_balancer` | Request appliance teardown at its current generation; this is not a refund or paid-period cancellation |
+| `add_network_load_balancer_member` | Add an attached private server address to the selected listener; backend validates membership in this network. |
+| `remove_network_load_balancer_member` | Remove a member from rotation using the load balancer generation. |
+| `add_network_load_balancer_listener` | Add a listener and optional initial members using currently offered protocol capabilities |
+| `remove_network_load_balancer_listener` | Remove a listener and its members; deleting the last listener is refused. |
+| `list_network_vpn_gateways` | List owned VPN gateways, their device peers and safe status |
+| `get_network_vpn_gateway` | Read one owned VPN gateway, current generation, device peers, grant candidates and attachment capability. |
+| `delete_network_vpn_gateway` | Request teardown of an owned VPN gateway; all devices lose connectivity |
+| `attach_network_vpn_gateway` | Attach or move an account VPN to an owned network only when standalone attachment is advertised |
+| `detach_network_vpn_gateway` | Detach an account VPN from its network when supported; it keeps its paid period and devices but recreates the gateway |
+| `set_vpn_server_access` | Choose accept or groups_only for the VPN's access to attached servers when this capability is available |
+| `create_network_vpn_peer` | Add a device with an externally generated one-time PUBLIC reveal key |
+| `take_network_vpn_peer_config` | Consume the device's sealed configuration ONCE |
+| `revoke_network_vpn_peer` | Revoke one device using the VPN GATEWAY generation |
+| `set_network_vpn_peer_grants` | Replace the device's complete reachable-server list when standalone VPN is available |
+| `get_network_vpn_egress_options` | Read supported VPN Internet exits and qualification |
+| `set_network_vpn_peer_egress` | Set a device's private-only, inherited NAT, or advertised chosen exit policy |
+| `list_network_products` | Read current paid products, live tier names, prices and purchase capability; public proxy load balancer 3/5-node offerings must come from this catalog. |
+| `list_network_product_periods` | Read owned product periods, renewal availability and lifecycle facts. |
+| `quote_network_product` | Create the network product's exact paid quote for COMMON CHECKOUT |
+| `quote_account_vpn` | Create an account VPN quote for common checkout when vpn_account_order is advertised |
+| `order_network_product` | Confirm a common-checkout purchase from an approved exact quote |
+| `get_network_product_order` | Read an owned common-checkout order's payment and fulfilment state |
+| `find_network_product_order` | Recover an uncertain checkout by the ORIGINAL quote_id; order=null means no order was found, not proof to use a new payment key. |
+| `quote_network_product_renewal` | Quote one next paid month for a network product; no charge |
+| `renew_network_product` | Pay the exact previously disclosed renewal from account balance |
+| `disable_network_product_auto_renew` | Disable automatic renewal |
+| `quote_vpn_period_renewal` | Quote the VPN's next month on its actual paid scope; no charge |
+| `renew_vpn_period` | Pay the VPN's approved next-month renewal from account balance using the exact quote and original key. |
+| `disable_vpn_auto_renew` | Disable the VPN's automatic renewal; the current paid period remains |
+| `list_network_public_addresses` | Read owned paid public addresses, account limits, target support and purchase availability. |
+| `get_network_public_address` | Read one owned public address, attachment and paid-period state. |
+| `quote_network_public_address` | Quote a new paid public address for common checkout; no charge |
+| `attach_public_address_to_network` | Attach or move an already-paid address to an owned network's NAT |
+| `attach_public_address_to_server` | Attach or move an owned paid public address to an eligible zero-public-IP server's private port |
+| `detach_network_public_address` | Detach an owned public address from its current target; it stays owned for the paid period |
+| `quote_public_address_renewal` | Quote the address's next month without charging; use the returned quote and this key for confirmation. |
+| `renew_network_public_address` | Pay the approved address renewal from balance with its exact quote ID/token and original key. |
+| `disable_public_address_auto_renew` | Disable address automatic renewal; ownership lasts until paid_until |
+| `get_network_public_binding` | Read one existing owned public binding's generation, state and assigned address |
+| `bind_network_public_ip` | Bind an already reserved floating public binding to an owned private port when supported |
+| `move_network_public_ip` | Move a prepared floating public binding to another owned private port; confirm interruption to the old target. |
+| `configure_network_public_forwarding` | Configure an existing reserved forwarding binding's TCP/UDP listeners |
+| `delete_network_public_binding` | Request deletion of an existing binding using its generation |
+
 ## Getting an API key
 
 1. Log in at [vpsnet.com](https://www.vpsnet.com)
