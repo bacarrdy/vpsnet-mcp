@@ -877,6 +877,20 @@ API keys additionally need full access, enabled paid operations,
 `networking:order`, and spend limits. Read `get_network_payment_methods` and
 select `system=balance`; non-balance checkout is refused for API keys.
 If confirmation is uncertain, recover by the original quote ID and key.
+For an SDN order with `status=paid_pending`, `billing_state=captured` and
+`reason_code=network_product_ip_inventory_wait`, payment is retained while
+public IP inventory is unavailable. Poll `get_network_product_order` with
+the same order ID; the backend resumes automatically when inventory returns.
+Do not create another order, charge again or submit a manual retry.
+`manual_review` or `network_product_stock_reconciliation_required` instead
+requires operator review; it does not authorize an automatic retry.
+
+Ordinary VPS orders expose this wait through
+`get_service.stateProcess.waitingReason=public_ip_inventory` (also mirrored
+in the legacy `stateProccess` field). Poll the same service without reordering.
+`stateProcess.attention=true` requires operator attention. A successful
+payment or accepted create does not establish that the server is ready.
+
 Public load balancer tiers `alb_proxy_3`/`alb_proxy_5` use request kind
 `proxy_lb`; private tier `nlb` uses `private_lb`. Availability and prices come
 from the live product catalog. A legacy unpaid appliance-create endpoint is

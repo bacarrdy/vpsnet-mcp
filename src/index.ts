@@ -554,7 +554,7 @@ server.registerTool(
   "get_service",
   {
     description:
-      "Get detailed info for a service by order number. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
+      "Get detailed info for a service by order number. stateProcess.waitingReason=public_ip_inventory means the paid CREATE awaits public IP inventory and resumes automatically; poll this same service without a new order, payment or manual retry. stateProcess.attention=true requires operator attention. The legacy stateProccess alias carries the same process data. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2975,6 +2975,7 @@ server.registerTool(
       "Order a new VPS. Requires sufficient account balance for balance payment.",
       "Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }.",
       "API-key orders first call the server quote endpoint, then confirm with the returned quoteToken. The API key must have paid scope/caps enabled.",
+      "Payment acceptance is not server readiness. Poll get_service for the returned order number. stateProcess.waitingReason=public_ip_inventory resumes the same paid CREATE automatically when inventory returns; do not place or pay for another order. stateProcess.attention=true needs operator attention.",
       "Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other.",
