@@ -137,6 +137,48 @@ test("checkout needs charge approval and exact token/key and does not send ackno
   assert.equal(requests[1].path, `/account/networking/product-orders?quote_id=${RESOURCE}`);
 });
 
+test("paid inventory wait and operator review remain exact read results with no new payment or retry", async t => {
+  let response = { success: true, order_id: RESOURCE, quote_id: NETWORK, paymentid: 123,
+    status: "paid_pending", billing_state: "captured", reason_code: "network_product_ip_inventory_wait",
+    payment_total: "18.15", currency: "EUR" };
+  const { client, call, requests } = await harness(t, () => ({ status: 200, body: response }));
+  const tools = (await client.listTools()).tools;
+  assert.equal(tools.length, 282);
+  assert.match(tools.find(t => t.name === "get_network_product_order").description, /network_product_ip_inventory_wait/);
+  assert.match(tools.find(t => t.name === "get_network_product_order").description, /operator review/);
+  for (const update of [
+    {},
+    { status: "manual_review", reason_code: "network_product_stock_reconciliation_required" },
+    { status: "fulfilled", reason_code: null, resource_id: NETWORK, attachment: { status: "pending", reason_code: null } },
+  ]) {
+    response = { ...response, ...update };
+    const result = await call("get_network_product_order", { order_id: RESOURCE });
+    assert.notEqual(result.isError, true, "a readable order state is not an HTTP/tool failure");
+    assert.deepEqual(payload(result), response);
+  }
+  assert.deepEqual(requests.map(r => [r.method, r.path]), Array(3).fill(["GET", `/account/networking/product-orders/${RESOURCE}`]));
+});
+
+test("service process wait and attention survive MCP unchanged without provisioning actions", async t => {
+  let process = { title: "Creating server", percentage: 0, waitingReason: "public_ip_inventory" };
+  const { client, call, requests } = await harness(t, () => ({ status: 200, body: {
+    orderno: "VP12345", stateProcess: process, stateProccess: process,
+  } }));
+  const tools = (await client.listTools()).tools;
+  for (const name of ["get_service", "order_service"]) {
+    assert.match(tools.find(t => t.name === name).description, /public_ip_inventory/);
+    assert.match(tools.find(t => t.name === name).description, /operator attention/);
+  }
+  for (const next of [process, { title: "Creating server", percentage: 0, attention: true }]) {
+    process = next;
+    const result = await call("get_service", { orderNo: "VP12345" });
+    assert.notEqual(result.isError, true);
+    assert.deepEqual(payload(result).stateProcess, process);
+    assert.deepEqual(payload(result).stateProccess, process);
+  }
+  assert.deepEqual(requests.map(r => [r.method, r.path]), Array(2).fill(["GET", "/account/services/VP12345"]));
+});
+
 test("renewal uses same quote/key/token and API-key auto-renew only exposes off", async t => {
   const { call, requests } = await harness(t);
   await call("quote_public_address_renewal", { address_id: RESOURCE, idempotencyKey: KEY });
