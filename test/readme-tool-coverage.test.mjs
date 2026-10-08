@@ -5,8 +5,11 @@ import test from "node:test";
 const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 
-const registeredTools = [...source.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)]
-  .map((match) => match[1]);
+const networkingSource = readFileSync(new URL("../src/networking-tools.ts", import.meta.url), "utf8");
+const registeredTools = [
+  ...[...source.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)].map(match => match[1]),
+  ...[...networkingSource.matchAll(/^  tool\("([^"]+)"/gm)].map(match => match[1]),
+];
 
 const toolsStart = readme.indexOf("## Tools\n");
 const toolsEnd = readme.indexOf("## Getting an API key", toolsStart);

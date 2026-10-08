@@ -18,7 +18,7 @@ test("tools/list exposes the backend-compatible managed application contract", a
   });
 
   assert.equal(client.getServerVersion()?.name, "vpsnet");
-  assert.equal(client.getServerVersion()?.version, "2.1.1");
+  assert.equal(client.getServerVersion()?.version, "2.1.2");
 
   const { tools } = await client.listTools();
   const logs = tools.find((tool) => tool.name === "get_application_logs");

@@ -24,7 +24,8 @@
     "build/service-rescue-contract.js",
     "build/temp-vm-contract.js",
     "build/api-path.js",
-    "build/tool-result.js"
+    "build/tool-result.js",
+    "build/networking-tools.js"
   ],
   "repository": "github:bacarrdy/vpsnet-mcp",
   "homepage": "https://github.com/bacarrdy/vpsnet-mcp",

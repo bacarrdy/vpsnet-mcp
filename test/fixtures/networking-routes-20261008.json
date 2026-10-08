@@ -1,0 +1,697 @@
+{
+  "backend_commit": "a56bfe4a5e551db0ae41266958ce6ba2f1ea7bff",
+  "audited_at": "2026-10-08",
+  "routes": [
+    {
+      "method": "get",
+      "path": "/account/networking/security-groups/capabilities",
+      "controller": "SecurityGroupsController",
+      "action": "capabilities",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/projects/{project}/security-groups",
+      "controller": "SecurityGroupsController",
+      "action": "index",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/projects/{project}/security-groups",
+      "controller": "SecurityGroupsController",
+      "action": "store",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/projects/{project}/security-groups/{id}",
+      "controller": "SecurityGroupsController",
+      "action": "update",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/projects/{project}/security-groups/{id}",
+      "controller": "SecurityGroupsController",
+      "action": "destroy",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/projects/{project}/security-groups/{id}/clone",
+      "controller": "SecurityGroupsController",
+      "action": "clone",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/projects/{project}/networks/{network}/security-policy",
+      "controller": "SecurityGroupsController",
+      "action": "policy",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/projects/{project}/networks/{network}/security-policy",
+      "controller": "SecurityGroupsController",
+      "action": "setDefaultPolicy",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/projects/{project}/networks/{network}/security-policy",
+      "controller": "SecurityGroupsController",
+      "action": "retire",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/projects/{project}/networks/{network}/security-policy/retry",
+      "controller": "SecurityGroupsController",
+      "action": "retry",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/projects/{project}/networks/{network}/ports/{port}/security-groups",
+      "controller": "SecurityGroupsController",
+      "action": "bind",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/capabilities",
+      "controller": "NetworkingController",
+      "action": "capabilities",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/features",
+      "controller": "NetworkingController",
+      "action": "features",
+      "spec": "private-networking-v2.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/overview",
+      "controller": "NetworkingController",
+      "action": "overview",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/topology",
+      "controller": "NetworkingController",
+      "action": "topology",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/operations",
+      "controller": "NetworkingController",
+      "action": "operations",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/operations/{id}",
+      "controller": "NetworkingController",
+      "action": "operation",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks",
+      "controller": "NetworkingController",
+      "action": "index",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}",
+      "controller": "NetworkingController",
+      "action": "show",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}/ports",
+      "controller": "NetworkingController",
+      "action": "ports",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{networkId}/public-bindings",
+      "controller": "PublicBindingController",
+      "action": "allocate",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-bindings/{id}",
+      "controller": "PublicBindingController",
+      "action": "show",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-bindings/{id}/bind",
+      "controller": "PublicBindingController",
+      "action": "bind",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-bindings/{id}/move",
+      "controller": "PublicBindingController",
+      "action": "move",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-bindings/{id}/forward",
+      "controller": "PublicBindingController",
+      "action": "forward",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/public-bindings/{id}",
+      "controller": "PublicBindingController",
+      "action": "destroy",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}/attachment-candidates",
+      "controller": "NetworkingController",
+      "action": "attachmentCandidates",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}/vpn",
+      "controller": "NetworkingController",
+      "action": "vpn",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}/routed-egress",
+      "controller": "NetworkingController",
+      "action": "routedEgress",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/services/{serviceId}/ports",
+      "controller": "NetworkingController",
+      "action": "servicePorts",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks",
+      "controller": "NetworkingController",
+      "action": "store",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/ports",
+      "controller": "NetworkingController",
+      "action": "storePort",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/routed-egress",
+      "controller": "NetworkingController",
+      "action": "storeRoutedEgress",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/dns",
+      "controller": "NetworkingController",
+      "action": "updateDns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/networks/{id}/names",
+      "controller": "NetworkingController",
+      "action": "updateNames",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/networks/{id}",
+      "controller": "NetworkingController",
+      "action": "destroy",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/retry",
+      "controller": "NetworkingController",
+      "action": "retry",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/networks/{id}/ports/{portId}",
+      "controller": "NetworkingController",
+      "action": "destroyPort",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/ports/{portId}/retry",
+      "controller": "NetworkingController",
+      "action": "retryPort",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/products",
+      "controller": "PublicNetworkProductController",
+      "action": "catalogue",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/product-orders",
+      "controller": "PublicNetworkProductController",
+      "action": "createOrder",
+      "spec": "network-product-orders-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/product-orders",
+      "controller": "PublicNetworkProductController",
+      "action": "orderByQuote",
+      "spec": "network-product-orders-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/product-orders/{id}",
+      "controller": "PublicNetworkProductController",
+      "action": "order",
+      "spec": "network-product-orders-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/product-periods",
+      "controller": "PublicNetworkProductController",
+      "action": "periods",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes",
+      "controller": "PublicNetworkProductController",
+      "action": "quote",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes/{quoteId}/prepare",
+      "controller": "PublicNetworkProductController",
+      "action": "prepare",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes/{quoteId}/purchase-vpn",
+      "controller": "PublicNetworkProductController",
+      "action": "purchaseVpn",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes/{quoteId}/purchase-private-lb",
+      "controller": "PublicNetworkProductController",
+      "action": "purchasePrivateLb",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-periods/{resourceId}/quote",
+      "controller": "PublicNetworkProductController",
+      "action": "renewalQuote",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-periods/{resourceId}/renew",
+      "controller": "PublicNetworkProductController",
+      "action": "renew",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-periods/{resourceId}/auto-renew",
+      "controller": "PublicNetworkProductController",
+      "action": "autoRenew",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/vpn/product-quotes",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnQuote",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/vpn/product-quotes/{quoteId}/prepare",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnPrepare",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/vpn/product-quotes/{quoteId}/purchase",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnPurchase",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-addresses",
+      "controller": "PublicAddressController",
+      "action": "index",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/quote",
+      "controller": "PublicAddressController",
+      "action": "quote",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses",
+      "controller": "PublicAddressController",
+      "action": "purchase",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-addresses/{id}",
+      "controller": "PublicAddressController",
+      "action": "show",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/attach",
+      "controller": "PublicAddressController",
+      "action": "attach",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/detach",
+      "controller": "PublicAddressController",
+      "action": "detach",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/renewal-quote",
+      "controller": "PublicAddressController",
+      "action": "renewalQuote",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/renew",
+      "controller": "PublicAddressController",
+      "action": "renew",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/auto-renew",
+      "controller": "PublicAddressController",
+      "action": "autoRenew",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances",
+      "controller": "ApplianceController",
+      "action": "snapshot",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/capabilities",
+      "controller": "ApplianceController",
+      "action": "capabilities",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/billing",
+      "controller": "ApplianceController",
+      "action": "billing",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/operations/{id}",
+      "controller": "ApplianceController",
+      "action": "operation",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/load-balancers",
+      "controller": "ApplianceController",
+      "action": "index",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers/quote",
+      "controller": "ApplianceController",
+      "action": "quote",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/load-balancers/{id}",
+      "controller": "ApplianceController",
+      "action": "show",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers",
+      "controller": "ApplianceController",
+      "action": "store",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/load-balancers/{id}",
+      "controller": "ApplianceController",
+      "action": "destroy",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers/{id}/members",
+      "controller": "ApplianceController",
+      "action": "addMember",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/load-balancers/{id}/members/{memberId}",
+      "controller": "ApplianceController",
+      "action": "removeMember",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers/{id}/listeners",
+      "controller": "ApplianceController",
+      "action": "addListener",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/load-balancers/{id}/listeners/{listenerId}",
+      "controller": "ApplianceController",
+      "action": "removeListener",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/egress-options",
+      "controller": "ApplianceController",
+      "action": "vpnEgressOptions",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/egress-policy",
+      "controller": "ApplianceController",
+      "action": "vpnPeerEgressPolicy",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways",
+      "controller": "ApplianceController",
+      "action": "vpnIndex",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}",
+      "controller": "ApplianceController",
+      "action": "vpnShow",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways",
+      "controller": "ApplianceController",
+      "action": "vpnStore",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/vpn-gateways/{id}",
+      "controller": "ApplianceController",
+      "action": "vpnDestroy",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/period/quote",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnPeriodQuote",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/period/renew",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnPeriodRenew",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/auto-renew",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnAutoRenew",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/attach",
+      "controller": "ApplianceController",
+      "action": "vpnAttach",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/detach",
+      "controller": "ApplianceController",
+      "action": "vpnDetach",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/server-access",
+      "controller": "ApplianceController",
+      "action": "vpnServerAccess",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers",
+      "controller": "ApplianceController",
+      "action": "vpnPeerStore",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/config",
+      "controller": "ApplianceController",
+      "action": "vpnPeerConfig",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}",
+      "controller": "ApplianceController",
+      "action": "vpnPeerDestroy",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/grants",
+      "controller": "ApplianceController",
+      "action": "vpnPeerGrants",
+      "spec": "appliances-v1.yml"
+    }
+  ],
+  "excluded": [
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{networkId}/public-bindings",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes/{quoteId}/prepare",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes/{quoteId}/purchase-vpn",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/networks/{id}/product-quotes/{quoteId}/purchase-private-lb",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/vpn/product-quotes/{quoteId}/prepare",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/vpn/product-quotes/{quoteId}/purchase",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses",
+      "reason": "Legacy stock-before-payment purchase/preparation is deliberately replaced by common quote + product-orders checkout; existing resource management remains supported."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers",
+      "reason": "Unpaid appliance create is permanently refused with public_product_quote_required; use common checkout."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways",
+      "reason": "Unpaid appliance create is permanently refused with public_product_quote_required; use common checkout."
+    }
+  ]
+}

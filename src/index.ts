@@ -3,6 +3,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { registerNetworkingTools } from "./networking-tools.js";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson } from "./api.js";
@@ -137,7 +139,7 @@ const EVENT_ID_SCHEMA = z
   .describe("Numeric `event` id or `noty` UUID returned by the action");
 
 const server = new McpServer(
-  { name: "vpsnet", version: "2.1.1" },
+  { name: "vpsnet", version: JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version },
   {
     instructions: [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
@@ -289,6 +291,7 @@ const server = new McpServer(
 );
 
 installToolResultErrorFlag(server);
+registerNetworkingTools(server);
 
 // Helper to build service settings path
 const svc = (orderNo: string, action: string) =>

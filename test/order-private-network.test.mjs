@@ -52,7 +52,7 @@ async function harness(t, { quoteRefusal = null } = {}) {
 test("order_service advertises an optional private network UUID and no new tool", async t => {
   const { client, requests } = await harness(t);
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 197);
+  assert.equal(tools.length, 282);
   const tool = tools.find(tool => tool.name === "order_service");
   const field = tool.inputSchema.properties.privateNetworkId;
   assert.equal(field.type, "string");
