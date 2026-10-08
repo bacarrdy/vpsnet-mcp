@@ -60,10 +60,12 @@ test("read paths and candidate pagination preserve network ownership boundaries"
   await call("get_private_network", { network_id: NETWORK });
   await call("list_network_attachment_candidates", { network_id: NETWORK, after: "opaque+/=cursor", service_id: "VP88970" });
   await call("get_networking_topology", { metrics: "current" });
+  await call("list_network_products", { network_id: NETWORK });
   assert.deepEqual(requests.map(r => [r.method, r.path]), [
     ["GET", `/account/networking/networks/${NETWORK}`],
     ["GET", `/account/networking/networks/${NETWORK}/attachment-candidates?after=opaque%2B%2F%3Dcursor&service_id=VP88970`],
     ["GET", "/account/networking/topology?metrics=current"],
+    ["GET", `/account/networking/products?network_id=${NETWORK}`],
   ]);
   assert.ok(requests.every(r => r.body === undefined));
   assert.ok(requests.every(r => r.headers["x-api-key"] === "contract-test-key"));
@@ -223,9 +225,9 @@ test("full-tunnel device permits an empty server-grant list without accepting pr
 
 test("paid-operation and spend-cap refusals stop at the quote and remain MCP errors", async t => {
   const cases = [
-    { status: 403, body: { success: false, paidOperationsDisabled: true } },
-    { status: 403, body: { success: false, paidScopeRequired: true } },
-    { status: 402, body: { success: false, dailySpendLimitExceeded: true } },
+    { status: 403, body: { success: false, apiKeyPaidOperationsDisabled: true, requiredScope: "networking:order" } },
+    { status: 403, body: { success: false, apiKeyPaidScopeMissing: true, requiredScope: "networking:order" } },
+    { status: 403, body: { success: false, apiKeyDailySpendCapExceeded: true } },
   ];
   for (const refusal of cases) {
     await t.test(JSON.stringify(refusal.body), async t => {
