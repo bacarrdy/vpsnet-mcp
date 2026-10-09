@@ -1,0 +1,1162 @@
+{
+ "get_account": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_profile": {
+  "scopes": [
+   "account:read"
+  ],
+  "paid": ""
+ },
+ "list_services": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_service": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_service_graphs": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_event": {
+  "scopes": [
+   "services:read or account:read"
+  ],
+  "paid": ""
+ },
+ "wait_for_event": {
+  "scopes": [
+   "services:read or account:read"
+  ],
+  "paid": ""
+ },
+ "get_service_history": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_service_rescue": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "enter_service_rescue": {
+  "scopes": [
+   "services:rescue"
+  ],
+  "paid": ""
+ },
+ "exit_service_rescue": {
+  "scopes": [
+   "services:rescue"
+  ],
+  "paid": ""
+ },
+ "list_application_catalog": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "list_application_registry_credentials": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "list_service_applications": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "get_application_installation": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "configure_application_resource_thresholds": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "get_application_events": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "get_application_health": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "get_application_logs": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "list_application_restore_points": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": "Needs paid scope: applications:restore"
+ },
+ "quote_application_data_restore": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": "Quote: applications:restore"
+ },
+ "restore_application_data": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": "Paid: applications:restore"
+ },
+ "get_application_data_restore": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "validate_application_recipe": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "list_application_recipes": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "list_application_recipe_revisions": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "create_application_recipe": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "create_application_recipe_revision": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "export_application_recipe": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "install_application_recipe": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "discover_service_containers": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "prepare_application_compose_adoption": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "get_application_compose_adoption": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "confirm_application_compose_adoption": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "install_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "configure_application_access": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "manage_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "cancel_application_action": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "start_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "stop_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "restart_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "console_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "suspend_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "resume_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_hostname": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "change_hostname": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "reset_hostname": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "change_root_password": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_rdns": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "change_rdns": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "clear_rdns": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "flush_iptables": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_title": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "change_title": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "toggle_ipv6": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "toggle_extra_settings": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "deploy_ssh_key": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_os_options": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "reinstall_os": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_plan_options": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_plan_resources": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "calculate_plan_change": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "change_plan": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_period_options": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "set_auto_renew": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Paid (future renewals)"
+ },
+ "renew_service": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Paid"
+ },
+ "get_order_plans": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_order_options": {
+  "scopes": [],
+  "paid": ""
+ },
+ "order_service": {
+  "scopes": [],
+  "paid": "Paid: vps:order, vds:order, ds:order or fc:order (by product)"
+ },
+ "get_backup_status": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_backup_history": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "create_backup": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Paid"
+ },
+ "list_ssh_keys": {
+  "scopes": [
+   "account:read"
+  ],
+  "paid": ""
+ },
+ "get_ssh_key": {
+  "scopes": [
+   "account:read"
+  ],
+  "paid": ""
+ },
+ "create_ssh_key": {
+  "scopes": [
+   "account:manage"
+  ],
+  "paid": ""
+ },
+ "delete_ssh_key": {
+  "scopes": [
+   "account:manage"
+  ],
+  "paid": ""
+ },
+ "list_api_keys": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_api_key": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_api_key_activity": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_api_key_inference_usage": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_free_certificate_eligibility": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "preflight_free_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "list_free_certificates": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "get_free_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "get_free_certificate_instruction": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "create_free_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "download_free_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "manage_free_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "list_automatic_ssl_subscriptions": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "get_automatic_ssl_subscription": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "quote_automatic_ssl_subscription": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Quote: certificates:order"
+ },
+ "order_automatic_ssl_subscription": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Paid: certificates:order"
+ },
+ "list_automatic_ssl_actions": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "refresh_automatic_ssl_subscription": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "quote_automatic_ssl_domain": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Quote: certificates:order"
+ },
+ "order_automatic_ssl_domain": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Paid: certificates:order"
+ },
+ "quote_automatic_ssl_renewal": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Quote: certificates:order"
+ },
+ "order_automatic_ssl_renewal": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Paid: certificates:order"
+ },
+ "manage_automatic_ssl_subscription": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "list_certificate_catalog": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "get_certificate_catalog_product": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "list_certificates": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "get_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "quote_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Quote: certificates:order"
+ },
+ "order_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": "Paid: certificates:order"
+ },
+ "get_certificate_validation": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "download_certificate": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "list_certificate_actions": {
+  "scopes": [
+   "certificates:read"
+  ],
+  "paid": ""
+ },
+ "refresh_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "manage_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "list_domains": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "get_domain": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "list_domain_tlds": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "set_domain_nameservers": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "list_domain_glue_records": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "create_domain_glue_record": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "delete_domain_glue_record": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "get_domain_parent_ds": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "add_domain_parent_ds": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "delete_domain_parent_ds": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "check_domain_availability": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "get_domain_ordering_status": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "list_domain_contacts": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "create_domain_contact": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "update_domain_contact": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "delete_domain_contact": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": ""
+ },
+ "quote_domain_register": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": "Quote: domains:order"
+ },
+ "quote_domain_transfer": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": "Quote: domains:transfer"
+ },
+ "confirm_domain_register": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": "Paid: domains:order"
+ },
+ "confirm_domain_transfer": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": "Paid: domains:transfer"
+ },
+ "quote_domain_renew": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": "Quote: domains:renew"
+ },
+ "confirm_domain_renew": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": "Paid: domains:renew"
+ },
+ "quote_domain_restore": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": "Quote: domains:renew"
+ },
+ "confirm_domain_restore": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": "Paid: domains:renew"
+ },
+ "set_domain_auto_renew": {
+  "scopes": [
+   "domains:manage"
+  ],
+  "paid": "Paid (future renewals)"
+ },
+ "get_registrar_lock": {
+  "scopes": [
+   "domains:read"
+  ],
+  "paid": ""
+ },
+ "list_service_dns_options": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "attach_service_dns_record": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "list_snapshots": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "create_snapshot": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Billed while kept"
+ },
+ "rollback_snapshot": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "delete_snapshot": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "list_firecracker_snapshots": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "create_firecracker_snapshot": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Billed while kept"
+ },
+ "rollback_firecracker_snapshot": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "delete_firecracker_snapshot": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "get_restore_status": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": "Needs paid scope: services:restore"
+ },
+ "list_restore_points": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "request_restore": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": "Paid: services:restore"
+ },
+ "list_restore_file_points": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "browse_restore_files": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_restore_file_browse": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_guest_agent_status": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "list_functions": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_function": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "create_function": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "update_function": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "delete_function": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "invoke_function": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Paid: fn:invoke"
+ },
+ "list_function_invocations": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_function_invocation": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_temp_vm_options": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "quote_temp_vm": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Disabled (coming soon)"
+ },
+ "list_temp_vms": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "create_temp_vm": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": "Disabled (coming soon)"
+ },
+ "get_temp_vm": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "delete_temp_vm": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
+ "list_dns_zones": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "create_dns_zone": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "get_dns_zone": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "get_dns_zone_diagnostics": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "export_dns_zone": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "import_dns_zone": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "list_dns_templates": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "apply_dns_template": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "delete_dns_zone": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "verify_dns_zone": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "reissue_dns_zone_verification": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "get_dnssec": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "set_dnssec": {
+  "scopes": [
+   "dnssec:manage"
+  ],
+  "paid": ""
+ },
+ "upsert_dns_record": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "update_dns_record": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "delete_dns_record": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "get_dns_service_status": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "get_dns_zone_history": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "list_ddns_tokens": {
+  "scopes": [
+   "dns:read"
+  ],
+  "paid": ""
+ },
+ "create_ddns_token": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "revoke_ddns_token": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
+ "list_invoices": {
+  "scopes": [
+   "payments:read"
+  ],
+  "paid": ""
+ },
+ "get_invoice": {
+  "scopes": [
+   "payments:read"
+  ],
+  "paid": ""
+ },
+ "list_payments": {
+  "scopes": [
+   "payments:read"
+  ],
+  "paid": ""
+ },
+ "get_login_history": {
+  "scopes": [
+   "account:read"
+  ],
+  "paid": ""
+ },
+ "get_management_history": {
+  "scopes": [
+   "account:read"
+  ],
+  "paid": ""
+ },
+ "get_usage_statements": {
+  "scopes": [
+   "payments:read"
+  ],
+  "paid": ""
+ },
+ "get_pricing": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_system_status": {
+  "scopes": [],
+  "paid": ""
+ },
+ "get_faq": {
+  "scopes": [],
+  "paid": ""
+ }
+}
