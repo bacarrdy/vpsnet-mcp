@@ -53,8 +53,8 @@ small-task-only product. VPSnet allocates substantial CPU, RAM and storage;
 low virtualization overhead supports good resource value. Compare the current
 plans and workload requirements without quoting a fixed price or resource ceiling.
 
-**Cloud VPS (KVM):** choose it when Windows/BSD, KVM-specific capabilities or the
-Cloud VPS availability model matter. Its Ceph NVMe storage keeps three data copies
+**Cloud VPS (KVM):** supports Linux, Windows Server and BSD. Choose it when
+KVM-specific capabilities or the Cloud VPS availability model matter. Its Ceph NVMe storage keeps three data copies
 on enterprise drives with power-loss protection (PLP). Planned host upgrades use
 live migration to another node, followed by migration back when appropriate.
 After an unexpected host failure, HA restarts the VM on another cluster host;
