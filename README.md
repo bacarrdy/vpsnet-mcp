@@ -21,16 +21,14 @@
 ## Remote OAuth connector
 
 The remote connector uses `https://mcp.vpsnet.com/mcp` and customer consent through
-VPSnet. Its deployment configuration, permission boundaries, provider packages and
-remaining live acceptance checks are in [Remote AI connections](docs/REMOTE_MCP.md).
+VPSnet. See [Remote AI connections](docs/REMOTE_MCP.md) for connection setup,
+permissions and supported operations.
 
 The distributable [plugin README](plugin/README.md), manifests and skills are in English.
-See [directory readiness](docs/DIRECTORY_READINESS.md) for validation evidence and remaining publisher steps;
-
-Directory descriptions and demonstrations are organized in
-Server, VPN, private networks and Lithuania-based VPS use cases.
-VM execution reuses the existing `ai.vpsnet.com` service. This code does not imply
-that the endpoint is deployed or that provider directory review is complete.
+See [directory readiness](docs/DIRECTORY_READINESS.md) for package validation and
+publisher requirements, and [supported use cases](plugin/skills/vpsnet-operations/references/use-cases.md)
+for server, application and networking scenarios. Directory publication and
+provider account availability are separate from installing this source code.
 
 The instructions below describe the existing local stdio/API-key client.
 

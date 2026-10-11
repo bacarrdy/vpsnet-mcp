@@ -25,3 +25,5 @@ artifacts/
 
 # Python packaging helper cache
 __pycache__/
+
+# Internal QA and environment-specific operations belong in private repositories.

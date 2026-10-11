@@ -2,12 +2,13 @@
 
 Checked against the official requirements on 2026-10-11. This is a release
 candidate, not a provider approval or a guarantee of proactive recommendations.
-instructions and local acceptance guidance are outside the directory ZIP.
+The public plugin README, manifests and skill are in English. Internal testing
+and deployment materials are maintained separately in private repositories.
 
 | Provider | Submission or connection format | Remaining external acceptance |
 | --- | --- | --- |
 | OpenAI | `artifacts/vpsnet-plugin-0.1.4.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
-| Claude | Public `bacarrdy/vpsnet-mcp` GitHub repository, `plugin` path, `plugin-0.1.4-candidate` tag; submit both connector and plugin bundle at https://claude.ai/directory/manage | GitHub publisher access, live OAuth, portal checks, reviewer account and review |
+| Claude | Public `bacarrdy/vpsnet-mcp` GitHub repository, `plugin` path, `main` branch; submit both connector and plugin bundle at https://claude.ai/directory/manage | GitHub publisher access, live OAuth, portal checks, reviewer account and review |
 | Gemini | Custom remote MCP in eligible Connected Apps accounts, or the original Gemini CLI | Real account and regional availability; no verified public self-service directory submission path |
 | Grok | Custom remote MCP at https://grok.com/connectors | Real account OAuth; no verified public self-service directory submission path |
 
@@ -18,7 +19,7 @@ Run `npm test`, `python3 scripts/validate_plugin.py` and
 file limits, UTF-8 text, matching versions, a substantive README, license,
 listing lengths and URLs, at most three starter prompts, optional brand-color
 contrast, five positive and three negative review cases, and production MCP
-configuration without credentials. It runs before either ZIP is built.
+configuration without credentials. It runs before the plugin ZIP is built.
 Regression tests reject excessive prompts, low contrast, insufficient README
 text, symlinks and embedded reviewer credentials.
 
@@ -37,9 +38,10 @@ command execution is disclosed, not represented as a read-only diagnostic action
 
 ## Production and reviewer prerequisites
 
-Staging automated acceptance covers OAuth/PKCE, refresh, selected-service
-filtering, revocation and KVM/Firecracker file and operation behavior. See the
-and provider-account test cases. Real provider accounts remain a separate test.
+Verify OAuth/PKCE, refresh, selected-service filtering, revocation and VM file
+and operation behavior in a test environment. Validate each provider with a real
+account before claiming compatibility. Keep test reports and account details
+private.
 
 Before submission, enable and verify OAuth at the production URL after staging
 acceptance. Use an isolated, populated reviewer account reachable without the
