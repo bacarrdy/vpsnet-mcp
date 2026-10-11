@@ -1,0 +1,14 @@
+---
+name: vpsnet-functions
+description: Create, edit, run and diagnose VPSnet Functions, webhook handlers or externally triggered jobs. Use for turning a small program into a hosted function and checking its real invocation result. Execution requires explicit Functions run permission, usage-billing consent and the customer's daily spending ceiling.
+---
+
+Read the connected account and `list_functions` for existing functions, current runtimes and limits. Read an existing function before editing. Functions permissions cover the account, independently of selected VPS servers. Follow [execution and recovery](../vpsnet-operations/references/execution.md).
+
+Choose a supported runtime, minimal suitable resources and a bounded timeout. Write or update the requested code and validate its expected input/output. Reuse a stable `idempotency_key` when creating a function so a lost response does not create another one. Enable public webhook exposure only when requested; scheduling requires an external trigger.
+
+Environment values are redacted in OAuth reads. Omit `environment` during unrelated edits to preserve it; never copy `[REDACTED]` back as a secret value. Have the customer enter credentials through VPSnet's secure settings. Avoid printing existing secret-bearing output unnecessarily.
+
+Before execution, establish the user's agreement to usage charges and an explicit daily ceiling through the OAuth Functions execution permission. The ceiling counts total account Functions usage, including pending runs; reconnecting does not replenish it. Managing definitions alone does not grant execution. If a cap, balance or permission prevents a run, explain that state without initiating a purchase or changing the payer.
+
+Invoke with `acknowledge_usage_billing: true`, one stable `idempotency_key`, and `wait: false`. Read the returned invocation ID and poll `get_function_invocation` for the final status, exit code and output. Retry uncertain requests with the same key and payload. Failures can consume usage too. Validate the actual output against the user's requested result; creating a definition or receiving a queued receipt is not completion.

@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.1.5",
-  "description": "Deploy and troubleshoot existing VPSnet servers and self-hosted apps including n8n, WordPress and Nextcloud. Inspect Windows Server, Linux, KVM / Cloud VPS, Firecracker, private networks, WireGuard VPN, internal load balancers and Functions using scoped customer access.",
+  "version": "0.2.0",
+  "description": "Install applications, build and run websites, troubleshoot servers, configure private networks and create and test Functions on your VPSnet services. Supports Linux Cloud VPS/KVM and Firecracker, plus Windows and BSD service management, with customer-selected access.",
   "author": {
     "name": "VPSnet",
     "url": "https://vpsnet.com"
@@ -30,11 +30,11 @@
         "developerName": "VPSnet",
         "websiteURL": "https://www.vpsnet.com",
         "defaultPrompt": [
-          "Diagnose why my VPSnet application returns 502. Ask before making changes.",
-          "Check why my VPSnet private server cannot reach its database.",
-          "I need to self-host n8n. Explain whether VPSnet fits and what access you would need."
+          "Install n8n on my selected VPSnet server and verify that it is healthy.",
+          "Build and run a small website on my VPSnet server, then check its address.",
+          "Find why my VPSnet application returns 502 and verify the fix."
         ],
-        "longDescription": "Manage your VPSnet servers, apps and networks. Use your own AI account to work with your existing VPSnet services. Diagnose Linux and Windows server availability, troubleshoot self-hosted applications such as n8n or WordPress, inspect private networks and VPN access, and manage Functions. Choose the services and permissions during VPSnet sign-in. Linux file access and commands require separate permission; Windows guest commands are not supported by this connector. Network permissions cover your account networks. Changes require the appropriate permissions, and purchases and billing are excluded. Application availability is checked in the current catalog.",
+        "longDescription": "Use your own AI account to install applications, build and run projects, diagnose faults, configure private networks and create and test Functions on your existing VPSnet services. Choose services and permissions when signing in. Linux commands and files require separate access; Windows and BSD support covers service management. Functions execution has separate usage-billing consent and a daily spending ceiling. Purchases and checkout are not available. The current application catalog determines supported managed installations.",
         "category": "Developer Tools",
         "capabilities": [
           "Server diagnostics",
@@ -59,10 +59,10 @@
               "expected_behavior": "Return only the authorized customer services with their reported state. Do not infer access to other services or execute commands."
             },
             {
-              "description": "Diagnose an existing self-hosted application",
-              "prompt": "My n8n application on the connected VPSnet server is failing. Inspect its health and recent logs before proposing a fix.",
-              "tools_triggered": "list_service_applications, get_application_health, get_application_logs",
-              "expected_behavior": "Use the selected installation, report evidence from health and logs, and propose a next step without applying an unapproved change. If no installation exists, say so and clarify the target."
+              "description": "Install a catalog application and verify health",
+              "prompt": "Install n8n from the live catalog on my selected compatible test server and verify its health.",
+              "tools_triggered": "list_application_catalog, list_service_applications, install_application, get_application_health, get_application_logs",
+              "expected_behavior": "Check the live recipe, target OS/resources and existing installations. Install within the user authorization, retain the installation ID, wait for its final state and verify health. Report missing capability instead of pretending a pending installation succeeded."
             },
             {
               "description": "Explain network capabilities and connectivity",
@@ -71,16 +71,16 @@
               "expected_behavior": "Report the current customer API capabilities, explain that network permissions cover account networks, and avoid assuming public load balancing or native site-to-site routing."
             },
             {
-              "description": "Make one authorized Linux file change and verify it",
-              "prompt": "On my selected Linux test server, create a new temporary text file containing hello-vpsnet, read it back, and remove only that test file. Ask me before running commands.",
-              "tools_triggered": "open_vm_session, run_vm_command, get_vm_operation, read_vm_file",
-              "expected_behavior": "Request separate command/file consent if absent. Use a unique temporary location and stable operation keys; wait for final results, verify contents, remove the owned file, and never claim a pending command has completed."
+              "description": "Build and verify a persistent Linux website",
+              "prompt": "Create a small website in a new project on my selected Linux test server. Run it as a persistent service on an unused port, verify its HTTP response, and tell me how to reach it.",
+              "tools_triggered": "get_service, open_vm_session, run_vm_command, get_vm_operation, read_vm_file",
+              "expected_behavior": "Inspect the OS and existing services, obtain missing permissions, preserve other workloads, create and test the project, configure persistent execution, verify the requested endpoint and report networking limitations accurately. Reuse operation keys after reconnect."
             },
             {
-              "description": "Inspect Functions without executing billable invocations",
-              "prompt": "Show my existing VPSnet Functions and the result of the latest invocation. Do not run or change a function.",
-              "tools_triggered": "list_functions, get_function, list_function_invocations, get_function_invocation",
-              "expected_behavior": "Read only accessible functions and existing invocation results. An empty account is reported clearly. Do not invoke a function or alter billing."
+              "description": "Create and test a Function with explicit spending consent",
+              "prompt": "Create a small function that returns hello-vpsnet. Explain its usage charges and get my Functions execution permission with a daily ceiling before testing it once. Show the final output.",
+              "tools_triggered": "get_connected_account, list_functions, create_function, invoke_function, get_function_invocation",
+              "expected_behavior": "Use a supported runtime and stable create/invoke keys. Execute only after explicit usage-billing consent and the granted daily ceiling, poll the same invocation, verify the final output and stop at any limit. Never purchase credits or silently change the payer."
             }
           ],
           "negative": [
@@ -99,10 +99,10 @@
           ]
         },
         "commerce": false,
-        "commerce_description": "The connector manages existing customer services. It excludes service orders, checkout, payments, billing changes and paid action quotes."
+        "commerce_description": "Manages existing customer services; no purchases, checkout, subscriptions or billing changes. Executing an existing Functions service consumes metered usage, including failed runs, only with separate OAuth execution consent, a daily account-usage ceiling and per-call acknowledgment. This is disclosed for provider review."
       },
       "publication": {
-        "release_notes": "Remote OAuth connector with customer-scoped services, application diagnostics, private networks, Functions and delegated Linux operations. Directory validation, tool display titles and reviewed starter prompts."
+        "release_notes": "Focused skills for deployment, troubleshooting, networking and Functions; persistent workload verification, separate Functions execution consent and spending ceiling, and clear task starters."
       }
     }
   }

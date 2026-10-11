@@ -4,7 +4,7 @@ import { createVpsnetServer } from "./index.js";
 import { resolveApiBase } from "./api.js";
 import { requireRequestAuthorization, withAuthorization, type AuthorizationContext } from "./request-context.js";
 
-const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "vm:exec", "vm:files"];
+const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "functions:invoke", "vm:exec", "vm:files"];
 export interface RemoteOptions { resource: string; issuer: string; allowedOrigins?: readonly string[]; }
 
 function publicUrl(value: string): URL {

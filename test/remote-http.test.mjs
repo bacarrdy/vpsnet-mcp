@@ -186,3 +186,46 @@ test('guest sessions route operations without SSH and never fall back after deni
   assert.equal((await invoke('open_vm_session', { orderNo: 'vp-a', sessionBinding })).isError, true);
   assert.ok(!requests.some(r => /\/mcp\/(session|deploy-key)$/.test(r.path)));
 });
+
+test('Functions execution requires separate OAuth scope, billing acknowledgment and stable mutation keys', async t => {
+  let scope = 'functions:manage';
+  const received = [];
+  const backend = createServer(async (req, res) => {
+    res.setHeader('content-type', 'application/json');
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    if (req.url === '/oauth/mcp/introspect') {
+      res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now()/1000+300, sub:'a', grant_id:'a', scope, services:[] }));
+    } else {
+      received.push({ path:req.url, key:req.headers['idempotency-key'], body:raw ? JSON.parse(raw) : {} });
+      res.end(JSON.stringify({ success:true, invocation:{id:42, status:'queued'} }));
+    }
+  });
+  backend.listen(0, '127.0.0.1'); await once(backend, 'listening');
+  process.env.VPSNET_API_URL = 'http://127.0.0.1:'+backend.address().port;
+  const { createRemoteServer } = await import('../build/http-server.js');
+  const remote = createRemoteServer({resource, issuer}); remote.listen(0, '127.0.0.1'); await once(remote, 'listening');
+  t.after(() => { for (const server of [remote,backend]) { server.closeAllConnections(); server.close(); } });
+  const invoke = async (name, args) => (await call(remote.address().port,'POST','/mcp',tokens.a,{jsonrpc:'2.0',id:301,method:'tools/call',params:{name,arguments:args}})).body.result;
+  const args = {function_id:1,input:'hello',idempotency_key:'function-run-test-0001',acknowledge_usage_billing:true};
+  const denied = await invoke('invoke_function',args);
+  assert.equal(denied.isError,true);
+  assert.match(denied._meta['mcp/www_authenticate'][0],/functions:invoke/);
+  assert.equal(received.length,0);
+  scope = 'functions:invoke';
+  for (const invalid of [{...args,acknowledge_usage_billing:undefined},{...args,acknowledge_usage_billing:false},{...args,idempotency_key:undefined}]) {
+    assert.equal((await invoke('invoke_function',invalid)).isError,true);
+  }
+  assert.equal(received.length,0,'invalid requests never reach the API');
+  for (let n=0;n<2;n++) assert.ok(!(await invoke('invoke_function',args)).isError);
+  assert.deepEqual(received[0],received[1],'retries preserve exact body and key');
+  assert.deepEqual(received[0],{path:'/account/firecracker/functions/1/invoke',key:args.idempotency_key,body:{acknowledge_usage_billing:true,input:'hello',wait:false}});
+  assert.ok(!(await invoke('list_functions',{})).isError,'execution implies reading results');
+  scope = 'functions:manage';
+  const creation = {name:'test',runtime_os_id:1,code:'print("hello")'};
+  const before = received.length;
+  assert.equal((await invoke('create_function',creation)).isError,true);
+  assert.equal(received.length,before);
+  assert.ok(!(await invoke('create_function',{...creation,idempotency_key:'function-create-test-0001'})).isError);
+  assert.equal(received.at(-1).key,'function-create-test-0001');
+  assert.equal(received.at(-1).body.idempotency_key,undefined);
+});

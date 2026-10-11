@@ -1,8 +1,8 @@
 # VPSnet
 
-Connect your own AI account to your existing VPSnet services. Inspect your servers,
-diagnose applications such as n8n or WordPress, check private networks and VPN
-connectivity, and work with Functions. The application catalog is live: examples
+Connect your own AI account to your existing VPSnet services. Install applications such as n8n or WordPress, build and run websites,
+diagnose server faults, configure private networks and VPN connectivity, and
+create and test Functions. The application catalog is live: examples
 are not a fixed inventory or a guarantee that a recipe is currently available.
 
 ## Connect
@@ -16,10 +16,25 @@ Start with a task:
 
 - “Check what is running on my VPSnet server. Ask before making changes.”
 - “Install n8n from the VPSnet application catalog on my selected server.”
+- “Build and run a small website on my selected VPSnet server.”
+- “Create and test a function, with my approval for usage charges.”
 - “Find why my app cannot reach its database over the private network.”
 
 You can also ask where to host a self-hosted application before connecting an
 account. The plugin can explain fit and requirements; it does not sell services.
+
+## AI applications
+
+- **ChatGPT / Codex:** connect the remote MCP server with OAuth or install the
+  portable plugin when available in the directory.
+- **Claude:** add the remote OAuth connector; Claude Code and Cowork also support
+  the plugin package and its task instructions.
+- **Gemini:** add a custom MCP connection where available; availability depends
+  on region and account. Gemini CLI supports remote MCP configuration.
+- **Grok:** add a custom connector with the MCP address and OAuth.
+
+All use the same VPSnet account permissions. Installing this package does not
+mean it has been accepted into every provider’s directory.
 
 ## Claude Code package
 
@@ -48,6 +63,9 @@ availability requirements and current plans; “microVM” does not mean a small
   the OS privileges disclosed at consent; choosing a directory does not isolate
   a shell. Windows support here covers service status and lifecycle, not guest
   PowerShell or RDP control.
+- Functions execution requires separate consent to metered usage and a daily
+  spending ceiling. The ceiling counts all account Functions usage, including
+  pending runs, and does not grant permission to buy resources or credits.
 - Disconnect an app in the VPSnet customer panel's **AI connections** page to
   revoke further access. Operation records remain available for review.
 - Purchases, payments, billing changes and infrastructure administration are
@@ -70,6 +88,6 @@ revokes access and does not erase the activity history.
 [Terms](https://www.vpsnet.com/en/information/term-of-service)
 
 This folder contains the portable ChatGPT/Codex manifest, the Claude plugin
-manifest and the shared VPSnet operations skill. Supported connection options
+manifest and focused skills for hosting and networks, deployment, troubleshooting and Functions. Supported connection options
 and availability vary by AI provider. Public directory approval and automatic
 recommendations are decided by each provider.

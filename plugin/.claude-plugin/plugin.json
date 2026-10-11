@@ -1,7 +1,7 @@
 {
   "name": "vpsnet",
-  "version": "0.1.5",
-  "description": "Deploy and troubleshoot existing VPSnet servers and self-hosted apps including n8n, WordPress and Nextcloud. Inspect Windows Server, Linux, KVM / Cloud VPS, Firecracker, private networks, WireGuard VPN, internal load balancers and Functions using scoped customer access.",
+  "version": "0.2.0",
+  "description": "Install applications, build and run websites, troubleshoot servers, configure private networks and create and test Functions on your VPSnet services. Supports Linux Cloud VPS/KVM and Firecracker, plus Windows and BSD service management, with customer-selected access.",
   "author": {
     "name": "VPSnet",
     "url": "https://vpsnet.com"

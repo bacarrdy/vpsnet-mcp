@@ -5581,7 +5581,7 @@ const functionFieldsSchema = {
   entrypoint: z.string().optional().describe("Entrypoint command/handler"),
   description: z.string().optional().describe("Description (max 2000 chars)"),
   code: z.string().optional().describe("Function source code"),
-  environment: z.string().optional().describe("Environment variables as JSON object string"),
+  environment: z.string().optional().describe("Environment variables as JSON object string. Omit during unrelated edits to preserve existing values; never send back redacted placeholders."),
   timeout_seconds: z.number().optional().describe("1-300 seconds, default 30"),
   vcpus: z.number().optional().describe("1-8 vCPUs, default 1"),
   memory_mb: z.number().optional().describe("64-8192 MB, default 256"),
@@ -5606,7 +5606,7 @@ server.registerTool(
 server.registerTool(
   "get_function",
   {
-    description: "Get one Firecracker Function with code, config, and webhook details.",
+    description: "Get one Firecracker Function with code, config, and webhook details. OAuth reads redact environment values and webhook secrets; omit those fields during unrelated edits.",
     inputSchema: {
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
     },
@@ -5624,14 +5624,19 @@ server.registerTool(
   "create_function",
   {
     description:
-      "Create a Firecracker Function. Requires name, runtime_os_id, and code. Invocations are usage-billed (CPU + memory seconds) from the account balance.",
-    inputSchema: functionFieldsSchema,
+      "Create a Firecracker Function. Requires name, runtime_os_id, and code. Read list_functions for current runtimes and limits. Retain the idempotency key for creation recovery. Invocations are usage-billed (CPU + memory seconds) from the account balance.",
+    inputSchema: {
+      ...functionFieldsSchema,
+      idempotency_key: z.string().min(16).max(190).regex(/^[A-Za-z0-9._:-]+$/).optional().describe("Stable key for this exact creation. Reuse it after an uncertain response; do not create a second function."),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   },
-  async (input) => {
+  async ({ idempotency_key, ...input }) => {
     const { data } = await apiRequest(
       "POST",
       "/account/firecracker/functions",
-      functionBodyFromInput(input as Record<string, unknown>)
+      functionBodyFromInput(input as Record<string, unknown>),
+      { "Idempotency-Key": idempotency_key ?? randomUUID() }
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -5683,6 +5688,7 @@ server.registerTool(
     description:
       "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations. One Idempotency-Key is generated per tool call unless idempotency_key is supplied; reuse an explicit key only for an exact retry so the same logical step is not double-run or double-billed (response may include replayed=true).",
     inputSchema: {
+      acknowledge_usage_billing: z.boolean().optional().describe("Confirm the customer requested this execution and understands that it uses their VPSnet balance. Required for OAuth connections."),
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
       input: z
         .string()
@@ -5703,8 +5709,9 @@ server.registerTool(
       openWorldHint: true,
     },
   },
-  async ({ function_id, input, wait, idempotency_key }) => {
+  async ({ function_id, input, wait, idempotency_key, acknowledge_usage_billing }) => {
     const body: Record<string, unknown> = {};
+    if (acknowledge_usage_billing !== undefined) body.acknowledge_usage_billing = acknowledge_usage_billing;
     if (input !== undefined) body.input = input;
     if (wait !== undefined) body.wait = wait;
     const key = idempotency_key ?? randomUUID();
