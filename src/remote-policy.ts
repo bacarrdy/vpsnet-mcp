@@ -88,7 +88,22 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
         return { isError: true, content: [{ type: "text", text: "Reconnect VPSnet with the required permissions." }],
           _meta: { "mcp/www_authenticate": [`Bearer error="insufficient_scope", scope="${requiredScopes.join(" ")}"`] } };
       }
-      return handler(...args);
+      const result = await handler(...args);
+      if (name === 'get_application_health' || name === 'get_application_logs') {
+        // Runtime placement is not needed to diagnose the customer's application.
+        return { ...result, content: result.content.map(item => {
+          if (item.type !== 'text') return item;
+          try {
+            const value = JSON.parse(item.text);
+            if (value?.inspection?.result && typeof value.inspection.result === 'object') {
+              delete value.inspection.result.worker_node;
+              delete value.inspection.result.worker_release;
+            }
+            return { ...item, text: JSON.stringify(value, null, 2) };
+          } catch { return item; }
+        }) };
+      }
+      return result;
     });
   };
   server.registerTool = register as unknown as typeof server.registerTool;

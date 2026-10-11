@@ -229,3 +229,21 @@ test('Functions execution requires separate OAuth scope, billing acknowledgment 
   assert.equal(received.at(-1).key,'function-create-test-0001');
   assert.equal(received.at(-1).body.idempotency_key,undefined);
 });
+
+
+test('remote application diagnostics omit runtime placement while retaining health evidence', async t => {
+  const backend = createServer((req,res) => {
+    res.setHeader('content-type','application/json');
+    if(req.url==='/oauth/mcp/introspect')res.end(JSON.stringify({active:true,aud:resource,iss:issuer,exp:Date.now()/1000+300,sub:'a',grant_id:'a',scope:'applications:read',services:['vp-a']}));
+    else res.end(JSON.stringify({success:true,inspection:{id:'check-1',installation_id:'11111111-1111-4111-8111-111111111111',kind:'health',state:'succeeded',result:{health:{status:'healthy',services:[]},worker_node:'internal-runtime',worker_release:'internal-version'}}}));
+  });
+  backend.listen(0,'127.0.0.1');await once(backend,'listening');
+  process.env.VPSNET_API_URL='http://127.0.0.1:'+backend.address().port;
+  const {createRemoteServer}=await import('../build/http-server.js');const remote=createRemoteServer({resource,issuer});remote.listen(0,'127.0.0.1');await once(remote,'listening');
+  t.after(()=>{for(const s of [remote,backend]){s.closeAllConnections();s.close();}});
+  const r=await call(remote.address().port,'POST','/mcp',tokens.a,{jsonrpc:'2.0',id:401,method:'tools/call',params:{name:'get_application_health',arguments:{orderNo:'vp-a',installation_id:'11111111-1111-4111-8111-111111111111'}}});
+  assert.ok(!r.body.result.isError,JSON.stringify(r.body));
+  const result=JSON.parse(r.body.result.content[0].text).inspection.result;
+  assert.equal(result.health.status,'healthy');
+  assert.equal(result.worker_node,undefined);assert.equal(result.worker_release,undefined);
+});
