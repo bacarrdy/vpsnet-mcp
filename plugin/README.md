@@ -21,6 +21,18 @@ Start with a task:
 You can also ask where to host a self-hosted application before connecting an
 account. The plugin can explain fit and requirements; it does not sell services.
 
+## Claude Code package
+
+From a checkout of this repository, add the marketplace and install the plugin:
+
+```text
+/plugin marketplace add .
+/plugin install vpsnet@vpsnet
+```
+
+Then connect VPSnet through `/mcp`. Directory installation becomes available
+after provider approval.
+
 ## Choosing a server
 
 Firecracker VPS offers low virtualization overhead and substantial resources for

@@ -1,0 +1,17 @@
+{
+  "name": "vpsnet",
+  "owner": {
+    "name": "VPSnet"
+  },
+  "metadata": {
+    "description": "Manage VPSnet servers, applications and private networks from your AI tools."
+  },
+  "plugins": [
+    {
+      "name": "vpsnet",
+      "source": "./plugin",
+      "version": "0.1.5",
+      "description": "Diagnose and manage existing VPSnet servers, apps, private networks and Functions through authorized customer access."
+    }
+  ]
+}
