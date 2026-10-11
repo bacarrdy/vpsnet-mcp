@@ -1,13 +1,17 @@
 #!/usr/bin/env node
+import { registerRemoteTools } from "./remote-tools.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
+import { installRemotePolicy, remoteInstructions } from "./remote-policy.js";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { registerNetworkingTools } from "./networking-tools.js";
 import { isIP } from "node:net";
 import { z } from "zod";
-import { apiRequest, formatJson } from "./api.js";
+import { apiRequest, formatJson, initializeStdioApi } from "./api.js";
 import { installToolResultErrorFlag } from "./tool-result.js";
 import {
   applicationAccessConfigurationRequestBody,
@@ -138,10 +142,11 @@ const EVENT_ID_SCHEMA = z
   ])
   .describe("Numeric `event` id or `noty` UUID returned by the action");
 
+export function createVpsnetServer(options: { remoteScopes?: readonly string[] } = {}): McpServer {
 const server = new McpServer(
   { name: "vpsnet", version: JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version },
   {
-    instructions: [
+    instructions: options.remoteScopes ? remoteInstructions : [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
       "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
@@ -291,6 +296,7 @@ const server = new McpServer(
 );
 
 installToolResultErrorFlag(server);
+if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes);
 registerNetworkingTools(server);
 
 // Helper to build service settings path
@@ -6624,15 +6630,21 @@ server.registerTool(
   }
 );
 
-// --- Start server ---
+if (options.remoteScopes) registerRemoteTools(server);
+return server;
+}
 
+// --- Start server ---
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  initializeStdioApi();
+  const server = createVpsnetServer();
+  await server.connect(new StdioServerTransport());
   console.error("VPSnet MCP server running");
 }
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exitCode = 1;
+  });
+}

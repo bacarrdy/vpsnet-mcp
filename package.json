@@ -4,7 +4,8 @@
   "type": "module",
   "description": "MCP server for managing VPSnet.com services, applications, DNS, domains, billing, and server lifecycle operations",
   "bin": {
-    "vpsnet-mcp": "./build/index.js"
+    "vpsnet-mcp": "./build/index.js",
+    "vpsnet-mcp-http": "./build/remote.js"
   },
   "scripts": {
     "build": "tsc",
@@ -12,7 +13,8 @@
     "test": "npm run build && node --test test/*.test.mjs",
     "docs:tools": "npm run build && node scripts/generate-tool-reference.mjs",
     "docs:tools:check": "npm run build && node scripts/generate-tool-reference.mjs --check",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "start:http": "node build/remote.js"
   },
   "files": [
     "build/api-configuration.js",
@@ -27,7 +29,12 @@
     "build/temp-vm-contract.js",
     "build/api-path.js",
     "build/tool-result.js",
-    "build/networking-tools.js"
+    "build/networking-tools.js",
+    "build/remote.js",
+    "build/http-server.js",
+    "build/request-context.js",
+    "build/remote-policy.js",
+    "build/remote-tools.js"
   ],
   "repository": "github:bacarrdy/vpsnet-mcp",
   "homepage": "https://github.com/bacarrdy/vpsnet-mcp",

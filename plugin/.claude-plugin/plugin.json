@@ -1,0 +1,9 @@
+{
+  "name": "vpsnet",
+  "version": "0.1.0",
+  "description": "Diagnose and manage existing VPSnet servers, applications, Functions and SDN networks through scoped OAuth access.",
+  "author": { "name": "VPSnet", "url": "https://vpsnet.com" },
+  "homepage": "https://vpsnet.com",
+  "repository": "https://github.com/bacarrdy/vpsnet-mcp",
+  "license": "MIT"
+}

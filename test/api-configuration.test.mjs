@@ -51,7 +51,7 @@ test("compiled checkout and npx-cache layouts read the same explicit workspace",
     writeFileSync(join(install, "package.json"), '{"type":"module"}');
     writeFileSync(join(install, ".vpsnet-mcp-key"), "vpsnet_install_decoy");
     const api = pathToFileURL(join(install, "build/api.js")).href;
-    const script = `globalThis.fetch = async (url, init) => ({ status: 200, text: async () => JSON.stringify({ url, key: init.headers["X-API-KEY"] }) }); const {apiRequest} = await import(${JSON.stringify(api)}); console.log(JSON.stringify(await apiRequest("GET", "/read-only-fixture")));`;
+    const script = `globalThis.fetch = async (url, init) => ({ status: 200, text: async () => JSON.stringify({ url, key: init.headers["X-API-KEY"] }) }); const {apiRequest, initializeStdioApi} = await import(${JSON.stringify(api)}); initializeStdioApi(); console.log(JSON.stringify(await apiRequest("GET", "/read-only-fixture")));`;
     const child = spawnSync(process.execPath, ["--input-type=module", "--eval", script], {
       cwd: workspace,
       env: { VPSNET_API_URL: "http://127.0.0.1:9" },

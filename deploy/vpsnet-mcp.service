@@ -1,0 +1,26 @@
+[Unit]
+Description=VPSnet remote MCP gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vpsnet-mcp
+Group=vpsnet-mcp
+WorkingDirectory=/opt/vpsnet-mcp
+EnvironmentFile=/etc/vpsnet-mcp/environment
+ExecStart=/usr/bin/node /opt/vpsnet-mcp/build/remote.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

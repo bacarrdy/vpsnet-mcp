@@ -18,6 +18,16 @@
 - Ordering new VPS instances
 - System status & pricing
 
+## Remote OAuth connector
+
+The remote connector uses `https://mcp.vpsnet.com/mcp` and customer consent through
+VPSnet. Its deployment configuration, permission boundaries, provider packages and
+remaining live acceptance checks are in [Remote AI connections](docs/REMOTE_MCP.md).
+VM execution reuses the existing `ai.vpsnet.com` service. This code does not imply
+that the endpoint is deployed or that provider directory review is complete.
+
+The instructions below describe the existing local stdio/API-key client.
+
 ## Prerequisites
 
 Before installing, ensure you have:

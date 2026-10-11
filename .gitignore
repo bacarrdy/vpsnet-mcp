@@ -17,3 +17,8 @@ id_ed25519
 
 # local worktrees must never be staged as gitlinks
 .worktrees/
+
+# Reviewed distribution configuration contains no credentials.
+!plugin/.mcp.json
+!deploy/mcp.env.example
+artifacts/

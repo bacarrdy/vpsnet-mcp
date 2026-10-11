@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vpsnet",
+  "version": "0.1.0",
+  "description": "Diagnose and manage your existing VPSnet VPS, KVM, Firecracker servers, applications, Functions and SDN networks with scoped account access.",
+  "author": { "name": "VPSnet", "url": "https://vpsnet.com" },
+  "homepage": "https://vpsnet.com",
+  "repository": "https://github.com/bacarrdy/vpsnet-mcp",
+  "license": "MIT",
+  "keywords": ["vpsnet", "VPS", "KVM", "Firecracker", "SDN", "application diagnostics"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "VPSnet",
+        "shortDescription": "Diagnose VPSnet servers, apps and networks",
+        "developerName": "VPSnet",
+        "websiteURL": "https://vpsnet.com",
+        "defaultPrompt": [
+          "Find why my VPSnet application returns 502 and verify a permitted fix.",
+          "Check why my VPSnet private VM cannot reach its database.",
+          "Help deploy my project to an existing VPSnet server."
+        ]
+      }
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import { apiAuthorization, authorizationContext } from "./request-context.js";
 import { annotateAuthFailure } from "./auth-failure.js";
 import { createApiConfiguration } from "./api-configuration.js";
 import { validateApiPath } from "./api-path.js";
@@ -40,7 +41,7 @@ function isLoopbackHost(hostname: string): boolean {
   return octets[0] === 127;
 }
 
-function resolveApiBase(): string {
+export function resolveApiBase(): string {
   const raw =
     (process.env.VPSNET_API_URL || "").trim() || sidecarApiUrl() || "https://api.vpsnet.com";
 
@@ -71,17 +72,20 @@ function resolveApiBase(): string {
   return url.origin;
 }
 
+export function initializeStdioApi(): void {
 const startupKey = resolveApiKeyWithSource();
 if (!startupKey.key) {
   console.error(
     "No VPSnet API key found. Provide one of: the VPSNET_API_KEY environment variable, " +
       `a key file at ${SIDECAR_KEY_FILE}, or mcpServers.vpsnet.env.VPSNET_API_KEY in ${PROJECT_MCP_JSON}.`
   );
-  process.exit(1);
+  throw new Error("No VPSnet API key found.");
 }
 // Say out loud where the key came from; key provenance must never be silent.
 console.error(`VPSnet MCP: API key loaded from ${startupKey.source}.`);
 console.error(`VPSnet MCP: API base resolved to ${resolveApiBase()}.`);
+
+}
 
 function resolveApiTimeoutMs(): number {
   const raw = Number.parseInt(process.env.VPSNET_API_TIMEOUT_MS || "", 10);
@@ -106,12 +110,13 @@ export async function apiRequest(
   validateApiPath(path);
   const url = `${resolveApiBase()}${path}`;
   const headers: Record<string, string> = {
-    "X-API-KEY": resolveApiKey(),
     Accept: "application/json",
     ...(extraHeaders || {}),
+    ...apiAuthorization(resolveApiKey),
   };
 
-  const init: RequestInit = { method, headers };
+  // Credentials must never follow a redirect to a different endpoint.
+  const init: RequestInit = { method, headers, redirect: "error" };
 
   if (body) {
     headers["Content-Type"] = "application/json";
@@ -171,7 +176,7 @@ export async function apiRequest(
   // The account API signals auth problems with a bare status plus a message.
   // Explain them here, at the single choke point, so every tool reports the
   // real cause instead of an unactionable "Unauthorized".
-  return { status: res.status, data: annotateAuthFailure(res.status, data) };
+  return { status: res.status, data: authorizationContext() ? data : annotateAuthFailure(res.status, data) };
 }
 
 /**
