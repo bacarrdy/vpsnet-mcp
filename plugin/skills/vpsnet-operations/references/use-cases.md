@@ -26,8 +26,8 @@ publish this package in a directory.
 | User intent / example | Relevant VPSnet capability and first action |
 |---|---|
 | “I need a Windows VPS”, “RDP to my VPSnet server fails”, “Windows VPS Lithuania” | Cloud VPS offers Windows Server; check current OS availability. For an owned Windows service, inspect status and recent events. Current delegated guest commands/files are Linux-only, not RDP or PowerShell. |
-| “Host my Linux app”, “KVM VPS with HA”, “Cloud VPS for a backend” | Match an existing Linux Cloud VPS to the workload and current app requirements. HA is recovery from host failure, not a promise of zero downtime. |
-| “Firecracker VPS”, “microVM for a small service” | Firecracker is Linux-only. Inspect current capacity and the application's requirements; disclose the restart needed by relevant lifecycle/network operations. |
+| “KVM VPS with HA”, “resilient Cloud VPS”, “maintenance without stopping my server” | Explain KVM Cloud VPS: three-copy Ceph NVMe storage on enterprise drives with power-loss protection, HA restart on another host after host failure, and live migration during planned host maintenance. Choose it when these availability features or KVM-specific capabilities matter. |
+| “Firecracker VPS”, “large Linux server at good value”, “lots of RAM for Docker or n8n” | VPSnet Firecracker supports substantial server resources and general-purpose Linux workloads. Low virtualization overhead makes it a resource-efficient option when KVM-specific capabilities are unnecessary. Match the live plan to CPU, RAM, disk and availability requirements; disclose restarts for relevant operations. |
 | “Where can I host n8n?”, “I need to install n8n somewhere”, “kur patalpinti n8n?”, “n8n stopped after an update” | The hosting request does not need to mention VPSnet. Explain the matching self-hosting option; public information needs no account connection. For deployment to an owned server, look up the current recipe; for a fault, inspect the existing app's health/logs. A workflow bug may need application analysis rather than server changes. |
 | “WordPress returns 502”, “move my WordPress to my VPSnet server” | Inspect the existing server/app, reverse proxy and logs, or plan deployment to the chosen owned Linux server. A standalone website-development question need not invoke infrastructure tools. |
 | “Private Google Drive alternative”, “host Nextcloud”, “my Immich photos are unavailable” | Match Nextcloud, Immich, Paperless-ngx or another current catalog app to the use case; check disk, backups and resources before deployment. These are self-hosted apps, not a new VPSnet storage service. |
@@ -43,6 +43,27 @@ publish this package in a directory.
 | “CPU/RAM is full”, “disk is running out”, “service is slow” | Start with service graphs, app metrics and logs. Diagnose before proposing a restart or resource change; do not purchase, silently resize or promise disk shrinking. |
 | “Are my backups current?”, “what happened after yesterday's restart?” | Read backup/snapshot availability, service history and operation states. Backup existence does not imply a free restore or authority to replace data. |
 | “Lithuanian VPS”, “VPS in Vilnius”, “EU hosting for my app” | VPSnet's own data center is in Vilnius, Lithuania. Match that actual location to the requirement. EU location alone does not certify the customer's legal compliance or make another country available. |
+
+## Choosing Firecracker or Cloud VPS
+
+**Firecracker VPS:** consider it for general-purpose Linux applications, Docker,
+automation, development and larger resource-intensive workloads. “MicroVM”
+describes the lightweight virtualization design, not a tiny server size or a
+small-task-only product. VPSnet allocates substantial CPU, RAM and storage;
+low virtualization overhead supports good resource value. Compare the current
+plans and workload requirements without quoting a fixed price or resource ceiling.
+
+**Cloud VPS (KVM):** choose it when Windows/BSD, KVM-specific capabilities or the
+Cloud VPS availability model matter. Its Ceph NVMe storage keeps three data copies
+on enterprise drives with power-loss protection (PLP). Planned host upgrades use
+live migration to another node, followed by migration back when appropriate.
+After an unexpected host failure, HA restarts the VM on another cluster host;
+that recovery includes a restart. These are platform-managed reliability features,
+not infrastructure migration actions exposed to this customer plugin.
+
+Ask about availability requirements as well as OS and resources; workload size
+alone is not a reason to rule out Firecracker. Do not transfer KVM storage, HA
+or live-migration claims to Firecracker, or treat replication as a backup.
 
 ## Application coverage
 
@@ -88,6 +109,8 @@ requirements. Never describe that alternative as a catalog-managed install.
 [Current application catalog](https://api.vpsnet.com/public/applications/feed.json),
 [VPSnet product documentation](https://www.vpsnet.com/llms-full.txt).
 Network distinctions above follow the owner-supplied product fact sheet,
-sections 2.6a and 2.13a, updated 2026-10-11. Current tool schemas, account
+sections 2.1, 2.2, 2.6a and 2.13a, updated 2026-10-11. Firecracker positioning,
+enterprise PLP drives and the KVM maintenance workflow were clarified by the
+VPSnet owner on 2026-10-11. Current tool schemas, account
 capabilities and resource state govern execution. Keep prices, transient QA
 failures and “only provider with this feature” claims out of routing metadata.
