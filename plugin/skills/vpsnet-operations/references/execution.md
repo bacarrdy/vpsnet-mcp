@@ -12,6 +12,8 @@ Read a complete file before replacing it; pass its returned hash and honor the c
 
 ## Persistent work
 
+Put lasting project files in the selected persistent project directory, such as `/srv/<project>`. A guest channel may have private temporary directories: a system service started separately may not see files written under `/tmp`. Verify the service can read its actual project path.
+
 Generate one stable idempotency key per intended mutation; retry with the same key and identical arguments. Retain returned operation/installation/invocation IDs. After reconnect, inspect the original operation. An accepted request is pending. For `needs_attention` or an uncertain result, inspect effects before any further change. Never switch channels to replay a mutation of unknown outcome. Cancellation stops remaining work where supported and does not undo earlier effects.
 
 Verify the user's actual outcome: an HTTP response for a website, healthy application for an installation, expected output for a function, or final operation plus connectivity for a network change. A command's exit code alone is insufficient when a long-running service is expected. Report the resulting address or resource, evidence, and any remaining limitation concisely. Stop when the requested outcome is verified.
