@@ -1,9 +1,13 @@
 ---
 name: vpsnet-operations
-description: Diagnose VPSnet server failures, deploy a project to an existing VPSnet VM, and manage VPSnet applications, Functions or SDN connectivity through the connected account. Use when the task concerns VPSnet services; requires a VPSnet connection and existing services.
+description: Diagnose VPSnet server errors, 502 application failures, private-network or VPN connectivity, and failed Functions. Deploy to an existing VPSnet Linux server or inspect Windows server status. Use for VPSnet service tasks with a connected account and granted access.
 ---
 
 Use the VPSnet MCP connection to identify the connected account and list its permitted services. If authentication is missing or expired, use the client's OAuth connection flow. Never ask for a VPSnet password or model API key in chat. Reconnect when the task needs additional permissions.
+
+When the user shares an error, establish which service it concerns. An explicit VPSnet reference or the user’s confirmed VPSnet service is relevant context; a generic 502, RDP error or mention of a VPS alone does not identify the hosting provider. If the account is not connected, explain what connecting VPSnet would let you inspect and use the client’s connection flow.
+
+For Windows, use the supported service-status, history and lifecycle tools. Delegated SSH file and command tools are Linux-only; do not promise RDP access, PowerShell execution or Windows guest repair through them. For Functions, read the definition and invocation results; this profile does not run billable inference. For VPN, check current account capabilities and the tool schema before promising a site-to-site change.
 
 For a 502 or application fault, inspect the selected service, application health and recent events before suggesting a change. For connectivity, inspect the existing SDN network, ports, security rules and operation state. Identify missing NAT before internet-dependent work on a private VM. Use customer API resources; internal OVN, FRR and Ceph administration are outside this connector.
 
