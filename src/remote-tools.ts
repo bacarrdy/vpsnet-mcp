@@ -1,8 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
+import { randomBytes } from 'node:crypto';
 import { apiRequest, resolveApiBase } from './api.js';
 
-const resource = { orderNo: z.string().regex(/^[A-Za-z0-9-]{1,64}$/), sessionBinding: z.string().regex(/^[a-f0-9]{32}$/).describe('Generate once per delegated session and reuse on reconnect. Not a credential.') };
+const resource = { orderNo: z.string().regex(/^[A-Za-z0-9-]{1,64}$/), sessionBinding: z.string().regex(/^[a-f0-9]{32}$/, 'sessionBinding must contain exactly 32 lowercase hexadecimal characters (0-9, a-f), without hyphens. For a new open_vm_session call, omit it so VPSnet creates it; otherwise reuse the returned sessionBinding.').describe('Exactly 32 lowercase hexadecimal characters (0-9, a-f), without hyphens. Copy sessionBinding from open_vm_session and reuse it for every operation and reconnect. Not a credential.') };
 const session = { ...resource, sessionId: z.string().uuid() };
 const idempotencyKey = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/).describe('Stable key for this exact operation. Reuse after a lost response; never automatically replace.');
 const result = (data: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(data) }] });
@@ -56,9 +57,9 @@ export function registerRemoteTools(server: McpServer): void {
   }, async () => { const { data } = await apiRequest('GET', '/account/mcp/profile'); return { ...result(data), structuredContent: data as Record<string, unknown> }; });
 
   server.registerTool('open_vm_session', {
-    description: 'Open a delegated Linux SSH session on a selected KVM or Firecracker service using existing VPSnet AI. Requires explicit VM permission. The OS user is root; a project directory is not isolation. May return pending key deployment; verify readiness with a read-only command before changes. Reuse the session binding on reconnect.',
-    inputSchema: resource, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
-  }, async ({ orderNo, sessionBinding }) => {
+    description: 'Open a delegated Linux SSH session on a selected KVM or Firecracker service using existing VPSnet AI. Requires explicit VM permission. Omit sessionBinding for a new session; VPSnet generates it and returns it with sessionId. Reuse both returned values for commands, files and reconnects. The OS user is root. May return pending key deployment; verify readiness and read /etc/os-release before choosing OS-specific commands or making changes. An empty managed-app list does not mean the server has no software.',
+    inputSchema: { ...resource, sessionBinding: resource.sessionBinding.optional().describe('Omit for a new session. To reconnect, copy the exact 32-character lowercase hexadecimal sessionBinding returned by open_vm_session; do not supply a UUID with hyphens or a descriptive name.') }, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  }, async ({ orderNo, sessionBinding = randomBytes(16).toString('hex') }) => {
     const token = await lease(orderNo, sessionBinding);
     const opened = await runtime(token, 'POST', '/session/bootstrap', { sshUsername: 'root' });
     if (!opened.session?.id || !opened.ssh?.publicKey || !opened.ssh?.expiresAt) throw new Error('Incomplete delegated session');

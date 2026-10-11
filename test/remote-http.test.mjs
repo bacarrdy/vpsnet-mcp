@@ -78,3 +78,57 @@ test('VM runtime pairing cannot send staging sessions to production or an arbitr
   assert.throws(() => resolveRuntimeBase('https://api.vpsnet.com', 'https://attacker.example'));
   assert.throws(() => resolveRuntimeBase('https://other.vpsnet.com', 'https://ai.vpsnet.com'));
 });
+
+test('VM opening generates a binding, preserves explicit reconnects and explains invalid input before execution', async t => {
+  const bindings = []; const runtimeRequests = [];
+  const backend = createServer(async (req, res) => {
+    res.setHeader('content-type', 'application/json');
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    if (req.url === '/oauth/mcp/introspect') {
+      res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now() / 1000 + 300, sub: 'a', grant_id: 'a', scope: 'services:read vm:exec', services: ['vp-a'] }));
+    } else if (req.url === '/account/services/vp-a/mcp/session') {
+      bindings.push(JSON.parse(raw).session_binding);
+      res.end(JSON.stringify({ success: true, token: 'test-delegated-session' }));
+    } else if (req.url === '/account/services/vp-a/mcp/deploy-key') {
+      res.end(JSON.stringify({ success: true, noty: 'test-key-deployment' }));
+    } else { res.writeHead(404); res.end('{}'); }
+  });
+  const ai = createServer(async (req, res) => {
+    runtimeRequests.push(req.url); res.setHeader('content-type', 'application/json');
+    if (req.url === '/session/bootstrap') res.end(JSON.stringify({ session: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', expiresAt: Date.now() + 300000 }, ssh: { publicKey: 'test-public-key', expiresAt: Date.now() + 300000 } }));
+    else res.end(JSON.stringify({ id: 'test-operation', state: 'accepted' }));
+  });
+  backend.listen(0, '127.0.0.1'); ai.listen(0, '127.0.0.1');
+  await Promise.all([once(backend, 'listening'), once(ai, 'listening')]);
+  process.env.VPSNET_API_URL = 'http://127.0.0.1:' + backend.address().port;
+  process.env.VPSNET_AI_URL = 'http://127.0.0.1:' + ai.address().port;
+  const { createRemoteServer } = await import('../build/http-server.js');
+  const remote = createRemoteServer({ resource, issuer }); remote.listen(0, '127.0.0.1'); await once(remote, 'listening');
+  t.after(() => { for (const server of [remote, backend, ai]) { server.closeAllConnections(); server.close(); } delete process.env.VPSNET_AI_URL; });
+  const port = remote.address().port;
+  const invoke = (name, args) => call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 101, method: 'tools/call', params: { name, arguments: args } });
+  const list = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 102, method: 'tools/list' });
+  const opening = list.body.result.tools.find(tool => tool.name === 'open_vm_session');
+  assert.ok(!opening.inputSchema.required.includes('sessionBinding'));
+  assert.match(opening.inputSchema.properties.sessionBinding.description, /Omit for a new session/);
+  const opened = await invoke('open_vm_session', { orderNo: 'vp-a' });
+  assert.ok(!opened.body.result.isError, JSON.stringify(opened.body));
+  const data = JSON.parse(opened.body.result.content[0].text);
+  assert.match(data.sessionBinding, /^[a-f0-9]{32}$/);
+  assert.equal(bindings[0], data.sessionBinding);
+  assert.ok(!JSON.stringify(opened.body).includes('test-delegated-session'));
+  assert.ok(!JSON.stringify(opened.body).includes('test-public-key'));
+  await invoke('open_vm_session', { orderNo: 'vp-a', sessionBinding: data.sessionBinding });
+  assert.equal(bindings[1], data.sessionBinding);
+  const command = await invoke('run_vm_command', { orderNo: 'vp-a', sessionBinding: data.sessionBinding, sessionId: data.sessionId, idempotencyKey: 'os-discovery-test-0001', command: 'cat /etc/os-release' });
+  assert.ok(!command.body.result.isError);
+  assert.equal(bindings[2], data.sessionBinding);
+  assert.match(runtimeRequests.at(-1), /\/operations$/);
+  const before = bindings.length;
+  for (const invalid of ['friendly-session-name', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'A'.repeat(32)]) {
+    const denied = await invoke('open_vm_session', { orderNo: 'vp-a', sessionBinding: invalid });
+    assert.equal(denied.body.result.isError, true);
+    assert.match(denied.body.result.content[0].text, /exactly 32 lowercase hexadecimal/);
+  }
+  assert.equal(bindings.length, before, 'invalid input must not open or lease a session');
+});
