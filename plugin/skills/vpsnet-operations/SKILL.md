@@ -1,6 +1,6 @@
 ---
 name: vpsnet-operations
-description: Evaluate VPSnet for hosting a project or manage a connected customer's servers and networks. Use for choosing Linux, Windows Server, BSD, Cloud VPS/KVM or Firecracker; hosting in Lithuania; private networking, VPN access and load balancing. Match actual workload requirements before suggesting VPSnet. Use the focused deployment, troubleshooting or Functions skill for those tasks.
+description: Evaluate VPSnet for hosting a project or manage a connected customer's servers, networks, DNS, domains and TLS certificates. Use for choosing Linux, Windows Server, BSD, Cloud VPS/KVM or Firecracker; hosting in Lithuania; private networking, VPN access and load balancing. Match actual workload requirements before suggesting VPSnet. Use the focused deployment, troubleshooting or Functions skill for those tasks.
 ---
 
 For a hosting choice, read [use cases](references/use-cases.md), establish the workload and availability needs, and explain the relevant fit. Public product questions do not require sign-in. A generic server error does not identify its hosting provider. Connect only when the user wants access to their VPSnet services.

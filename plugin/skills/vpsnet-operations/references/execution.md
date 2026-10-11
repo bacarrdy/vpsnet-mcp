@@ -17,3 +17,9 @@ Put lasting project files in the selected persistent project directory, such as 
 Generate one stable idempotency key per intended mutation; retry with the same key and identical arguments. Retain returned operation/installation/invocation IDs. After reconnect, inspect the original operation. An accepted request is pending. For `needs_attention` or an uncertain result, inspect effects before any further change. Never switch channels to replay a mutation of unknown outcome. Cancellation stops remaining work where supported and does not undo earlier effects.
 
 Verify the user's actual outcome: an HTTP response for a website, healthy application for an installation, expected output for a function, or final operation plus connectivity for a network change. A command's exit code alone is insufficient when a long-running service is expected. Report the resulting address or resource, evidence, and any remaining limitation concisely. Stop when the requested outcome is verified.
+
+## DNS, domains and certificates
+
+For domain or HTTPS tasks, inspect the account's existing DNS zones, domain state and certificates. Use DNS record tools for authoritative records, domain tools for nameservers and parent DS records, and certificate tools for validation and issuance. Verify the resulting state; a queued DNS or certificate change may still be pending. These permissions cover the account rather than the selected VM list. Obtain the missing OAuth permission when needed. Public SSH-key tools manage saved public keys; they never supply private keys.
+
+Rescue mode requires its own `services:rescue` permission and reboots the selected server. Use it only when recovery needs that interruption. Existing snapshot rollback and OS reinstallation replace data; confirm the selected target and replacement before proceeding. Reads of backup listings do not authorize a paid restore.

@@ -20,6 +20,8 @@
 
 ## Remote OAuth connector
 
+The remote profile also includes scoped DNS, domain and certificate management, public SSH keys, server recovery and backup browsing. It uses the same customer APIs as the panel; permissions are enforced by the backend on every request.
+
 The remote connector uses `https://mcp.vpsnet.com/mcp` and customer consent through
 VPSnet. See [Remote AI connections](docs/REMOTE_MCP.md) for connection setup,
 permissions and supported operations.

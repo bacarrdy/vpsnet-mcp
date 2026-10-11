@@ -2,7 +2,7 @@
 
 Connect your own AI account to your existing VPSnet services. Install applications such as n8n or WordPress, build and run websites,
 diagnose server faults, configure private networks and VPN connectivity, and
-create and test Functions. The application catalog is live: examples
+create and test Functions, and manage DNS, domains and TLS certificates. The application catalog is live: examples
 are not a fixed inventory or a guarantee that a recipe is currently available.
 
 ## Connect
@@ -19,6 +19,7 @@ Start with a task:
 - “Build and run a small website on my selected VPSnet server.”
 - “Create and test a function, with my approval for usage charges.”
 - “Find why my app cannot reach its database over the private network.”
+- “Point my existing domain at my server and check DNS and TLS.”
 
 You can also ask where to host a self-hosted application before connecting an
 account. The plugin can explain fit and requirements; it does not sell services.
@@ -58,7 +59,7 @@ availability requirements and current plans; “microVM” does not mean a small
 ## Access and control
 
 - Server and application access is limited to the services selected at consent.
-- Network and Functions permissions cover those resources in your account.
+- Network, Functions, DNS, domain, certificate and public SSH-key permissions cover those resources across your account.
 - Linux file access and commands require separate permission. Commands run with
   the OS privileges disclosed at consent; choosing a directory does not isolate
   a shell. Windows support here covers service status and lifecycle, not guest

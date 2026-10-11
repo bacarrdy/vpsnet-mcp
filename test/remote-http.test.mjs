@@ -44,7 +44,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   const names = list.body.result.tools.map(t => t.name);
   assert.ok(names.includes('list_services')); assert.ok(names.includes('get_connected_account'));
   assert.ok(names.includes('restart_service')); assert.ok(names.includes('open_vm_session'));
-  assert.ok(!names.some(n => /order|invoice|payment|api_key|billing|auto_renew|product/.test(n)));
+  assert.ok(!names.some(n => /^(?:order_|quote_|create_ddns_token|.*(?:invoice|payment|api_key|billing|auto_renew))/.test(n)));
   for (const tool of list.body.result.tools) {
     assert.ok(tool.title?.trim(), `${tool.name} requires a human-readable title`);
     assert.ok(tool.name.length <= 64, tool.name);
@@ -55,10 +55,18 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, true, 'Deploying a temporary SSH key modifies VM access');
   assert.equal(list.body.result.tools.find(t => t.name === 'list_services').annotations.readOnlyHint, true);
   assert.deepEqual(list.body.result.tools.find(t => t.name === 'restart_service')._meta.securitySchemes[0].scopes, ['services:manage']);
+  for (const [name, scope] of [['upsert_dns_record', 'dns:write'], ['set_dnssec', 'dnssec:manage'], ['set_domain_nameservers', 'domains:manage'], ['create_free_certificate', 'certificates:manage'], ['enter_service_rescue', 'services:rescue'], ['create_ssh_key', 'ssh_keys:manage'], ['reinstall_os', 'services:manage']]) {
+    assert.deepEqual(list.body.result.tools.find(t => t.name === name)?._meta.securitySchemes[0].scopes, [scope], name);
+  }
+  assert.ok(!names.includes('create_ddns_token'));
   const denied = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: 'restart_service', arguments: { orderNo: 'vp-a' } } });
   assert.equal(denied.body.result.isError, true);
   assert.match(denied.body.result._meta['mcp/www_authenticate'][0], /services:manage/);
   assert.ok(!received.some(r => r.path.includes('restart')));
+  const deniedDns = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 92, method: 'tools/call', params: { name: 'list_dns_zones', arguments: {} } });
+  assert.equal(deniedDns.body.result.isError, true);
+  assert.match(deniedDns.body.result._meta['mcp/www_authenticate'][0], /dns:read/);
+  assert.ok(!received.some(r => r.path.includes('/dns/')));
   const results = await Promise.all(Array.from({ length: 10 }, (_, i) => call(port, 'POST', '/mcp', tokens[i % 2 ? 'b' : 'a'], { jsonrpc: '2.0', id: i + 2, method: 'tools/call', params: { name: 'list_services', arguments: {} } })));
   results.forEach((r, i) => assert.equal(JSON.parse(r.body.result.content[0].text).tenant, i % 2 ? 'b' : 'a'));
   assert.ok(received.every(r => r.key === undefined));
@@ -67,6 +75,18 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   assert.equal((await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 90, method: 'tools/list' })).status, 401);
   const { apiRequest } = await import('../build/api.js');
   await assert.rejects(() => apiRequest('GET', '/account/services'), /authorization|context/i);
+});
+
+test('DNS write authority includes read preflights but neither DNSSEC nor unrelated scopes', async () => {
+  const { hasScope, supportedScopes } = await import('../build/remote-policy.js');
+  assert.equal(hasScope(['dns:write'], 'dns:read'), true);
+  assert.equal(hasScope(['dnssec:manage'], 'dns:read'), true);
+  assert.equal(hasScope(['dns:write'], 'dnssec:manage'), false);
+  assert.equal(hasScope(['services:manage'], 'dns:write'), false);
+  assert.equal(hasScope(['services:rescue'], 'services:read'), true);
+  assert.equal(hasScope(['ssh_keys:manage'], 'ssh_keys:read'), true);
+  assert.equal(hasScope(['ssh_keys:manage'], 'account:manage'), false);
+  assert.ok(supportedScopes.join(' ').length <= 512);
 });
 
 
