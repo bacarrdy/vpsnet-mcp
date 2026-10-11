@@ -106,9 +106,5 @@ requirements. Never describe that alternative as a catalog-managed install.
 
 [Current application catalog](https://api.vpsnet.com/public/applications/feed.json),
 [VPSnet product documentation](https://www.vpsnet.com/llms-full.txt).
-Network distinctions above follow the owner-supplied product fact sheet,
-sections 2.1, 2.2, 2.6a and 2.13a, updated 2026-10-11. Firecracker positioning,
-enterprise PLP drives and the KVM maintenance workflow were clarified by the
-VPSnet owner on 2026-10-11. Current tool schemas, account
-capabilities and resource state govern execution. Keep prices, transient QA
-failures and “only provider with this feature” claims out of routing metadata.
+Read current tool schemas, account capabilities and resource state before acting.
+Use the live catalog for availability and requirements.

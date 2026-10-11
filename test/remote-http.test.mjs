@@ -80,12 +80,14 @@ test('VM runtime pairing cannot send staging sessions to production or an arbitr
 });
 
 test('VM opening generates a binding, preserves explicit reconnects and explains invalid input before execution', async t => {
-  const bindings = []; const runtimeRequests = [];
+  const bindings = []; const runtimeRequests = []; let nativeOpenCalls = 0;
   const backend = createServer(async (req, res) => {
     res.setHeader('content-type', 'application/json');
     let raw = ''; for await (const chunk of req) raw += chunk;
     if (req.url === '/oauth/mcp/introspect') {
       res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now() / 1000 + 300, sub: 'a', grant_id: 'a', scope: 'services:read vm:exec', services: ['vp-a'] }));
+    } else if (req.url === '/account/services/vp-a/mcp/guest-session') {
+      nativeOpenCalls++; res.writeHead(404); res.end('{}');
     } else if (req.url === '/account/services/vp-a/mcp/session') {
       bindings.push(JSON.parse(raw).session_binding);
       res.end(JSON.stringify({ success: true, token: 'test-delegated-session' }));
@@ -131,4 +133,51 @@ test('VM opening generates a binding, preserves explicit reconnects and explains
     assert.match(denied.body.result.content[0].text, /exactly 32 lowercase hexadecimal/);
   }
   assert.equal(bindings.length, before, 'invalid input must not open or lease a session');
+  const guestAttempts = nativeOpenCalls;
+  const ssh = await invoke('open_vm_session', { orderNo: 'vp-a', connectionMethod: 'ssh' });
+  assert.ok(!ssh.body.result.isError);
+  assert.equal(JSON.parse(ssh.body.result.content[0].text).executionChannel, 'ssh');
+  assert.equal(nativeOpenCalls, guestAttempts, 'explicit SSH is independent of guest-agent availability');
+});
+
+test('guest sessions route operations without SSH and never fall back after denial', async t => {
+  const requests = []; let denied = false;
+  const sessionId = 'aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa';
+  const id = 'guest_' + 'a'.repeat(64);
+  const backend = createServer(async (req, res) => {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    const body = raw ? JSON.parse(raw) : {};
+    requests.push({ path: req.url, body });
+    res.setHeader('content-type', 'application/json');
+    if (req.url === '/oauth/mcp/introspect') {
+      res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now()/1000 + 300, sub: 'a', grant_id: 'a', scope: 'vm:exec vm:files', services: ['vp-a'] }));
+    } else if (req.url.endsWith('/guest-session')) {
+      if (denied) { res.writeHead(403); res.end('{"code":"access_denied"}'); return; }
+      res.end(JSON.stringify({ success: true, executionChannel: 'guest', sessionId, sessionBinding: body.session_binding, capabilities: { maxFileBytes: 32768 } }));
+    } else if (req.url.includes('/guest-operations')) {
+      res.end(JSON.stringify({ success: true, operation: { id, state: 'running' } }));
+    } else { res.writeHead(500); res.end('{"code":"unexpected_ssh_fallback"}'); }
+  });
+  backend.listen(0, '127.0.0.1'); await once(backend, 'listening');
+  process.env.VPSNET_API_URL = 'http://127.0.0.1:' + backend.address().port;
+  const { createRemoteServer } = await import('../build/http-server.js');
+  const remote = createRemoteServer({ resource, issuer }); remote.listen(0, '127.0.0.1'); await once(remote, 'listening');
+  t.after(() => { for (const server of [remote, backend]) { server.closeAllConnections(); server.close(); } });
+  const invoke = async (name, args) => (await call(remote.address().port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 201, method: 'tools/call', params: { name, arguments: args } })).body.result;
+  const opened = await invoke('open_vm_session', { orderNo: 'vp-a' });
+  assert.ok(!opened.isError);
+  const sessionBinding = JSON.parse(opened.content[0].text).sessionBinding;
+  const common = { orderNo: 'vp-a', sessionBinding, sessionId, idempotencyKey: 'test-1-00000000000000000' };
+  for (const [name, fields] of [['run_vm_command', { command: 'cat /etc/os-release' }], ['read_vm_file', { path: '/etc/os-release' }], ['write_vm_file', { path: '/tmp/example', content: 'changed', expectedSha256: 'b'.repeat(64) }]]) {
+    assert.ok(!(await invoke(name, { ...common, ...fields })).isError);
+    assert.equal(requests.at(-1).path, '/account/services/vp-a/mcp/guest-operations');
+    assert.equal(requests.at(-1).body.session_id, sessionId);
+  }
+  for (const [tool, suffix] of [['get_vm_operation', 'status'], ['cancel_vm_operation', 'cancel']]) {
+    assert.ok(!(await invoke(tool, { orderNo: 'vp-a', sessionBinding, operationId: id })).isError);
+    assert.equal(requests.at(-1).path, '/account/services/vp-a/mcp/guest-operations/' + 'a'.repeat(64) + '/' + suffix);
+  }
+  denied = true;
+  assert.equal((await invoke('open_vm_session', { orderNo: 'vp-a', sessionBinding })).isError, true);
+  assert.ok(!requests.some(r => /\/mcp\/(session|deploy-key)$/.test(r.path)));
 });

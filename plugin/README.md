@@ -12,7 +12,12 @@ Sign in to VPSnet, choose your services and permissions, then return to the
 conversation. No model API key is required by VPSnet. You use the model under
 the terms of your own AI account.
 
-Try: “Check my VPSnet server and explain any problems. Ask before making changes.”
+Start with a task:
+
+- “Check what is running on my VPSnet server. Ask before making changes.”
+- “Install n8n from the VPSnet application catalog on my selected server.”
+- “Find why my app cannot reach its database over the private network.”
+
 You can also ask where to host a self-hosted application before connecting an
 account. The plugin can explain fit and requirements; it does not sell services.
 
@@ -40,8 +45,9 @@ availability requirements and current plans; “microVM” does not mean a small
 ## Data and support
 
 The declared MCP connector is operated by VPSnet. It calls the VPSnet customer
-API and, when explicitly authorized, VPSnet's existing SSH/SFTP execution service
-to access the selected customer server. Tool results are returned to the AI
+API and, when explicitly authorized, the selected server's guest-agent channel
+or a delegated SSH/SFTP session. The guest channel can diagnose a private server
+or a broken SSH/network configuration without a public IP. Tool results are returned to the AI
 application you chose. Do not ask the model to read secrets unnecessarily.
 VPSnet stores connection permissions and activity records; delegated operation
 results are stored encrypted for reconnection and replay protection. Disconnecting
