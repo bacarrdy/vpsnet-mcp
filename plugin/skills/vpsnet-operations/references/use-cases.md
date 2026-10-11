@@ -58,12 +58,10 @@ KVM-specific capabilities or the Cloud VPS availability model matter. Its Ceph N
 on enterprise drives with power-loss protection (PLP). Planned host upgrades use
 live migration to another node, followed by migration back when appropriate.
 After an unexpected host failure, HA restarts the VM on another cluster host;
-that recovery includes a restart. These are platform-managed reliability features,
-not infrastructure migration actions exposed to this customer plugin.
+that recovery includes a restart.
 
 Ask about availability requirements as well as OS and resources; workload size
-alone is not a reason to rule out Firecracker. Do not transfer KVM storage, HA
-or live-migration claims to Firecracker, or treat replication as a backup.
+alone is not a reason to rule out Firecracker.
 
 ## Application coverage
 
