@@ -88,6 +88,13 @@ export function registerRemoteTools(server: McpServer): void {
     const token = await lease(orderNo, sessionBinding);
     const opened = await runtime(token, 'POST', '/session/bootstrap', { sshUsername: 'root' });
     if (!opened.session?.id || !opened.ssh?.publicKey || !opened.ssh?.expiresAt) throw new Error('Incomplete delegated session');
+    if (opened.resumed === true) {
+      // A fresh authorization lease must not redeploy a key bound to an older
+      // lease expiry. Resume the existing session and verify it with a read.
+      return result({ executionChannel: 'ssh', capabilities: { maxCommandSeconds: 300, maxFileBytes: 256 * 1024 },
+        sessionId: opened.session.id, sessionBinding, orderNo, expiresAt: opened.session.expiresAt,
+        resumed: true, keyDeployment: { required: false }, ready: false });
+    }
     const deployed = await apiRequest('POST', `/account/services/${orderNo}/mcp/deploy-key`,
       { public_key: opened.ssh.publicKey, expires_at: opened.ssh.expiresAt }, { 'X-AI-Session-Token': token });
     // Neither the lease JWT, SSH key nor private service context leaves the gateway.

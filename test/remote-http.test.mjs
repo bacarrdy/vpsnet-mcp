@@ -80,7 +80,7 @@ test('VM runtime pairing cannot send staging sessions to production or an arbitr
 });
 
 test('VM opening generates a binding, preserves explicit reconnects and explains invalid input before execution', async t => {
-  const bindings = []; const runtimeRequests = []; let nativeOpenCalls = 0;
+  const bindings = []; const runtimeRequests = []; let nativeOpenCalls = 0; let deployments = 0; let resumed = false;
   const backend = createServer(async (req, res) => {
     res.setHeader('content-type', 'application/json');
     let raw = ''; for await (const chunk of req) raw += chunk;
@@ -92,12 +92,13 @@ test('VM opening generates a binding, preserves explicit reconnects and explains
       bindings.push(JSON.parse(raw).session_binding);
       res.end(JSON.stringify({ success: true, token: 'test-delegated-session' }));
     } else if (req.url === '/account/services/vp-a/mcp/deploy-key') {
+      deployments++;
       res.end(JSON.stringify({ success: true, noty: 'test-key-deployment' }));
     } else { res.writeHead(404); res.end('{}'); }
   });
   const ai = createServer(async (req, res) => {
     runtimeRequests.push(req.url); res.setHeader('content-type', 'application/json');
-    if (req.url === '/session/bootstrap') res.end(JSON.stringify({ session: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', expiresAt: Date.now() + 300000 }, ssh: { publicKey: 'test-public-key', expiresAt: Date.now() + 300000 } }));
+    if (req.url === '/session/bootstrap') res.end(JSON.stringify({ resumed, session: { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', expiresAt: Date.now() + 300000 }, ssh: { publicKey: 'test-public-key', expiresAt: Date.now() + 300000 } }));
     else res.end(JSON.stringify({ id: 'test-operation', state: 'accepted' }));
   });
   backend.listen(0, '127.0.0.1'); ai.listen(0, '127.0.0.1');
@@ -120,7 +121,11 @@ test('VM opening generates a binding, preserves explicit reconnects and explains
   assert.equal(bindings[0], data.sessionBinding);
   assert.ok(!JSON.stringify(opened.body).includes('test-delegated-session'));
   assert.ok(!JSON.stringify(opened.body).includes('test-public-key'));
-  await invoke('open_vm_session', { orderNo: 'vp-a', sessionBinding: data.sessionBinding });
+  assert.equal(deployments, 1);
+  resumed = true;
+  const reconnect = await invoke('open_vm_session', { orderNo: 'vp-a', sessionBinding: data.sessionBinding });
+  assert.equal(JSON.parse(reconnect.body.result.content[0].text).keyDeployment.required, false);
+  assert.equal(deployments, 1, 'reconnecting must not redeploy a key using a different signed expiry');
   assert.equal(bindings[1], data.sessionBinding);
   const command = await invoke('run_vm_command', { orderNo: 'vp-a', sessionBinding: data.sessionBinding, sessionId: data.sessionId, idempotencyKey: 'os-discovery-test-0001', command: 'cat /etc/os-release' });
   assert.ok(!command.body.result.isError);
