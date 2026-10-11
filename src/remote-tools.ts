@@ -57,7 +57,7 @@ export function registerRemoteTools(server: McpServer): void {
 
   server.registerTool('open_vm_session', {
     description: 'Open a delegated Linux SSH session on a selected KVM or Firecracker service using existing VPSnet AI. Requires explicit VM permission. The OS user is root; a project directory is not isolation. May return pending key deployment; verify readiness with a read-only command before changes. Reuse the session binding on reconnect.',
-    inputSchema: resource, annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    inputSchema: resource, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   }, async ({ orderNo, sessionBinding }) => {
     const token = await lease(orderNo, sessionBinding);
     const opened = await runtime(token, 'POST', '/session/bootstrap', { sshUsername: 'root' });

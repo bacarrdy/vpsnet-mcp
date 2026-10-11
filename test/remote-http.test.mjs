@@ -45,7 +45,13 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   assert.ok(names.includes('list_services')); assert.ok(names.includes('get_connected_account'));
   assert.ok(names.includes('restart_service')); assert.ok(names.includes('open_vm_session'));
   assert.ok(!names.some(n => /order|invoice|payment|api_key|billing|auto_renew|product/.test(n)));
-  for (const tool of list.body.result.tools) { assert.equal(typeof tool.annotations.readOnlyHint, 'boolean'); assert.equal(tool._meta.securitySchemes[0].type, 'oauth2'); }
+  for (const tool of list.body.result.tools) {
+    assert.ok(tool.title?.trim(), `${tool.name} requires a human-readable title`);
+    assert.ok(tool.name.length <= 64, tool.name);
+    for (const hint of ['readOnlyHint', 'destructiveHint', 'openWorldHint']) assert.equal(typeof tool.annotations[hint], 'boolean', `${tool.name}.${hint}`);
+    assert.equal(tool._meta.securitySchemes[0].type, 'oauth2');
+  }
+  assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, true, 'Deploying a temporary SSH key modifies VM access');
   assert.equal(list.body.result.tools.find(t => t.name === 'list_services').annotations.readOnlyHint, true);
   assert.deepEqual(list.body.result.tools.find(t => t.name === 'restart_service')._meta.securitySchemes[0].scopes, ['services:manage']);
   const denied = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: 'restart_service', arguments: { orderNo: 'vp-a' } } });

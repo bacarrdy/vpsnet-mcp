@@ -24,6 +24,9 @@ The remote connector uses `https://mcp.vpsnet.com/mcp` and customer consent thro
 VPSnet. Its deployment configuration, permission boundaries, provider packages and
 remaining live acceptance checks are in [Remote AI connections](docs/REMOTE_MCP.md).
 
+The distributable [plugin README](plugin/README.md), manifests and skills are in English.
+See [directory readiness](docs/DIRECTORY_READINESS.md) for validation evidence and remaining publisher steps;
+
 Directory descriptions and demonstrations are organized in
 Server, VPN, private networks and Lithuania-based VPS use cases.
 VM execution reuses the existing `ai.vpsnet.com` service. This code does not imply

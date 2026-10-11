@@ -56,6 +56,9 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     const securitySchemes = [{ type: "oauth2", scopes: requiredScopes }];
     return original(name, {
       ...config,
+      title: config.title || name.split('_').map(word =>
+        ['vm', 'dns', 'vpn', 'ip', 'rdns', 'os', 'ssh'].includes(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' '),
       annotations: { readOnlyHint: readOnly, destructiveHint: !readOnly, openWorldHint: true, ...(config.annotations as object || {}) },
       _meta: { ...(config._meta as object || {}), securitySchemes },
     }, async (...args) => {

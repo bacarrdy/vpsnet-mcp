@@ -22,3 +22,6 @@ id_ed25519
 !plugin/.mcp.json
 !deploy/mcp.env.example
 artifacts/
+
+# Python packaging helper cache
+__pycache__/
