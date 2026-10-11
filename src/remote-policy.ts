@@ -54,12 +54,17 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
       ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:files"]) : [required];
     const readOnly = required === "authenticated" || required.endsWith(":read");
     const securitySchemes = [{ type: "oauth2", scopes: requiredScopes }];
+    const annotations = { readOnlyHint: readOnly, destructiveHint: !readOnly, openWorldHint: true, ...(config.annotations as object || {}) };
+    // Every read exposed by this allowlist is confined to the customer's
+    // account, selected VM or VPSnet catalog. None performs arbitrary web search
+    // or accepts an external destination; remote hosting alone is not open-world.
+    if (annotations.readOnlyHint) annotations.openWorldHint = false;
     return original(name, {
       ...config,
       title: config.title || name.split('_').map(word =>
         ['vm', 'dns', 'vpn', 'ip', 'rdns', 'os', 'ssh'].includes(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)
       ).join(' '),
-      annotations: { readOnlyHint: readOnly, destructiveHint: !readOnly, openWorldHint: true, ...(config.annotations as object || {}) },
+      annotations,
       _meta: { ...(config._meta as object || {}), securitySchemes },
     }, async (...args) => {
       const context = authorizationContext();

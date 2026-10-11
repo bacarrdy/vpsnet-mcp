@@ -25,6 +25,8 @@ text, symlinks and embedded reviewer credentials.
 The HTTP test suite also checks advertised tool titles, name lengths, OAuth
 security metadata and explicit read-only/destructive/open-world hints. Opening
 a Linux session is marked destructive because it provisions SSH access. These
+read-only tools are bounded by the account, selected VM or VPSnet catalog and
+use `openWorldHint: false`; arbitrary command execution keeps it `true`. These
 checks complement provider portal scanners; they do not reproduce all of them.
 
 The portable manifest uses Streamable HTTP and the separate Claude MCP manifest

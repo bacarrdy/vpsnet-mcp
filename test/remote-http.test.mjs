@@ -49,6 +49,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     assert.ok(tool.title?.trim(), `${tool.name} requires a human-readable title`);
     assert.ok(tool.name.length <= 64, tool.name);
     for (const hint of ['readOnlyHint', 'destructiveHint', 'openWorldHint']) assert.equal(typeof tool.annotations[hint], 'boolean', `${tool.name}.${hint}`);
+    if (tool.annotations.readOnlyHint) assert.equal(tool.annotations.openWorldHint, false, `${tool.name}: reads stay within the account or VPSnet catalog`);
     assert.equal(tool._meta.securitySchemes[0].type, 'oauth2');
   }
   assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, true, 'Deploying a temporary SSH key modifies VM access');
