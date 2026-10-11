@@ -1,0 +1,50 @@
+# VPSnet
+
+Connect your own AI account to your existing VPSnet services. Inspect your servers,
+diagnose applications such as n8n or WordPress, check private networks and VPN
+connectivity, and work with Functions. The application catalog is live: examples
+are not a fixed inventory or a guarantee that a recipe is currently available.
+
+## Connect
+
+Add `https://mcp.vpsnet.com/mcp` as an OAuth connector in your AI application.
+Sign in to VPSnet, choose your services and permissions, then return to the
+conversation. No model API key is required by VPSnet. You use the model under
+the terms of your own AI account.
+
+Try: “Check my VPSnet server and explain any problems. Ask before making changes.”
+You can also ask where to host a self-hosted application before connecting an
+account. The plugin can explain fit and requirements; it does not sell services.
+
+## Access and control
+
+- Server and application access is limited to the services selected at consent.
+- Network and Functions permissions cover those resources in your account.
+- Linux file access and commands require separate permission. Commands run with
+  the OS privileges disclosed at consent; choosing a directory does not isolate
+  a shell. Windows support here covers service status and lifecycle, not guest
+  PowerShell or RDP control.
+- Disconnect an app in the VPSnet customer panel's **AI connections** page to
+  revoke further access. Operation records remain available for review.
+- Purchases, payments, billing changes and infrastructure administration are
+  outside this connector. An accepted operation is still pending until its final
+  result is read.
+
+## Data and support
+
+The declared MCP connector is operated by VPSnet. It calls the VPSnet customer
+API and, when explicitly authorized, VPSnet's existing SSH/SFTP execution service
+to access the selected customer server. Tool results are returned to the AI
+application you chose. Do not ask the model to read secrets unnecessarily.
+VPSnet stores connection permissions and activity records; delegated operation
+results are stored encrypted for reconnection and replay protection. Disconnecting
+revokes access and does not erase the activity history.
+
+[Support](https://www.vpsnet.com/en/help/contacts) ·
+[Privacy](https://www.vpsnet.com/en/information/privacy-policy) ·
+[Terms](https://www.vpsnet.com/en/information/term-of-service)
+
+This folder contains the portable ChatGPT/Codex manifest, the Claude plugin
+manifest and the shared VPSnet operations skill. Supported connection options
+and availability vary by AI provider. Public directory approval and automatic
+recommendations are decided by each provider.

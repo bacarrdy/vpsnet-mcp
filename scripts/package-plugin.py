@@ -6,7 +6,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 root = Path(__file__).resolve().parent.parent
 package = root / 'plugin'
-files = ['plugin.json', 'mcp.json', '.claude-plugin/plugin.json', '.mcp.json', 'skills/vpsnet-operations/SKILL.md']
+files = ['plugin.json', 'mcp.json', '.claude-plugin/plugin.json', '.mcp.json', 'skills/vpsnet-operations/SKILL.md', 'skills/vpsnet-operations/references/use-cases.md', 'README.md', 'LICENSE', 'assets/icon.png']
 for filename in files:
     source = package / filename
     if source.is_symlink() or not source.is_file():
