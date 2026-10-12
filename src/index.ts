@@ -5686,7 +5686,7 @@ server.registerTool(
   "invoke_function",
   {
     description:
-      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). With wait=true the call blocks and returns the result; otherwise poll list_function_invocations. One Idempotency-Key is generated per tool call unless idempotency_key is supplied; reuse an explicit key only for an exact retry so the same logical step is not double-run or double-billed (response may include replayed=true).",
+      "Invoke a Firecracker Function. PAID per invocation (CPU/memory usage billed from account). Use wait=true when output/logs are needed; asynchronous invocations do not retain output. Poll get_function_invocation using the returned invocation_uuid for status and usage. One Idempotency-Key is generated per tool call unless idempotency_key is supplied; reuse an explicit key only for an exact retry so the same logical step is not double-run or double-billed (response may include replayed=true).",
     inputSchema: {
       acknowledge_usage_billing: z.boolean().optional().describe("Confirm the customer requested this execution and understands that it uses their VPSnet balance. Required for OAuth connections."),
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
@@ -5745,10 +5745,10 @@ server.registerTool(
 server.registerTool(
   "get_function_invocation",
   {
-    description: "Get one invocation of a Firecracker Function including output/logs and usage cost.",
+    description: "Get a Firecracker Function invocation's status and usage cost. Output/logs are available when output_retained is true.",
     inputSchema: {
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
-      invocation_id: invocationIdSchema.describe("Invocation ID from list_function_invocations"),
+      invocation_id: invocationIdSchema.describe("The invocation_uuid returned by invoke_function or list_function_invocations"),
     },
   },
   async ({ function_id, invocation_id }) => {
