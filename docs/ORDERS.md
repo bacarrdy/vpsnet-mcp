@@ -1,20 +1,20 @@
-# Optional custom ordering connection
+# Ordering with your VPSnet connection
 
-The optional `https://mcp.vpsnet.com/mcp/orders` resource supports permanent Firecracker VPS, Cloud VPS (KVM), Container VPS and domain registration paid from the customer's VPSnet balance. Functions remain a separate usage-billed service. Saved cards are not supported by this resource.
+Connect once at `https://mcp.vpsnet.com/mcp`. Where the AI application supports purchases, the same connection can order permanent Firecracker VPS, Cloud VPS (KVM), Container VPS and register domains from your VPSnet balance. Functions are a separate usage-billed service. Saved-card payments are not supported.
 
-Use this custom connection only where the AI provider permits purchasing digital services. The distributable directory package uses `/mcp` and does not include purchase tools. Enabling ordering on the server does not add it to that package.
+1. Enable the purchase permissions you want and set daily and monthly spending limits. For an already connected AI, use **VPSnet → AI connections → Purchase permissions**. No second connection or address is needed.
+2. Ask the AI for a quote. It must show the final price and billing period, then ask whether you approve the purchase and the balance charge.
+3. Confirm only if the price and configuration are correct. Domain registration also requires acknowledging that the payment is non-refundable.
+4. The AI checks the result and the server or domain status. A payment receipt does not mean provisioning or registration has completed. Newly ordered servers receive only the management permissions already granted to this connection.
 
-## Customer flow
+## Tool contract
 
-1. Add the orders address as a custom connection and sign in to VPSnet.
-2. Choose server ordering, domain registration or both, and set daily and monthly EUR limits. Confirm identity when prompted. Existing management permissions do not include purchases.
-3. Ask the AI for a quote. Review the final total and billing period before approving payment. Domain registration requires acknowledging its non-refundable payment.
-4. Inspect the purchase result. A successful payment does not mean the server or domain is ready; check its status. Newly ordered servers join this connection only with the management permissions already granted.
+`quote_service_order` and `quote_domain_register` do not purchase anything. Confirmation requires the unchanged configuration, quote token and idempotency key, the approved final EUR total, and `acknowledge_charge: true`. Domain confirmation also requires `acknowledge_non_refundable: true`; its approved price is `total_amount_eur` including VAT. Server quotes use `amount_eur`.
 
-The tools separate `quote_service_order` / `confirm_service_order` and `quote_domain_register` / `confirm_domain_register`. Confirmation requires the same configuration, quote token and idempotency key, the exact approved EUR total, and `acknowledge_charge: true`. Domain registration also requires `acknowledge_non_refundable: true`; use its `total_amount_eur` including VAT. Server quotes use `amount_eur`.
+After a lost response, use `get_purchase_result` with the original key. An identical confirmation returns the saved receipt without another charge. A pending or unknown result must not be resubmitted with a new key. Disabling purchase permissions stops new purchases on the existing connection; revoking the connection stops all subsequent access.
 
-Use `get_purchase_result` after a lost response. Repeating an identical confirmation returns its existing receipt. A pending/unknown outcome must not be retried with a new key. Spending limits apply across token refreshes; revoking the connection stops subsequent actions.
+## Operator setup
 
-## Deployment
+The backend and gateway use the same `/mcp` resource. Enable `MCP_OAUTH_ORDERS_ENABLED=true` on the customer backend and `VPSNET_MCP_ORDERS_ENABLED=true` on the gateway after deploying the consent and receipt migrations. Both default to disabled. No additional proxy path is needed.
 
-The customer backend must support the orders consent, routes and receipt migration. Set `MCP_OAUTH_ORDERS_ENABLED=true` there and `VPSNET_MCP_ORDERS_ENABLED=true` on the gateway. Both default to disabled. The reverse proxy must pass `/mcp/orders` and `/.well-known/oauth-protected-resource/mcp/orders` to the same gateway. Its OAuth audience is the exact orders URL; tokens for `/mcp` cannot be reused there or vice versa.
+The backend decides whether purchase tools are available to each application. Purchase-restricted applications keep the management tool profile on the same URL. By default, browser ChatGPT callback hosts are restricted for directory commerce rules. The operator setting `MCP_OAUTH_PURCHASE_BLOCKED_REDIRECT_HOSTS` controls this restriction for approved deployment channels; do not relax a published catalog’s restrictions without checking its current rules. Application display names never determine eligibility.

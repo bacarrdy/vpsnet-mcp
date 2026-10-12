@@ -1,6 +1,6 @@
 {
   "name": "vpsnet",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",

@@ -208,6 +208,7 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     }, async (...args) => {
       const context = authorizationContext();
       if (!context || !hasScope(context.scopes, required)) {
+        if (required.startsWith('orders:')) return { isError: true, content: [{ type: 'text', text: 'Ordering permission is disabled. The customer can enable purchases and spending limits for this existing connection in VPSnet → AI connections → Purchase permissions. Do not add another connection. After permission is enabled, show the exact quote and ask for approval of the balance charge.' }] };
         return { isError: true, content: [{ type: "text", text: "Reconnect VPSnet with the required permissions." }],
           _meta: { "mcp/www_authenticate": [`Bearer error="insufficient_scope", error_description="Reconnect VPSnet to allow this action on your selected services.", scope="${requiredScopes.join(" ")}"`] } };
       }

@@ -4,7 +4,7 @@ import { createRemoteServer } from "./http-server.js";
 const resource = process.env.VPSNET_MCP_RESOURCE || "https://mcp.vpsnet.com/mcp";
 const server = createRemoteServer({
   resource,
-  ordersResource: process.env.VPSNET_MCP_ORDERS_ENABLED === "true" ? resource + "/orders" : undefined,
+  ordersEnabled: process.env.VPSNET_MCP_ORDERS_ENABLED === "true",
   issuer: process.env.VPSNET_MCP_ISSUER || "https://api.vpsnet.com/oauth/mcp",
   allowedOrigins: (process.env.VPSNET_MCP_ALLOWED_ORIGINS || "").split(",").filter(Boolean),
 });

@@ -7,6 +7,7 @@ export interface AuthorizationContext {
   scopes: readonly string[];
   services: readonly string[];
   expiresAt: number;
+  ordersAvailable?: boolean;
 }
 const contexts = new AsyncLocalStorage<AuthorizationContext>();
 let remoteOnly = false;

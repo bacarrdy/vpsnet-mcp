@@ -32,7 +32,7 @@ publisher requirements, and [supported use cases](plugin/skills/vpsnet-operation
 for server, application and networking scenarios. Directory publication and
 provider account availability are separate from installing this source code.
 
-An optional [custom ordering connection](docs/ORDERS.md) supports balance-paid VPS and domain registration with separate consent and spending limits. It is separate from the directory connector.
+[Ordering](docs/ORDERS.md) uses the existing VPSnet connection, with customer-controlled purchase permissions and spending limits. The AI shows the final price and asks for approval before charging the account balance. Availability follows the application’s distribution rules.
 
 The instructions below describe the existing local stdio/API-key client.
 

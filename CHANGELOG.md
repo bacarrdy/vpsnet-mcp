@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 connector / 2.3.1 MCP server
+
+- Manage services and approve purchases through one VPSnet connection.
+- Change purchase permissions in the VPSnet panel without reconnecting the AI.
+- Purchase tools follow the connected application’s capabilities and the customer’s explicit spending approval.
+
 ## 0.5.0 connector / 2.3.0 MCP server
 
 - Optional custom OAuth connection for server and domain orders paid from account balance.
