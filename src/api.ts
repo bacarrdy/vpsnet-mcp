@@ -180,6 +180,19 @@ export async function apiRequest(
       };
     }
 
+    if (res.status === 503 && method === "POST"
+        && /^\/account\/firecracker\/functions\/\d+\/invoke$/.test(path)
+        && data !== null && typeof data === "object" && !Array.isArray(data)
+        && (data as Record<string, unknown>).noActiveServer === true) {
+      data = {
+        ...data,
+        code: "function_execution_unavailable",
+        message: "VPSnet Functions cannot currently accept this code execution. "
+          + "This response describes the Functions service, not the status of a persistent Firecracker VPS.",
+        next_action: "Try again when Functions is available, using the same invocation idempotency key and input, "
+          + "or contact VPSnet support. No server restart, new VPS or permission change is required by this error.",
+      };
+    }
     data = withHttpStatus(res.status, data, res.headers.get("retry-after"));
   }
 
