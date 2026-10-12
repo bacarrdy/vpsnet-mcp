@@ -87,7 +87,7 @@ export function registerRemoteTools(server: McpServer): void {
     }
     const token = await lease(orderNo, sessionBinding);
     const opened = await runtime(token, 'POST', '/session/bootstrap', { sshUsername: 'root' });
-    if (!opened.session?.id || !opened.ssh?.publicKey || !opened.ssh?.expiresAt) throw new Error('Incomplete delegated session');
+    if (!opened.session?.id || !opened.session?.expiresAt) throw new Error('Incomplete delegated session');
     if (opened.resumed === true) {
       // A fresh authorization lease must not redeploy a key bound to an older
       // lease expiry. Resume the existing session and verify it with a read.
@@ -95,11 +95,11 @@ export function registerRemoteTools(server: McpServer): void {
         sessionId: opened.session.id, sessionBinding, orderNo, expiresAt: opened.session.expiresAt,
         resumed: true, keyDeployment: { required: false }, ready: false });
     }
-    const deployed = await apiRequest('POST', `/account/services/${orderNo}/mcp/deploy-key`,
-      { public_key: opened.ssh.publicKey, expires_at: opened.ssh.expiresAt }, { 'X-AI-Session-Token': token });
-    // Neither the lease JWT, SSH key nor private service context leaves the gateway.
+    const deployment = opened.keyDeployment;
+    if (!deployment || !Number.isInteger(deployment.status) || typeof deployment.success !== 'boolean') throw new Error('Incomplete delegated key deployment');
+    // The runtime owns installation and cleanup; no key material crosses the gateway.
     return result({ executionChannel: 'ssh', capabilities: { maxCommandSeconds: 300, maxFileBytes: 256 * 1024 }, sessionId: opened.session.id, sessionBinding, orderNo, expiresAt: opened.session.expiresAt,
-      keyDeployment: { status: deployed.status, success: (deployed.data as any)?.success === true, eventId: (deployed.data as any)?.noty ?? null, code: (deployed.data as any)?.code ?? null }, ready: false });
+      keyDeployment: { status: deployment.status, success: deployment.success, eventId: typeof deployment.eventId === 'string' ? deployment.eventId : null, code: safeReason(deployment.code) }, ready: false });
   });
   server.registerTool('run_vm_command', {
     description: 'Start one durable command on a delegated Linux VM as root. Confirm disruptive changes. Returns an operation ID; poll for the final result. A timeout or cancellation can leave effects. Never automatically retry with a new key.',
