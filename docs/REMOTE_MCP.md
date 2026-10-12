@@ -28,18 +28,22 @@ permissions. Consent never silently expands an existing grant.
 
 ## VM operations
 
-Delegated VM work uses Linux SSH on an existing, reachable server. Command and
-file-write permissions are explicit; the current session runs as root. A project
-directory does not restrict shell authority. Windows delegation and direct access
-to private-only VM addresses are not implemented.
+Delegated Linux VM work supports the VPSnet guest channel and SSH. The guest
+channel reaches supported Cloud VPS and Firecracker servers without a public IP
+or working guest networking. SSH provides an independent path when available.
+Diagnostics, file reading, file changes and shell commands have separate
+permissions. Shell commands run as root; a project directory does not limit
+their authority. Windows and BSD support covers service management.
 
 | Tool | Result |
 | --- | --- |
 | `get_connected_account` | Connected account and granted scopes/services |
-| `open_vm_session` | Session identifier and key-deployment receipt |
+| `open_vm_session` | Authorized guest or SSH session and connection details |
+| `inspect_vm` | OS, running services, process names, ports and containers |
 | `run_vm_command` | Durable operation ID |
-| `read_vm_file` | Bounded text and complete-file SHA-256 |
-| `write_vm_file` | Version-checked replacement of an existing regular file |
+| `read_vm_file` | Bounded text, byte range or tail; SHA-256 for a complete read |
+| `create_vm_file` | New file without replacing an existing path |
+| `write_vm_file` | Version-checked replacement with a recovery copy |
 | `get_vm_operation` | Persisted operation state and result |
 | `cancel_vm_operation` | Cancellation request and resulting state |
 
@@ -49,9 +53,10 @@ reporting success. Interrupted execution can require attention and is not
 replayed automatically. Cancelling a session cannot undo completed changes or
 guarantee that every remote child process has stopped.
 
-File operations are limited to 256 KiB and require the previous SHA-256 for
-writes. The SSH server must support atomic rename. Coordinate other writers when
-editing a file; version checks cannot provide an OS-wide transaction.
+Guest file operations support up to 32 KiB; SSH supports up to 256 KiB. Replacing
+a file requires its complete-read SHA-256. Partial reads cannot authorize a
+replacement. A recovery copy is returned after a successful replacement. The SSH
+server must support atomic rename. Coordinate other writers when editing files.
 
 SDN changes use customer networking APIs and their operation receipts. Diagnose
 missing NAT for internet-dependent work on private servers; the connector does
@@ -60,8 +65,9 @@ not automatically purchase a public address or other resources.
 ## Protocol and local development
 
 The gateway uses Streamable HTTP and OAuth authorization code flow with S256
-PKCE, dynamic registration, resource binding and rotating refresh tokens.
-Confidential-client secrets and client-ID metadata documents are not implemented.
+PKCE, dynamic registration, client-ID metadata documents, resource binding and
+rotating refresh tokens. Refresh requests may narrow their original permissions.
+IP-loopback callbacks support dynamically selected local ports.
 Protected-resource metadata is served at `/.well-known/oauth-protected-resource/mcp`.
 
 Build with `npm ci && npm run build`; the remote entry point is `build/remote.js`.
