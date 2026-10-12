@@ -249,10 +249,20 @@ test("every pinned customer SDN route has a typed tool or a documented common-ch
 
 test("network create DNS records use service while subsequent name aliases use name", async t => {
   const { call, requests } = await harness(t);
-  await call("create_private_network", { name: "office", subnet: { cidr: "172.16.0.0/24" }, settings: { dns_records: [{ service: "db", ipv4: "172.16.0.10" }], dns_zone: "office", dns_mode: "provider" }, idempotencyKey: KEY });
-  assert.deepEqual(requests[0].body.settings.dns_records, [{ service: "db", ipv4: "172.16.0.10" }]);
-  await call("set_private_network_names", { network_id: NETWORK, zone_label: "office", aliases: [{ name: "db", ipv4: "172.16.0.10" }] });
-  assert.deepEqual(requests[1].body.aliases, [{ name: "db", ipv4: "172.16.0.10" }]);
+  await call("create_private_network", { name: "office", subnet: { cidr: "100.64.0.0/26" }, settings: { dns_records: [{ service: "db", ipv4: "100.64.0.10" }], dns_zone: "office", dns_mode: "provider" }, idempotencyKey: KEY });
+  assert.deepEqual(requests[0].body.settings.dns_records, [{ service: "db", ipv4: "100.64.0.10" }]);
+  await call("set_private_network_names", { network_id: NETWORK, zone_label: "office", aliases: [{ name: "db", ipv4: "100.64.0.10" }] });
+  assert.deepEqual(requests[1].body.aliases, [{ name: "db", ipv4: "100.64.0.10" }]);
+});
+
+test("network create sends the chosen subnet size and only platform-pool subnets of /28 to /24", async t => {
+  const { call, requests } = await harness(t);
+  await call("create_private_network", { name: "sized", subnet_prefix_length: 24, idempotencyKey: KEY });
+  assert.deepEqual(requests[0].body, { name: "sized", subnet_prefix_length: 24 });
+  for (const bad of [{ subnet_prefix_length: 23 }, { subnet_prefix_length: "26" }, { subnet: { cidr: "172.16.0.0/24" } }, { subnet: { cidr: "100.128.0.0/24" } }, { subnet: { cidr: "100.64.0.0/16" } }]) {
+    assert.equal((await call("create_private_network", { name: "bad", ...bad, idempotencyKey: KEY })).isError, true, JSON.stringify(bad));
+  }
+  assert.equal(requests.length, 1);
 });
 
 test("full-tunnel device permits an empty server-grant list without accepting private key fields", async t => {
