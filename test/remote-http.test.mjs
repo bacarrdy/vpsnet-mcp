@@ -14,7 +14,7 @@ function call(port, method = 'POST', path = '/mcp', token, body, headers = {}) {
   });
 }
 test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and no credential fallback', async t => {
-  let revoked = false; const received = [];
+  let revoked = false; let backendPermissionDenied = false; const received = [];
   const backend = createServer(async (req, res) => {
     const token = req.headers.authorization?.slice(7); const tenant = token === tokens.a ? 'a' : token === tokens.b ? 'b' : null;
     received.push({ path: req.url, token, key: req.headers['x-api-key'] });
@@ -23,6 +23,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     if (req.url === '/oauth/mcp/introspect') {
       res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now() / 1000 + 300, sub: tenant, grant_id: tenant, scope: tenant === 'a' ? 'services:read' : 'services:read networking:manage', services: ['vp-' + tenant] })); return;
     }
+    if (backendPermissionDenied) { res.writeHead(403); res.end(JSON.stringify({error:'insufficient_scope',required_scope:'services:manage'})); return; }
     await new Promise(resolve => setTimeout(resolve, tenant === 'a' ? 30 : 5));
     res.end(JSON.stringify({ success: true, tenant, services: ['vp-' + tenant] }));
   });
@@ -49,19 +50,26 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     assert.ok(tool.title?.trim(), `${tool.name} requires a human-readable title`);
     assert.ok(tool.name.length <= 64, tool.name);
     for (const hint of ['readOnlyHint', 'destructiveHint', 'openWorldHint']) assert.equal(typeof tool.annotations[hint], 'boolean', `${tool.name}.${hint}`);
-    if (tool.annotations.readOnlyHint) assert.equal(tool.annotations.openWorldHint, false, `${tool.name}: reads stay within the account or VPSnet catalog`);
+    if (tool.annotations.readOnlyHint) assert.equal(tool.annotations.destructiveHint, false, tool.name);
     assert.equal(tool._meta.securitySchemes[0].type, 'oauth2');
   }
-  assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, true, 'Deploying a temporary SSH key modifies VM access');
+  assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, false, 'Opening a session does not replace existing access');
   assert.equal(list.body.result.tools.find(t => t.name === 'list_services').annotations.readOnlyHint, true);
   assert.deepEqual(list.body.result.tools.find(t => t.name === 'restart_service')._meta.securitySchemes[0].scopes, ['services:manage']);
-  for (const [name, scope] of [['upsert_dns_record', 'dns:write'], ['set_dnssec', 'dnssec:manage'], ['set_domain_nameservers', 'domains:manage'], ['create_free_certificate', 'certificates:manage'], ['enter_service_rescue', 'services:rescue'], ['create_ssh_key', 'ssh_keys:manage'], ['reinstall_os', 'services:manage']]) {
+  for (const [name, scope] of [['upsert_dns_record', 'dns:write'], ['set_dnssec', 'dnssec:manage'], ['set_domain_nameservers', 'domains:manage'], ['create_free_certificate', 'certificates:manage'], ['enter_service_rescue', 'services:rescue'], ['create_ssh_key', 'ssh_keys:manage'], ['reinstall_os', 'services:reinstall'], ['read_vm_file', 'vm:files:read'], ['write_vm_file', 'vm:files:write'], ['inspect_vm', 'vm:diagnostics'], ['create_vm_file', 'vm:files:write']]) {
     assert.deepEqual(list.body.result.tools.find(t => t.name === name)?._meta.securitySchemes[0].scopes, [scope], name);
   }
   assert.ok(!names.includes('create_ddns_token'));
+  for (const name of ['create_vm_file','create_ssh_key','start_service']) assert.equal(list.body.result.tools.find(t => t.name === name).annotations.destructiveHint, false);
+  assert.equal(list.body.result.tools.find(t => t.name === 'validate_application_recipe').annotations.readOnlyHint, true);
+  assert.equal(list.body.result.tools.find(t => t.name === 'run_vm_command').annotations.openWorldHint, true);
+  assert.ok(list.body.result.tools.find(t => t.name === 'list_services').inputSchema.properties.page);
+  assert.ok(list.body.result.tools.find(t => t.name === 'list_dns_zones').inputSchema.properties.snapshot);
+  for (const name of ['get_pricing', 'get_plan_options', 'get_plan_resources', 'calculate_plan_change', 'get_period_options', 'list_certificate_catalog', 'get_certificate_catalog_product', 'list_domain_tlds', 'check_domain_availability', 'get_domain_ordering_status']) assert.ok(!names.includes(name), name);
   const denied = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: 'restart_service', arguments: { orderNo: 'vp-a' } } });
   assert.equal(denied.body.result.isError, true);
   assert.match(denied.body.result._meta['mcp/www_authenticate'][0], /services:manage/);
+  assert.match(denied.body.result._meta['mcp/www_authenticate'][0], /error_description="[^"]+"/);
   assert.ok(!received.some(r => r.path.includes('restart')));
   const deniedDns = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 92, method: 'tools/call', params: { name: 'list_dns_zones', arguments: {} } });
   assert.equal(deniedDns.body.result.isError, true);
@@ -71,6 +79,11 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   results.forEach((r, i) => assert.equal(JSON.parse(r.body.result.content[0].text).tenant, i % 2 ? 'b' : 'a'));
   assert.ok(received.every(r => r.key === undefined));
   assert.ok(received.every(r => r.token === tokens.a || r.token === tokens.b));
+  backendPermissionDenied = true;
+  const liveDenial = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 93, method: 'tools/call', params: { name: 'list_services', arguments: {} } });
+  assert.equal(liveDenial.body.result.isError, true);
+  assert.match(liveDenial.body.result._meta['mcp/www_authenticate'][0], /error_description=/);
+  assert.match(liveDenial.body.result._meta['mcp/www_authenticate'][0], /scope="services:manage"/);
   revoked = true;
   assert.equal((await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 90, method: 'tools/list' })).status, 401);
   const { apiRequest } = await import('../build/api.js');
@@ -238,7 +251,7 @@ test('Functions execution requires separate OAuth scope, billing acknowledgment 
   assert.equal(received.length,0,'invalid requests never reach the API');
   for (let n=0;n<2;n++) assert.ok(!(await invoke('invoke_function',args)).isError);
   assert.deepEqual(received[0],received[1],'retries preserve exact body and key');
-  assert.deepEqual(received[0],{path:'/account/firecracker/functions/1/invoke',key:args.idempotency_key,body:{acknowledge_usage_billing:true,input:'hello',wait:false}});
+  assert.deepEqual(received[0],{path:'/account/firecracker/functions/1/invoke',key:args.idempotency_key,body:{acknowledge_usage_billing:true,input:'hello',wait:true}});
   assert.ok(!(await invoke('list_functions',{})).isError,'execution implies reading results');
   scope = 'functions:manage';
   const creation = {name:'test',runtime_os_id:1,code:'print("hello")'};

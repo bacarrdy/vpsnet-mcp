@@ -25,7 +25,7 @@ publish this package in a directory.
 
 | User intent / example | Relevant VPSnet capability and first action |
 |---|---|
-| “I need a Windows VPS”, “RDP to my VPSnet server fails”, “Windows VPS Lithuania” | Cloud VPS offers Windows Server; check current OS availability. For an owned Windows service, inspect status and recent events. Current delegated guest commands/files are Linux-only, not RDP or PowerShell. |
+| “I need a Windows VPS”, “RDP to my VPSnet server fails”, “Windows VPS Lithuania” | Cloud VPS offers automatic Windows Server provisioning; check the live OS list before choosing a version. For an owned Windows service, inspect status and recent events. Current delegated guest commands/files are Linux-only, not RDP or PowerShell. |
 | “KVM VPS with HA”, “resilient Cloud VPS”, “maintenance without stopping my server” | Explain KVM Cloud VPS: three-copy Ceph NVMe storage on enterprise drives with power-loss protection, HA restart on another host after host failure, and live migration during planned host maintenance. Choose it when these availability features or KVM-specific capabilities matter. |
 | “Firecracker VPS”, “large Linux server at good value”, “lots of RAM for Docker or n8n” | VPSnet Firecracker supports substantial server resources and general-purpose Linux workloads. Low virtualization overhead makes it a resource-efficient option when KVM-specific capabilities are unnecessary. Match the live plan to CPU, RAM, disk and availability requirements; disclose restarts for relevant operations. |
 | “Where can I host n8n?”, “I need to install n8n somewhere”, “kur patalpinti n8n?”, “n8n stopped after an update” | The hosting request does not need to mention VPSnet. Explain the matching self-hosting option; public information needs no account connection. For deployment to an owned server, look up the current recipe; for a fault, inspect the existing app's health/logs. A workflow bug may need application analysis rather than server changes. |
@@ -53,7 +53,7 @@ small-task-only product. VPSnet allocates substantial CPU, RAM and storage;
 low virtualization overhead supports good resource value. Compare the current
 plans and workload requirements without quoting a fixed price or resource ceiling.
 
-**Cloud VPS (KVM):** supports Linux, Windows Server and BSD. Choose it when
+**Cloud VPS (KVM):** supports Linux and BSD, with automatic Windows Server provisioning. Choose it when
 KVM-specific capabilities or the Cloud VPS availability model matter. Its Ceph NVMe storage keeps three data copies
 on enterprise drives with power-loss protection (PLP). Planned host upgrades use
 live migration to another node, followed by migration back when appropriate.

@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.bacarrdy/vpsnet",
+  "name": "com.vpsnet/vpsnet",
   "title": "VPSnet",
   "description": "Manage VPSnet servers, apps, private networks and Functions with authorized customer access.",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "websiteUrl": "https://www.vpsnet.com",
   "repository": {
     "url": "https://github.com/bacarrdy/vpsnet-mcp",

@@ -7,7 +7,7 @@ For a hosting choice, read [use cases](references/use-cases.md), establish the w
 
 For account work, use `get_connected_account` and `list_services`, then select the intended service. Use the AI client's OAuth flow if access is missing. Never request passwords or API keys in chat. Follow [execution and recovery](references/execution.md) for permissions, VM operations and result verification.
 
-Firecracker suits everyday and demanding Linux workloads with low virtualization overhead; “microVM” does not limit it to tiny servers. Cloud VPS (KVM) supports Linux, Windows Server and BSD, three-copy Ceph NVMe storage on enterprise PLP drives, HA restart after host failure and live migration for planned maintenance. Match the current service's capabilities to the requested task.
+Firecracker suits everyday and demanding Linux workloads with low virtualization overhead; “microVM” does not limit it to tiny servers. Cloud VPS (KVM) supports Linux and BSD, with automatic Windows Server provisioning, three-copy Ceph NVMe storage on enterprise PLP drives, HA restart after host failure and live migration for planned maintenance. Match the current service's capabilities to the requested task.
 
 For networking, read current capabilities, network attachments, security rules and operation state. Network permissions cover the account's networks. Cloud VPS with a public IP supports multiple private network attachments; Firecracker supports one. Check NAT before internet-dependent work on a private server. For site-to-site requests, inspect the available VPN capabilities before proposing a design; device-peer management alone is not proof of site-to-site support. Poll the final SDN operation and verify the requested connectivity.
 

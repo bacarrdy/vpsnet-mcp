@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -18,7 +19,8 @@ test("tools/list exposes the backend-compatible managed application contract", a
   });
 
   assert.equal(client.getServerVersion()?.name, "vpsnet");
-  assert.equal(client.getServerVersion()?.version, "2.1.2");
+  const packageMetadata = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(client.getServerVersion()?.version, packageMetadata.version);
 
   const { tools } = await client.listTools();
   const logs = tools.find((tool) => tool.name === "get_application_logs");

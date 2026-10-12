@@ -1,3 +1,4 @@
+import { RemoteAuthError } from './remote-auth-error.js';
 import { apiAuthorization, authorizationContext } from "./request-context.js";
 import { annotateAuthFailure } from "./auth-failure.js";
 import { createApiConfiguration } from "./api-configuration.js";
@@ -150,6 +151,15 @@ export async function apiRequest(
     parsed = true;
   } catch {
     data = { error: text || res.statusText };
+  }
+
+  if (authorizationContext()) {
+    if (res.status === 401) throw new RemoteAuthError('invalid_token');
+    const failure = data as {error?: unknown; required_scope?: unknown} | null;
+    if (res.status === 403 && failure?.error === 'insufficient_scope') {
+      const scope = typeof failure.required_scope === 'string' && /^[a-z_]+(?::[a-z_]+){1,2}$/.test(failure.required_scope) ? failure.required_scope : undefined;
+      throw new RemoteAuthError('insufficient_scope', scope);
+    }
   }
 
   if (res.ok === false) {

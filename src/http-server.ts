@@ -43,7 +43,7 @@ export function createRemoteServer(options: RemoteOptions) {
         || typeof value.sub !== "string" || typeof value.grant_id !== "string" || typeof value.scope !== "string"
         || !Array.isArray(value.services) || !value.services.every(x => typeof x === "string")) return null;
     return { accessToken: match[1], subject: value.sub, grantId: value.grant_id,
-      expiresAt: value.exp, scopes: value.scope.split(" ").filter(x => supportedScopes.includes(x)), services: value.services };
+      expiresAt: value.exp, scopes: value.scope.split(" ").filter(x => (supportedScopes.includes(x) || x === "vm:files")), services: value.services };
   }
 
   const http = createServer(async (req, res) => {

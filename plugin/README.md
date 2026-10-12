@@ -52,7 +52,7 @@ after provider approval.
 ## Choosing a server
 
 Firecracker VPS offers low virtualization overhead and substantial resources for
-both everyday and demanding Linux workloads. Cloud VPS (KVM) supports Linux, Windows Server and BSD, with three-copy Ceph NVMe storage on enterprise PLP drives, HA recovery after
+both everyday and demanding Linux workloads. Cloud VPS (KVM) supports Linux and BSD, with automatic Windows Server provisioning, with three-copy Ceph NVMe storage on enterprise PLP drives, HA recovery after
 host failure and live migration for planned host maintenance. Match the workload,
 availability requirements and current plans; “microVM” does not mean a small server.
 

@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "type": "module",
   "description": "MCP server for managing VPSnet.com services, applications, DNS, domains, billing, and server lifecycle operations",
   "bin": {
@@ -34,6 +34,7 @@
     "build/http-server.js",
     "build/request-context.js",
     "build/remote-policy.js",
+    "build/remote-auth-error.js",
     "build/remote-tools.js"
   ],
   "repository": "github:bacarrdy/vpsnet-mcp",

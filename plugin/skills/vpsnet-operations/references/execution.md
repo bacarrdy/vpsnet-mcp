@@ -23,3 +23,18 @@ Verify the user's actual outcome: an HTTP response for a website, healthy applic
 For domain or HTTPS tasks, inspect the account's existing DNS zones, domain state and certificates. Use DNS record tools for authoritative records, domain tools for nameservers and parent DS records, and certificate tools for validation and issuance. Verify the resulting state; a queued DNS or certificate change may still be pending. These permissions cover the account rather than the selected VM list. Obtain the missing OAuth permission when needed. Public SSH-key tools manage saved public keys; they never supply private keys.
 
 Rescue mode requires its own `services:rescue` permission and reboots the selected server. Use it only when recovery needs that interruption. Existing snapshot rollback and OS reinstallation replace data; confirm the selected target and replacement before proceeding. Reads of backup listings do not authorize a paid restore.
+
+
+### Permission and file operations
+
+Start with `inspect_vm` for OS, running services, container inventory and listening
+ports. It uses fixed checks and does not need arbitrary shell permission. File
+reading, file changes and administrator commands have separate consent choices.
+If a tool asks for another permission, let the customer reconnect and approve it.
+
+Use `create_vm_file` for a new file; it refuses existing paths. `read_vm_file`
+supports `offsetBytes` and `tailBytes` for large files and logs. Only a complete
+read returns the SHA-256 required by `write_vm_file`. A successful replacement
+returns a private `backupPath` for recovery. Inspect the final operation result
+and verify the application after editing. Never write a redacted placeholder
+back over an actual configuration value.

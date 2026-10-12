@@ -186,40 +186,12 @@ const server = new McpServer(
       "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
       "Service rescue is a separate recovery path for Firecracker VPS and Cloud VPS. Always call get_service_rescue first. Entering rescue restarts the service; call enter_service_rescue only after the user explicitly approves the restart and exact image returned by the capability response. Firecracker exposes the customer filesystem at /mnt/customer; Cloud VPS uses the operator recovery ISO and noVNC. Exit restores the exact original boot and running/stopped state. If exit returns needs_attention, retry exit_service_rescue with the same idempotency key. Never ask for or invent provider nodes, VM IDs, ISO paths, operation nonces, or rollback configuration.",
       "",
-      "### When the user asks for a manual or custom deployment INSIDE a VPS:",
-      "Deploy YOUR OWN SSH key first, then connect directly via SSH.",
-      "After deploying your key, you can INSTANTLY access the VPS — no extra tools needed.",
-      "Most AI environments (Claude Code, Cline, Cursor, Codex) have a built-in terminal/bash tool.",
-      "IMPORTANT: Grant FULL permissions/access to the AI tool — restricted/sandbox modes may block npm installs or SSH connections.",
-      "Use that terminal to run: ssh -o StrictHostKeyChecking=no root@<vps_ip>",
-      "",
-      "### Step-by-step SSH key flow:",
-      "1. Check if a local SSH public key exists: try reading ~/.ssh/id_rsa.pub, ~/.ssh/id_ed25519.pub, or ~/.ssh/id_ecdsa.pub",
-      "2. If NO local key exists, you MUST generate one BEFORE proceeding:",
-      "   - If mcp-server-ssh is available: use ssh_keygen(type='ecdsa', bits=256) to generate a key pair, then save the files locally",
-      "   - If a terminal/bash is available: run ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519",
-      "   - Then read the newly created public key file",
-      "3. Upload the public key via create_ssh_key(name, public_key) — name it descriptively e.g. 'claude-code-key'",
-      "4. Deploy it to the VPS via deploy_ssh_key(orderNo, ssh_key_id) OR pass sshKey when ordering a new VPS",
-      "5. SSH directly using your environment's terminal: ssh -o StrictHostKeyChecking=no root@<vps_ip>",
-      "6. Now you can run any commands inside the VPS (apt install, configure services, deploy apps, etc.)",
-      "",
-      "### Important SSH notes:",
-      "- ALWAYS prefer sshKey over rootPassword — it's more secure and enables direct access.",
-      "- NEVER use someone else's SSH key — always read from the local machine where you are running.",
-      "- Use -o StrictHostKeyChecking=no when connecting to newly created VPS to avoid host key prompts.",
-      "- order_service uses 'sshKey' (camelCase) but deploy_ssh_key uses 'ssh_key' (snake_case) — different field names!",
-      "- Only fall back to rootPassword if key generation is truly impossible (no ssh-keygen, no mcp-server-ssh, no filesystem write).",
-      "",
-      "## Pairing with mcp-server-ssh (npm: mcp-server-ssh)",
-      "If mcp-server-ssh is also installed, you get powerful SSH tools for direct VPS management:",
-      "- ssh_keygen: generate SSH key pairs without needing ssh-keygen binary",
-      "- ssh_connect + ssh_exec: execute commands on VPS via pure JS SSH (no native SSH client needed)",
-      "- sftp_write/sftp_read: transfer files to/from VPS without scp",
-      "Combined workflow: order VPS with vpsnet-mcp → generate key with ssh_keygen → upload with create_ssh_key → connect with ssh_connect → manage with ssh_exec/sftp_*",
-      "Combined config for Claude Desktop:",
-      '  "vpsnet": { "command": "npx", "args": ["-y", "vpsnet-mcp"], "env": { "VPSNET_API_KEY": "..." } }',
-      '  "ssh": { "command": "npx", "args": ["-y", "mcp-server-ssh"] }',
+      "### Manual or custom deployment inside a VPS",
+      "Use only the access needed for the user's task. Keep local sandbox and approval controls enabled; request a specific missing capability instead of unrestricted agent access.",
+      "For SSH, use a customer-authorized local key. Never upload a private key, overwrite an existing key pair, or copy credentials into chat. Create a separate key file if a new key is needed.",
+      "Read the selected server's current OS and supported SSH-key deployment options. Upload only the public key with create_ssh_key and deploy_ssh_key when authorized.",
+      "Verify the server's SSH host fingerprint using a trusted VPSnet panel/console channel, then pin it in a dedicated known_hosts file. Connect with StrictHostKeyChecking=yes. A mismatch requires investigation; never disable host verification or silently replace the stored key.",
+      "Check the result on the server and remove temporary credentials or test processes you created when their task is complete. Do not remove customer-managed access.",
       "",
       "## Plan changes",
       "Plan changes are FREE — remaining time is recalculated (upgrade = shorter expiry, downgrade = longer expiry).",
@@ -548,10 +520,12 @@ server.registerTool(
   {
     description:
       "List all active VPS services with state, plan, IPs, and expiry Requires services:read when called with an API key.",
-    inputSchema: {},
+    inputSchema: { page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow the response pagination until all pages are read.") },
   },
-  async () => {
-    const { data } = await apiRequest("GET", "/account/services");
+  async ({ page }) => {
+    const query = new URLSearchParams();
+    if (page !== undefined) query.set('page', String(page));
+    const { data } = await apiRequest("GET", "/account/services" + (query.size ? "?" + query.toString() : ""));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4364,10 +4338,13 @@ server.registerTool(
   "list_domains",
   {
     description: "List domains owned by the account, including status, expiry, nameservers, DNS zone link, and renewal settings. Requires domains:read when using an API key.",
-    inputSchema: {},
+    inputSchema: { page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow the response pagination until all pages are read."), snapshot: z.string().regex(/^[a-f0-9]{64}$/).optional().describe("Reuse pagination.snapshot from page one; if membership changes, restart the list.") },
   },
-  async () => {
-    const { data } = await apiRequest("GET", "/account/domains");
+  async ({ page, snapshot }) => {
+    const query = new URLSearchParams();
+    if (page !== undefined) query.set('page', String(page));
+    if (snapshot !== undefined) query.set('snapshot', snapshot);
+    const { data } = await apiRequest("GET", "/account/domains" + (query.size ? "?" + query.toString() : ""));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4589,10 +4566,13 @@ server.registerTool(
   "list_domain_contacts",
   {
     description: "List domain registrant/admin/tech/billing contacts owned by the account. Requires domains:read when using an API key.",
-    inputSchema: {},
+    inputSchema: { page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow the response pagination until all pages are read."), snapshot: z.string().regex(/^[a-f0-9]{64}$/).optional().describe("Reuse pagination.snapshot from page one; if membership changes, restart the list.") },
   },
-  async () => {
-    const { data } = await apiRequest("GET", "/account/domains/contacts");
+  async ({ page, snapshot }) => {
+    const query = new URLSearchParams();
+    if (page !== undefined) query.set('page', String(page));
+    if (snapshot !== undefined) query.set('snapshot', snapshot);
+    const { data } = await apiRequest("GET", "/account/domains/contacts" + (query.size ? "?" + query.toString() : ""));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6008,10 +5988,13 @@ server.registerTool(
   "list_dns_zones",
   {
     description: "List forward DNS zones on the account. Requires dns:read when using an API key.",
-    inputSchema: {},
+    inputSchema: { page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow the response pagination until all pages are read."), snapshot: z.string().regex(/^[a-f0-9]{64}$/).optional().describe("Reuse pagination.snapshot from page one; if membership changes, restart the list.") },
   },
-  async () => {
-    const { data } = await apiRequest("GET", "/account/dns/zones");
+  async ({ page, snapshot }) => {
+    const query = new URLSearchParams();
+    if (page !== undefined) query.set('page', String(page));
+    if (snapshot !== undefined) query.set('snapshot', snapshot);
+    const { data } = await apiRequest("GET", "/account/dns/zones" + (query.size ? "?" + query.toString() : ""));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );

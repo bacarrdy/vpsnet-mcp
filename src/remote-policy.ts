@@ -1,3 +1,4 @@
+import { RemoteAuthError } from './remote-auth-error.js';
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
@@ -7,7 +8,7 @@ import { authorizationContext } from "./request-context.js";
 export const remoteInstructions = [
   "The VPSnet connector manages the customer's existing VPS, KVM, Firecracker, applications, Functions, software-defined networks, DNS, domains and TLS certificates.",
   "Firecracker VPS supports general-purpose and resource-intensive Linux workloads with substantial server resources and low virtualization overhead. MicroVM describes the lightweight design, not a small server limit. Consider it when KVM-specific features are unnecessary; match current plans to resource and availability requirements.",
-  "Cloud VPS (KVM) offers Linux, Windows Server and BSD support, three-copy Ceph NVMe storage on enterprise drives with power-loss protection (PLP), HA restart on another host after host failure, and live migration to another node for planned host upgrades, with migration back when appropriate.",
+  "Cloud VPS (KVM) offers Linux and BSD support, automatic Windows Server provisioning, three-copy Ceph NVMe storage on enterprise drives with power-loss protection (PLP), HA restart on another host after host failure, and live migration to another node for planned host upgrades, with migration back when appropriate.",
   "Use the connected VPSnet account and only the services and permissions it granted. Never request a model API key.",
   "Tool discovery describes supported capabilities, not granted authority. If a needed permission is missing, reconnect through OAuth and let the customer select it; never work around a denial.",
   "Inspect current capabilities and state before a change. Honor the user's existing authorization; obtain consent when a change expands the task, destroys unrelated data or adds unapproved exposure.",
@@ -21,7 +22,7 @@ export const remoteInstructions = [
   "This connector does not purchase capacity, change payment settings or run model inference. Functions execution uses the customer's VPSnet balance; an AI subscription does not pay those infrastructure charges.",
 ].join("\n");
 
-export const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "functions:invoke", "vm:exec", "vm:files", "services:rescue", "dns:read", "dns:write", "dnssec:manage", "domains:read", "domains:manage", "certificates:read", "certificates:manage", "ssh_keys:read", "ssh_keys:manage"];
+export const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "functions:invoke", "vm:diagnostics", "vm:files:read", "vm:files:write", "vm:exec", "services:reinstall", "services:restore", "services:rescue", "dns:read", "dns:write", "dnssec:manage", "domains:read", "domains:manage", "certificates:read", "certificates:manage", "ssh_keys:read", "ssh_keys:manage"];
 
 const readServices = ["get_service_rescue", "get_guest_agent_status", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_restore_points", "list_restore_file_points", "browse_restore_files", "get_restore_file_browse", "list_services", "get_service", "get_service_graphs", "get_service_history", "get_hostname", "get_title", "get_rdns", "get_os_options", "get_backup_status", "get_backup_history", "list_snapshots", "list_firecracker_snapshots", "get_firecracker_backup_status", "get_firecracker_backup_history"];
 const manageServices = ["suspend_service", "resume_service", "flush_iptables", "toggle_ipv6", "toggle_extra_settings", "deploy_ssh_key", "reinstall_os", "rollback_snapshot", "delete_snapshot", "rollback_firecracker_snapshot", "delete_firecracker_snapshot", "start_service", "stop_service", "restart_service", "change_hostname", "reset_hostname", "change_title", "change_rdns", "clear_rdns"];
@@ -105,9 +106,13 @@ const permissions = new Map<string, string>([
   ["get_faq", "authenticated"],
   ["get_pricing", "authenticated"],
   ["get_connected_account", "authenticated"],
-  ["open_vm_session", "vm:session"], ["run_vm_command", "vm:exec"], ["read_vm_file", "vm:files"],
-  ["write_vm_file", "vm:files"], ["get_vm_operation", "vm:session"], ["cancel_vm_operation", "vm:session"],
+  ["open_vm_session", "vm:session"], ["run_vm_command", "vm:exec"], ["read_vm_file", "vm:files:read"],
+  ["write_vm_file", "vm:files:write"], ["create_vm_file", "vm:files:write"], ["inspect_vm", "vm:diagnostics"], ["get_vm_operation", "vm:session"], ["cancel_vm_operation", "vm:session"],
 ]);
+permissions.set("reinstall_os", "services:reinstall");
+for (const name of ["rollback_snapshot", "delete_snapshot", "rollback_firecracker_snapshot", "delete_firecracker_snapshot"]) permissions.set(name, "services:restore");
+// The directory profile operates existing services and excludes upgrade promotion.
+for (const name of ["get_pricing", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_certificate_catalog", "get_certificate_catalog_product", "list_domain_tlds", "check_domain_availability", "get_domain_ordering_status"]) permissions.delete(name);
 for (const tool of networkingTools) {
   if (!tool.path.startsWith("/account/networking/") || tool.options.paid || tool.options.quote
       || /\/(orders|product-orders|products|product-periods|billing|auto-renew|quote|renew|renewal|payment|checkout|catalog)(\/|$)/.test(tool.path)) continue;
@@ -115,12 +120,34 @@ for (const tool of networkingTools) {
 }
 export function remoteScope(name: string): string | undefined { return permissions.get(name); }
 export function hasScope(scopes: readonly string[], required: string): boolean {
-  return (required === "dns:read" && scopes.some(s => s === "dns:write" || s === "dnssec:manage")) || (required === "services:read" && scopes.includes("services:rescue")) || (required === "vm:session" && scopes.some(s => s === "vm:exec" || s === "vm:files")) || (required === "functions:read" && scopes.includes("functions:invoke")) || required === "authenticated" || scopes.includes(required)
+  return (required.startsWith("vm:files:") && scopes.includes("vm:files")) || (required === "vm:files:read" && scopes.includes("vm:files:write")) || (required === "vm:diagnostics" && scopes.includes("vm:exec")) || (required === "dns:read" && scopes.some(s => s === "dns:write" || s === "dnssec:manage")) || (required === "services:read" && scopes.includes("services:rescue")) || (required === "vm:session" && scopes.some(s => s === "vm:exec" || s === "vm:files" || s === "vm:files:read" || s === "vm:files:write" || s === "vm:diagnostics")) || (required === "functions:read" && scopes.includes("functions:invoke")) || required === "authenticated" || scopes.includes(required)
     || (required.endsWith(":read") && scopes.includes(required.replace(/:read$/, ":manage")));
 }
 
 type Handler = (...args: unknown[]) => CallToolResult | Promise<CallToolResult>;
 type Register = (name: string, config: Record<string, unknown>, handler: Handler) => unknown;
+
+// Network effects are declared beside each operation in networking-tools.ts.
+// Other additions below preserve existing data; all replacements/deletions
+// retain the conservative destructive hint unless their registration says more.
+const additiveTools = new Set([
+  'create_vm_file',
+  'start_service', 'resume_service', 'create_function', 'create_ssh_key',
+  'create_dns_zone', 'create_domain_contact', 'create_domain_glue_record', 'add_domain_parent_ds',
+  'create_free_certificate', 'create_application_recipe', 'create_application_recipe_revision',
+  'open_vm_session', 'validate_application_recipe', 'prepare_application_compose_adoption',
+]);
+const externalTools = new Set([
+  'run_vm_command', 'invoke_function', 'install_application', 'install_application_recipe',
+  'read_vm_file', 'write_vm_file', 'manage_application', 'get_application_health', 'get_application_logs',
+  'verify_dns_zone', 'reissue_dns_zone_verification', 'get_dns_zone_diagnostics',
+  'create_free_certificate', 'manage_free_certificate', 'refresh_automatic_ssl_subscription',
+  'manage_automatic_ssl_subscription', 'refresh_certificate', 'manage_certificate',
+]);
+const deduplicatedTools = new Set([
+  'run_vm_command', 'inspect_vm', 'read_vm_file', 'write_vm_file', 'create_vm_file', 'cancel_vm_operation',
+  'create_function', 'invoke_function',
+]);
 
 /** Keep supported tools discoverable for incremental OAuth consent; purchases stay outside this profile. */
 export function installRemotePolicy(server: McpServer, scopes: readonly string[]): void {
@@ -129,14 +156,18 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     const required = remoteScope(name);
     if (!required) return undefined;
     const requiredScopes = required === "authenticated" ? [] : required === "vm:session"
-      ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:files"]) : [required];
-    const readOnly = required === "authenticated" || required.endsWith(":read");
+      ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:diagnostics"]) : [required];
+    const readOnly = name === 'validate_application_recipe' || required === "authenticated" || required.endsWith(":read") || required === "vm:diagnostics";
     const securitySchemes = [{ type: "oauth2", scopes: requiredScopes }];
-    const annotations = { readOnlyHint: readOnly, destructiveHint: !readOnly, openWorldHint: true, ...(config.annotations as object || {}) };
-    // Every read exposed by this allowlist is confined to the customer's
-    // account, selected VM or VPSnet catalog. None performs arbitrary web search
-    // or accepts an external destination; remote hosting alone is not open-world.
-    if (annotations.readOnlyHint) annotations.openWorldHint = false;
+    const annotations = {
+      readOnlyHint: readOnly, destructiveHint: !readOnly && !additiveTools.has(name),
+      idempotentHint: readOnly || deduplicatedTools.has(name),
+      ...(config.annotations as object || {}),
+      openWorldHint: externalTools.has(name),
+    };
+    if (readOnly) { annotations.readOnlyHint = true; annotations.destructiveHint = false; }
+    if (additiveTools.has(name)) annotations.destructiveHint = false;
+    if (deduplicatedTools.has(name)) annotations.idempotentHint = true;
     const inputSchema = { ...(config.inputSchema as Record<string, z.ZodTypeAny>) };
     if (name === 'create_function' || name === 'invoke_function') {
       const key = inputSchema.idempotency_key;
@@ -144,7 +175,7 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     }
     if (name === 'invoke_function') {
       inputSchema.acknowledge_usage_billing = z.literal(true).describe("The customer requested this run and accepted usage charges against their VPSnet balance, within the connection's daily Functions spending limit.");
-      inputSchema.wait = z.boolean().default(false).describe("Prefer asynchronous execution, then inspect the returned invocation ID until its final result.");
+      inputSchema.wait = z.boolean().default(true).describe("Wait for output when testing a Function. If the run remains pending, keep its invocation ID and poll its final result.");
     }
     return original(name, {
       ...config,
@@ -158,9 +189,11 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
       const context = authorizationContext();
       if (!context || !hasScope(context.scopes, required)) {
         return { isError: true, content: [{ type: "text", text: "Reconnect VPSnet with the required permissions." }],
-          _meta: { "mcp/www_authenticate": [`Bearer error="insufficient_scope", scope="${requiredScopes.join(" ")}"`] } };
+          _meta: { "mcp/www_authenticate": [`Bearer error="insufficient_scope", error_description="Reconnect VPSnet to allow this action on your selected services.", scope="${requiredScopes.join(" ")}"`] } };
       }
-      const result = await handler(...args);
+      let result: CallToolResult;
+      try { result = await handler(...args); }
+      catch (error) { if (error instanceof RemoteAuthError) return error.result(); throw error; }
       if (name === 'get_application_health' || name === 'get_application_logs') {
         // Runtime placement is not needed to diagnose the customer's application.
         return { ...result, content: result.content.map(item => {
