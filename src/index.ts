@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+import { registerOrderTools } from "./remote-orders.js";
 import { registerRemoteTools } from "./remote-tools.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import { installRemotePolicy, remoteInstructions } from "./remote-policy.js";
+import { installRemotePolicy, remoteInstructions, orderInstructions } from "./remote-policy.js";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { registerNetworkingTools } from "./networking-tools.js";
@@ -142,11 +143,11 @@ const EVENT_ID_SCHEMA = z
   ])
   .describe("Numeric `event` id or `noty` UUID returned by the action");
 
-export function createVpsnetServer(options: { remoteScopes?: readonly string[] } = {}): McpServer {
+export function createVpsnetServer(options: { remoteScopes?: readonly string[]; remoteProfile?: "directory" | "orders" } = {}): McpServer {
 const server = new McpServer(
   { name: "vpsnet", version: JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version },
   {
-    instructions: options.remoteScopes ? remoteInstructions : [
+    instructions: options.remoteScopes ? (options.remoteProfile === "orders" ? orderInstructions : remoteInstructions) : [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
       "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
@@ -268,7 +269,7 @@ const server = new McpServer(
 );
 
 installToolResultErrorFlag(server);
-if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes);
+if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes, options.remoteProfile);
 registerNetworkingTools(server);
 
 // Helper to build service settings path
@@ -4656,7 +4657,7 @@ server.registerTool(
     const body = { ...input, idempotencyKey };
     const { data } = await apiRequest(
       "POST",
-      "/account/domains/register/quote",
+      options.remoteProfile === "orders" ? "/account/mcp/orders/domains/quote" : "/account/domains/register/quote",
       body,
       { "Idempotency-Key": idempotencyKey }
     );
@@ -4723,7 +4724,7 @@ server.registerTool(
     const body = { ...input, idempotencyKey, quoteToken };
     const { data } = await apiRequest(
       "POST",
-      "/account/domains/register/confirm",
+      options.remoteProfile === "orders" ? "/account/mcp/orders/domains/confirm" : "/account/domains/register/confirm",
       body,
       { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
     );
@@ -6621,6 +6622,7 @@ server.registerTool(
 );
 
 if (options.remoteScopes) registerRemoteTools(server);
+if (options.remoteProfile === "orders") registerOrderTools(server);
 return server;
 }
 

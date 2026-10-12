@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 connector / 2.3.0 MCP server
+
+- Optional custom OAuth connection for server and domain orders paid from account balance.
+- Separate purchase consent, daily and monthly spending limits, exact-price confirmation and persistent purchase receipts.
+- The directory connector continues to manage existing services without purchase tools.
+
 ## 0.4.0 connector / 2.2.0 MCP server
 
 - Separate diagnostic, file reading, file editing and administrator permissions.

@@ -22,6 +22,8 @@ export const remoteInstructions = [
   "This connector does not purchase capacity, change payment settings or run model inference. Functions execution uses the customer's VPSnet balance; an AI subscription does not pay those infrastructure charges.",
 ].join("\n");
 
+export const orderScopes = ["orders:read", "orders:servers", "orders:domains"];
+export const orderInstructions = remoteInstructions.replace("This connector does not purchase capacity, change payment settings or run model inference.", "This custom orders connection can purchase permanent VPS servers and register domains from the customer’s VPSnet balance after separate purchase consent. Quote first, show the final gross EUR amount and period, and confirm only after explicit approval. Domain registration may be non-refundable. Daily and monthly limits cover this connection across token refresh. Never use a new key to retry an uncertain payment; inspect get_purchase_result. Payment settings and saved-card charges are not exposed.");
 export const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "functions:invoke", "vm:diagnostics", "vm:files:read", "vm:files:write", "vm:exec", "services:reinstall", "services:restore", "services:rescue", "dns:read", "dns:write", "dnssec:manage", "domains:read", "domains:manage", "certificates:read", "certificates:manage", "ssh_keys:read", "ssh_keys:manage"];
 
 const readServices = ["get_service_rescue", "get_guest_agent_status", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_restore_points", "list_restore_file_points", "browse_restore_files", "get_restore_file_browse", "list_services", "get_service", "get_service_graphs", "get_service_history", "get_hostname", "get_title", "get_rdns", "get_os_options", "get_backup_status", "get_backup_history", "list_snapshots", "list_firecracker_snapshots", "get_firecracker_backup_status", "get_firecracker_backup_history"];
@@ -118,9 +120,18 @@ for (const tool of networkingTools) {
       || /\/(orders|product-orders|products|product-periods|billing|auto-renew|quote|renew|renewal|payment|checkout|catalog)(\/|$)/.test(tool.path)) continue;
   permissions.set(tool.name, tool.options.readOnly ? "networking:read" : "networking:manage");
 }
-export function remoteScope(name: string): string | undefined { return permissions.get(name); }
+const orderPermissions = new Map<string, string>([
+  ['get_order_plans', 'orders:read'], ['get_order_options', 'orders:read'],
+  ['quote_service_order', 'orders:servers'], ['confirm_service_order', 'orders:servers'],
+  ['quote_domain_register', 'orders:domains'], ['confirm_domain_register', 'orders:domains'],
+  ['get_purchase_result', 'orders:read'], ['list_domain_tlds', 'domains:read'],
+  ['check_domain_availability', 'domains:read'], ['get_domain_ordering_status', 'domains:read'],
+]);
+export function remoteScope(name: string, profile: 'directory' | 'orders' = 'directory'): string | undefined {
+  return (profile === 'orders' ? orderPermissions.get(name) : undefined) ?? permissions.get(name);
+}
 export function hasScope(scopes: readonly string[], required: string): boolean {
-  return (required.startsWith("vm:files:") && scopes.includes("vm:files")) || (required === "vm:files:read" && scopes.includes("vm:files:write")) || (required === "vm:diagnostics" && scopes.includes("vm:exec")) || (required === "dns:read" && scopes.some(s => s === "dns:write" || s === "dnssec:manage")) || (required === "services:read" && scopes.includes("services:rescue")) || (required === "vm:session" && scopes.some(s => s === "vm:exec" || s === "vm:files" || s === "vm:files:read" || s === "vm:files:write" || s === "vm:diagnostics")) || (required === "functions:read" && scopes.includes("functions:invoke")) || required === "authenticated" || scopes.includes(required)
+  return (required === "orders:read" && scopes.some(s => s === "orders:servers" || s === "orders:domains")) || (required.startsWith("vm:files:") && scopes.includes("vm:files")) || (required === "vm:files:read" && scopes.includes("vm:files:write")) || (required === "vm:diagnostics" && scopes.includes("vm:exec")) || (required === "dns:read" && scopes.some(s => s === "dns:write" || s === "dnssec:manage")) || (required === "services:read" && scopes.includes("services:rescue")) || (required === "vm:session" && scopes.some(s => s === "vm:exec" || s === "vm:files" || s === "vm:files:read" || s === "vm:files:write" || s === "vm:diagnostics")) || (required === "functions:read" && scopes.includes("functions:invoke")) || required === "authenticated" || scopes.includes(required)
     || (required.endsWith(":read") && scopes.includes(required.replace(/:read$/, ":manage")));
 }
 
@@ -146,14 +157,14 @@ const externalTools = new Set([
 ]);
 const deduplicatedTools = new Set([
   'run_vm_command', 'inspect_vm', 'read_vm_file', 'write_vm_file', 'create_vm_file', 'cancel_vm_operation',
-  'create_function', 'invoke_function',
+  'create_function', 'invoke_function', 'confirm_service_order', 'confirm_domain_register',
 ]);
 
 /** Keep supported tools discoverable for incremental OAuth consent; purchases stay outside this profile. */
-export function installRemotePolicy(server: McpServer, scopes: readonly string[]): void {
+export function installRemotePolicy(server: McpServer, scopes: readonly string[], profile: 'directory' | 'orders' = 'directory'): void {
   const original = server.registerTool.bind(server) as unknown as Register;
   const register: Register = (name, config, handler) => {
-    const required = remoteScope(name);
+    const required = remoteScope(name, profile);
     if (!required) return undefined;
     const requiredScopes = required === "authenticated" ? [] : required === "vm:session"
       ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:diagnostics"]) : [required];
@@ -165,10 +176,19 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
       ...(config.annotations as object || {}),
       openWorldHint: externalTools.has(name),
     };
+    if (name.startsWith('quote_')) { annotations.readOnlyHint = false; annotations.destructiveHint = false; }
+    if (name === 'confirm_domain_register' || name === 'confirm_service_order') annotations.destructiveHint = true;
     if (readOnly) { annotations.readOnlyHint = true; annotations.destructiveHint = false; }
     if (additiveTools.has(name)) annotations.destructiveHint = false;
     if (deduplicatedTools.has(name)) annotations.idempotentHint = true;
     const inputSchema = { ...(config.inputSchema as Record<string, z.ZodTypeAny>) };
+    if (name === 'get_order_plans' && profile === 'orders') inputSchema.type = z.enum(['vps', 'vds', 'firecracker']);
+    if (name === 'confirm_domain_register') {
+      inputSchema.payment = z.object({ payment: z.literal(1), successUrl: z.literal(''), cancelUrl: z.literal('') }).default({ payment: 1, successUrl: '', cancelUrl: '' });
+      inputSchema.expected_total_eur = z.number().finite().nonnegative().describe('Exact final total_amount_eur including VAT from the quote, shown to and approved by the customer.');
+      inputSchema.acknowledge_charge = z.literal(true);
+      inputSchema.acknowledge_non_refundable = z.literal(true).describe('The customer explicitly accepted the domain registration’s non-refundable terms.');
+    }
     if (name === 'create_function' || name === 'invoke_function') {
       const key = inputSchema.idempotency_key;
       if (key instanceof z.ZodOptional) inputSchema.idempotency_key = key.unwrap();

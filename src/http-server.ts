@@ -4,8 +4,8 @@ import { createVpsnetServer } from "./index.js";
 import { resolveApiBase } from "./api.js";
 import { requireRequestAuthorization, withAuthorization, type AuthorizationContext } from "./request-context.js";
 
-import { supportedScopes } from "./remote-policy.js";
-export interface RemoteOptions { resource: string; issuer: string; allowedOrigins?: readonly string[]; }
+import { supportedScopes, orderScopes } from "./remote-policy.js";
+export interface RemoteOptions { resource: string; issuer: string; allowedOrigins?: readonly string[]; ordersResource?: string; }
 
 function publicUrl(value: string): URL {
   const url = new URL(value);
@@ -22,13 +22,15 @@ export function createRemoteServer(options: RemoteOptions) {
   const resource = publicUrl(options.resource);
   const issuer = publicUrl(options.issuer).href.replace(/\/$/, "");
   if (resource.pathname !== "/mcp") throw new Error("The MCP resource path must be /mcp.");
-  const metadataUrl = `${resource.origin}/.well-known/oauth-protected-resource/mcp`;
+  const ordersResource = options.ordersResource ? publicUrl(options.ordersResource) : undefined;
+  if (ordersResource && ordersResource.href !== resource.href + '/orders') throw new Error('Orders resource must be the /mcp/orders URL on the same origin.');
+  const resources = new Map([[resource.pathname, { url: resource, profile: 'directory' as const, scopes: supportedScopes }],
+    ...(ordersResource ? [[ordersResource.pathname, { url: ordersResource, profile: 'orders' as const, scopes: [...supportedScopes, ...orderScopes] }] as const] : [])]);
   const apiBase = resolveApiBase();
   const origins = new Set(options.allowedOrigins ?? []);
   for (const origin of origins) if (publicUrl(origin).origin !== origin) throw new Error("Allowed origins must be HTTPS origins.");
-  const challenge = `Bearer resource_metadata="${metadataUrl}"`;
 
-  async function authenticate(req: IncomingMessage): Promise<AuthorizationContext | null> {
+  async function authenticate(req: IncomingMessage, expectedResource: string, allowedScopes: readonly string[]): Promise<AuthorizationContext | null> {
     const match = /^Bearer (vpsnet_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? "");
     if (!match) return null;
     const response = await fetch(`${apiBase}/oauth/mcp/introspect`, {
@@ -38,12 +40,12 @@ export function createRemoteServer(options: RemoteOptions) {
     if (response.status === 401 || response.status === 403) return null;
     if (!response.ok) throw new Error("VPSnet authorization is unavailable.");
     const value = await response.json() as Record<string, unknown>;
-    if (value.active !== true || value.aud !== resource.href || value.iss !== issuer
+    if (value.active !== true || value.aud !== expectedResource || value.iss !== issuer
         || typeof value.exp !== "number" || value.exp <= Date.now() / 1000
         || typeof value.sub !== "string" || typeof value.grant_id !== "string" || typeof value.scope !== "string"
         || !Array.isArray(value.services) || !value.services.every(x => typeof x === "string")) return null;
     return { accessToken: match[1], subject: value.sub, grantId: value.grant_id,
-      expiresAt: value.exp, scopes: value.scope.split(" ").filter(x => (supportedScopes.includes(x) || x === "vm:files")), services: value.services };
+      expiresAt: value.exp, scopes: value.scope.split(" ").filter(x => (allowedScopes.includes(x) || x === "vm:files")), services: value.services };
   }
 
   const http = createServer(async (req, res) => {
@@ -60,13 +62,18 @@ export function createRemoteServer(options: RemoteOptions) {
       res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, MCP-Protocol-Version, Last-Event-ID");
       res.writeHead(204); res.end(); return;
     }
-    if (req.method === "GET" && ["/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"].includes(req.url ?? "")) {
-      return json(res, 200, { resource: resource.href, authorization_servers: [issuer], scopes_supported: supportedScopes, bearer_methods_supported: ["header"], resource_name: "VPSnet AI" });
+    if (req.method === "GET") {
+      for (const item of resources.values()) {
+        if (req.url === `/.well-known/oauth-protected-resource${item.url.pathname}` || (item.profile === 'directory' && req.url === '/.well-known/oauth-protected-resource')) {
+          return json(res, 200, { resource: item.url.href, authorization_servers: [issuer], scopes_supported: item.scopes, bearer_methods_supported: ["header"], resource_name: item.profile === 'orders' ? 'VPSnet orders' : 'VPSnet' });
+        }
+      }
     }
-    if (req.url !== "/mcp") return json(res, 404, { error: "not_found" });
+    const selected = resources.get(req.url ?? '');
+    if (!selected) return json(res, 404, { error: "not_found" });
     try {
-      const context = await authenticate(req);
-      if (!context) { res.setHeader("WWW-Authenticate", challenge); return json(res, 401, { error: "invalid_token" }); }
+      const context = await authenticate(req, selected.url.href, selected.scopes);
+      if (!context) { res.setHeader("WWW-Authenticate", `Bearer resource_metadata="${resource.origin}/.well-known/oauth-protected-resource${selected.url.pathname}"`); return json(res, 401, { error: "invalid_token" }); }
       if (req.method !== "POST") { res.setHeader("Allow", "POST"); return json(res, 405, { error: "method_not_allowed" }); }
       if (req.headers["mcp-session-id"]) return json(res, 400, { error: "stateless_transport" });
       if (!req.headers["content-type"]?.split(";")[0].trim().match(/^application\/json$/i)) return json(res, 415, { error: "unsupported_media_type" });
@@ -82,7 +89,7 @@ export function createRemoteServer(options: RemoteOptions) {
       catch { return json(res, 400, { error: "invalid_json" }); }
       if (Array.isArray(body)) return json(res, 400, { error: "batch_not_supported" });
       await withAuthorization(context, async () => {
-        const server = createVpsnetServer({ remoteScopes: context.scopes });
+        const server = createVpsnetServer({ remoteScopes: context.scopes, remoteProfile: selected.profile });
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
         res.once("close", () => { void transport.close(); void server.close(); });
         await server.connect(transport);

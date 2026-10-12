@@ -280,3 +280,43 @@ test('remote application diagnostics omit runtime placement while retaining heal
   assert.equal(result.health.status,'healthy');
   assert.equal(result.worker_node,undefined);assert.equal(result.worker_release,undefined);
 });
+
+test('orders use a separate audience and exact quote/confirmation tools without widening the directory', async t => {
+  const ordersResource = resource + '/orders'; const received = [];
+  const backend = createServer(async (req, res) => {
+    res.setHeader('content-type', 'application/json');
+    const ordering = req.headers.authorization === 'Bearer ' + tokens.b;
+    if (req.url === '/oauth/mcp/introspect') {
+      res.end(JSON.stringify({active:true,aud:ordering ? ordersResource : resource,iss:issuer,exp:Date.now()/1000+300,sub:'owner',grant_id:'grant',scope:'orders:read orders:servers orders:domains domains:read',services:[]})); return;
+    }
+    let body='';for await(const chunk of req)body+=chunk;
+    received.push({path:req.url,body:body?JSON.parse(body):null,key:req.headers['idempotency-key']});
+    res.end(JSON.stringify({success:true,amount_eur:12.1,total_amount_eur:'12.10',quoteToken:'q'.repeat(43),orderno:'VP123'}));
+  });
+  backend.listen(0,'127.0.0.1');await once(backend,'listening');
+  process.env.VPSNET_API_URL='http://127.0.0.1:'+backend.address().port;
+  const {createRemoteServer}=await import('../build/http-server.js');
+  const remote=createRemoteServer({resource,issuer,ordersResource});remote.listen(0,'127.0.0.1');await once(remote,'listening');
+  t.after(()=>{for(const s of [remote,backend]){s.closeAllConnections();s.close();}});
+  const port=remote.address().port;
+  const metadata=await call(port,'GET','/.well-known/oauth-protected-resource/mcp/orders');
+  assert.equal(metadata.body.resource,ordersResource);assert.ok(metadata.body.scopes_supported.includes('orders:servers'));
+  assert.ok(!(await call(port,'GET','/.well-known/oauth-protected-resource/mcp')).body.scopes_supported.includes('orders:servers'));
+  for(const [path,token] of [['/mcp',tokens.b],['/mcp/orders',tokens.a]])assert.equal((await call(port,'POST',path,token,{jsonrpc:'2.0',id:1,method:'tools/list'})).status,401);
+  const list=(await call(port,'POST','/mcp/orders',tokens.b,{jsonrpc:'2.0',id:2,method:'tools/list'})).body.result.tools;
+  for(const name of ['get_order_plans','quote_service_order','confirm_service_order','quote_domain_register','confirm_domain_register','get_purchase_result'])assert.ok(list.some(x=>x.name===name),name);
+  assert.ok(!list.some(x=>x.name==='order_service'));
+  const invoke=async(name,args)=>(await call(port,'POST','/mcp/orders',tokens.b,{jsonrpc:'2.0',id:3,method:'tools/call',params:{name,arguments:args}})).body;
+  const input={plan:1,sshKey:2,idempotencyKey:'order-test-key-00000001'};
+  assert.ok(!(await invoke('quote_service_order',input)).result.isError);
+  assert.equal(received.at(-1).path,'/account/mcp/orders/services/quote');
+  const count=received.length;
+  const denied=await invoke('confirm_service_order',{...input,quoteToken:'q'.repeat(43),expected_total_eur:12.1});
+  assert.ok(denied.error || denied.result.isError);assert.equal(received.length,count);
+  assert.ok(!(await invoke('confirm_service_order',{...input,quoteToken:'q'.repeat(43),expected_total_eur:12.1,acknowledge_charge:true})).result.isError);
+  assert.equal(received.at(-1).path,'/account/mcp/orders/services/confirm');assert.equal(received.at(-1).body.payment.payment,1);
+  assert.ok(!(await invoke('confirm_domain_register',{domain:'example.test',idempotencyKey:'domain-test-key-00000001',quoteToken:'q'.repeat(43),expected_total_eur:12.1,acknowledge_charge:true,acknowledge_non_refundable:true})).result.isError);
+  assert.equal(received.at(-1).path,'/account/mcp/orders/domains/confirm');assert.equal(received.at(-1).body.expected_total_eur,12.1);
+  const directory=(await call(port,'POST','/mcp',tokens.a,{jsonrpc:'2.0',id:4,method:'tools/list'})).body.result.tools;
+  for(const tool of list.filter(x=>x.name.includes('order')||x.name.includes('purchase')))assert.ok(!directory.some(x=>x.name===tool.name),tool.name);
+});

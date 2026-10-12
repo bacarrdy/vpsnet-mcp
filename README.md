@@ -32,6 +32,8 @@ publisher requirements, and [supported use cases](plugin/skills/vpsnet-operation
 for server, application and networking scenarios. Directory publication and
 provider account availability are separate from installing this source code.
 
+An optional [custom ordering connection](docs/ORDERS.md) supports balance-paid VPS and domain registration with separate consent and spending limits. It is separate from the directory connector.
+
 The instructions below describe the existing local stdio/API-key client.
 
 ## Prerequisites
