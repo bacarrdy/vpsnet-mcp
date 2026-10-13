@@ -9,7 +9,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 // a lost verification value and must see WHY a verification was refused and
 // what to do next - including "keep the nameservers, add the TXT at the
 // previous provider" and "contact support" - never a bare 409.
-test("DNS verification tools keep the reissue contract and pass refusal details through", async (t) => {
+test("DNS verification and registrar glue tools retain their public mutation contracts", async (t) => {
   const requests = [];
   const api = createServer(async (req, res) => {
     let body = "";
@@ -46,6 +46,8 @@ test("DNS verification tools keep the reissue contract and pass refusal details 
           ],
         },
       };
+    } else if (req.url === "/account/domains/17/glue" && req.method === "POST") {
+      response = { success: true, action: { status: "queued" } };
     } else {
       status = 404;
       response = { notFound: true };
@@ -74,6 +76,20 @@ test("DNS verification tools keep the reissue contract and pass refusal details 
   const { tools } = await client.listTools();
   const reissue = tools.find((tool) => tool.name === "reissue_dns_zone_verification");
   const verify = tools.find((tool) => tool.name === "verify_dns_zone");
+  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  for (const name of [
+    "change_rdns", "clear_rdns", "set_domain_nameservers", "create_domain_glue_record",
+    "delete_domain_glue_record", "add_domain_parent_ds", "delete_domain_parent_ds",
+    "attach_service_dns_record", "import_dns_zone", "apply_dns_template", "delete_dns_zone", "verify_dns_zone",
+    "set_dnssec", "upsert_dns_record", "update_dns_record", "delete_dns_record",
+  ]) assert.equal(byName.get(name)?.annotations?.openWorldHint, true, name);
+  const glue = byName.get("create_domain_glue_record");
+  assert.equal(glue.annotations.readOnlyHint, false);
+  assert.equal(glue.annotations.destructiveHint, true);
+  assert.match(glue.description, /public parent-zone glue/);
+  for (const name of ["add_domain_parent_ds", "set_dnssec", "update_dns_record"]) {
+    assert.equal(byName.get(name).annotations.destructiveHint, true, name);
+  }
   assert.ok(reissue, "reissue_dns_zone_verification is registered");
   assert.deepEqual(reissue.inputSchema.required, ["zone_id"]);
   assert.match(reissue.description, /previous value stops being accepted/);
@@ -97,9 +113,17 @@ test("DNS verification tools keep the reissue contract and pass refusal details 
   assert.equal(refusedBody.verification.next_step, "add_txt_at_previous_provider");
   assert.equal(refusedBody.verification.checks.length, 2);
 
+  const queuedGlue = await client.callTool({ name: "create_domain_glue_record", arguments: {
+    domain_id: 17, hostname: "ns1.example.com", addresses: ["1.1.1.1"], idempotencyKey: "glue-test-key-20261013",
+  } });
+  assert.equal(JSON.parse(queuedGlue.content[0].text).action.status, "queued");
+
   assert.deepEqual(
     requests.map((request) => `${request.method} ${request.url}`),
-    ["POST /account/dns/zones/41/verification/reissue", "POST /account/dns/zones/41/verify"]
+    ["POST /account/dns/zones/41/verification/reissue", "POST /account/dns/zones/41/verify", "POST /account/domains/17/glue"]
   );
+  assert.deepEqual(JSON.parse(requests[2].body), {
+    hostname: "ns1.example.com", addresses: ["1.1.1.1"], idempotencyKey: "glue-test-key-20261013",
+  });
   assert.equal(requests[0].headers["x-api-key"], "contract-test-key");
 });

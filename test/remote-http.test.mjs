@@ -72,6 +72,23 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     'validate_application_recipe', 'create_application_recipe', 'create_application_recipe_revision',
     'create_function', 'update_function', 'create_dns_zone',
   ]) assert.equal(hints(name)?.openWorldHint, true, `${name} can involve external registries, public endpoints or DNS`);
+  for (const name of [
+    'configure_application_access', 'configure_application_resource_thresholds',
+    'confirm_application_compose_adoption', 'delete_function',
+    'change_rdns', 'clear_rdns', 'set_domain_nameservers',
+    'create_domain_glue_record', 'delete_domain_glue_record',
+    'add_domain_parent_ds', 'delete_domain_parent_ds',
+    'attach_service_dns_record', 'import_dns_zone', 'apply_dns_template', 'delete_dns_zone',
+    'set_dnssec', 'upsert_dns_record', 'update_dns_record', 'delete_dns_record',
+  ]) {
+    assert.equal(hints(name)?.openWorldHint, true, `${name} affects public DNS, an external endpoint, or email`);
+  }
+  assert.equal(hints('create_domain_glue_record')?.readOnlyHint, false, 'registrar glue creation queues a mutation');
+  assert.equal(hints('create_domain_glue_record')?.destructiveHint, true, 'an existing glue hostname can be updated');
+  for (const name of ['reinstall_os', 'add_domain_parent_ds', 'set_dnssec', 'update_dns_record']) {
+    assert.equal(hints(name)?.readOnlyHint, false, `${name} mutates existing state`);
+    assert.equal(hints(name)?.destructiveHint, true, `${name} can remove data or disrupt resolution`);
+  }
   assert.equal(hints('validate_application_recipe').readOnlyHint, false, 'validation queues work and resolves image tags');
   for (const name of ['create_application_recipe', 'create_application_recipe_revision', 'create_function', 'create_dns_zone']) {
     assert.equal(hints(name).destructiveHint, false, `${name} adds a resource without replacing one`);
@@ -388,6 +405,7 @@ test('one connection supports approved purchases while catalog clients retain th
   assert.ok(!catalog.some(t=>t.name==='confirm_service_order'));
   const list=(await call(port,'POST','/mcp',tokens.b,{jsonrpc:'2.0',id:2,method:'tools/list'})).body.result.tools;
   for(const name of ['get_order_plans','quote_service_order','confirm_service_order','quote_domain_register','confirm_domain_register','get_purchase_result'])assert.ok(list.some(x=>x.name===name),name);
+  assert.equal(list.find(tool => tool.name === 'confirm_domain_register').annotations.openWorldHint, true);
   assert.ok(!list.some(x=>x.name==='order_service'));
   const invoke=async(name,args)=>(await call(port,'POST','/mcp',tokens.b,{jsonrpc:'2.0',id:3,method:'tools/call',params:{name,arguments:args}})).body;
   const input={plan:1,sshKey:2,idempotencyKey:'order-test-key-00000001'};

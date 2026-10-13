@@ -949,6 +949,7 @@ server.registerTool(
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({
@@ -1957,6 +1958,7 @@ server.registerTool(
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({
@@ -2098,6 +2100,7 @@ server.registerTool(
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({
@@ -2564,12 +2567,13 @@ server.registerTool(
   "change_rdns",
   {
     description:
-      "Set a customer PTR override for an address returned by get_rdns. Canonical length is 3-253 characters; labels are 1-63 ASCII alphanumeric/hyphen characters without leading/trailing hyphens. A trailing dot is removed and reserved VPSnet names are blocked. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
+      "Set a customer PTR override for an address returned by get_rdns. The new reverse DNS value replaces the previous public PTR answer after propagation. Canonical length is 3-253 characters; labels are 1-63 ASCII alphanumeric/hyphen characters without leading/trailing hyphens. A trailing dot is removed and reserved VPSnet names are blocked. OAuth requires services:manage; API keys require full access. This route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       ip: serviceIpSchema,
       value: servicePtrSchema,
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ orderNo, ip, value }) => {
     const { data } = await apiRequest(
@@ -2585,11 +2589,12 @@ server.registerTool(
   "clear_rdns",
   {
     description:
-      "Clear a customer PTR override for an address returned by get_rdns. The automatic VPSnet PTR is restored, or PTR is removed when no automatic hostname exists. Requires services:manage and a full-access API key; this route is not idempotency-keyed.",
+      "Clear a customer PTR override for an address returned by get_rdns. The automatic VPSnet PTR is restored, or PTR is removed when no automatic hostname exists. OAuth requires services:manage; API keys require full access. This route is not idempotency-keyed.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       ip: serviceIpSchema,
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ orderNo, ip }) => {
     const { data } = await apiRequest(
@@ -4517,12 +4522,13 @@ server.registerTool(
   "set_domain_nameservers",
   {
     description:
-      "Queue an asynchronous nameserver change for an owned domain. Nameservers must be hostnames, not IP addresses; same-domain nameserver IP records are managed separately. This does not manage DNS records or PTR. Requires domains:manage when using an API key.",
+      "Queue an asynchronous registrar nameserver change for an owned domain. When applied, the parent zone delegates the domain to the new public nameservers, replacing the prior delegation. Nameservers must be hostnames, not IP addresses; same-domain nameserver IP records are managed separately. This does not manage DNS records or PTR. Requires domains:manage when using an API key.",
     inputSchema: {
       domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       nameservers: z.array(nameserverHostnameSchema).min(2).max(13).describe("2-13 nameserver hostnames, e.g. ns1.vpsnet.com, ns2.vpsnet.com. IP addresses are not accepted."),
       idempotencyKey: idempotencyKeySchema.optional().describe("Optional idempotency key for the queued domain action"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ domain_id, nameservers, idempotencyKey }) => {
     const headers = idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined;
@@ -4558,13 +4564,14 @@ server.registerTool(
   "create_domain_glue_record",
   {
     description:
-      "Queue creating or updating a same-domain nameserver IP record for an owned domain. Hostname must be below the domain, addresses must be public IPs, and this does not create DNS A/AAAA records or PTR. Requires domains:manage when using an API key.",
+      "Queue creating or updating a same-domain nameserver IP record at the registrar for an owned domain. The public parent-zone glue can direct resolvers to new nameserver addresses; updating an existing hostname replaces its previous addresses. Hostname must be below the domain, addresses must be public IPs, and this does not create DNS A/AAAA records or PTR. Requires domains:manage when using an API key.",
     inputSchema: {
       domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       hostname: glueHostnameSchema,
       addresses: z.array(gluePublicIpSchema).min(1).max(13).describe("Public IPv4/IPv6 addresses for this nameserver host"),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ domain_id, hostname, addresses, idempotencyKey }) => {
     const { data } = await apiRequest(
@@ -4587,6 +4594,7 @@ server.registerTool(
       record_id: positiveIdSchema.describe("Record ID from list_domain_glue_records"),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ domain_id, record_id, idempotencyKey }) => {
     const { data } = await apiRequest(
@@ -4618,7 +4626,7 @@ server.registerTool(
   "add_domain_parent_ds",
   {
     description:
-      "Queue adding DNSSEC DS records at the parent zone for an owned domain. Requires domains:manage when using an API key.",
+      "Queue adding public DNSSEC DS records at the parent zone for an owned domain. Confirm the records match the child zone's DNSKEY; mismatched DS records can prevent validating resolvers from resolving the domain. Requires domains:manage when using an API key.",
     inputSchema: {
       domain_id: positiveIdSchema.describe("Owned domain ID from list_domains"),
       ds: z
@@ -4627,6 +4635,7 @@ server.registerTool(
         .describe("One or more DS records, one per line. Accepted forms include '12345 13 2 ABCDEF...' or full BIND-style DS lines."),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ domain_id, ds, idempotencyKey }) => {
     const { data } = await apiRequest(
@@ -4654,6 +4663,7 @@ server.registerTool(
         .describe("One or more DS records to remove, one per line. Accepted forms include '12345 13 2 ABCDEF...' or full BIND-style DS lines."),
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this queued domain action; sent as Idempotency-Key"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ domain_id, ds, idempotencyKey }) => {
     const { data } = await apiRequest(
@@ -4856,6 +4866,7 @@ server.registerTool(
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_register"),
       payment: domainPaymentSchema,
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ idempotencyKey, quoteToken, ...input }) => {
     const body = { ...input, idempotencyKey, quoteToken };
@@ -4886,6 +4897,7 @@ server.registerTool(
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_transfer"),
       payment: domainPaymentSchema,
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ idempotencyKey, quoteToken, authCode, ...input }) => {
     const body = { ...input, auth_code: authCode, idempotencyKey, quoteToken };
@@ -4934,6 +4946,7 @@ server.registerTool(
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_renew"),
       payment: domainPaymentSchema,
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ idempotencyKey, quoteToken, ...input }) => {
     const body = { ...input, idempotencyKey, quoteToken };
@@ -4980,6 +4993,7 @@ server.registerTool(
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_restore"),
       payment: domainPaymentSchema,
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
   },
   async ({ idempotencyKey, quoteToken, ...input }) => {
     const body = { ...input, idempotencyKey, quoteToken };
@@ -5074,6 +5088,7 @@ server.registerTool(
         .describe("CNAME target hostname (required when type=CNAME)"),
       ttl: z.number().optional().describe("TTL in seconds (default 120)"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ orderNo, zone_id, name, type, ip, target, ttl }) => {
     const body: Record<string, unknown> = { zone_id, name, type };
@@ -5791,10 +5806,11 @@ server.registerTool(
 server.registerTool(
   "delete_function",
   {
-    description: "Delete a Firecracker Function.",
+    description: "Delete a Firecracker Function, including its public webhook endpoint when enabled.",
     inputSchema: {
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ function_id }) => {
     const { data } = await apiRequest(
@@ -6243,7 +6259,7 @@ server.registerTool(
   "import_dns_zone",
   {
     description:
-      "Import BIND-style forward DNS records into a native zone. Set replace=true to replace non-system desired-state records; false upserts imported records. PTR/reverse DNS, SOA, DNSSEC wire records, apex NS, and LUA are skipped or rejected by the API. Requires dns:write when using an API key.",
+      "Import BIND-style forward DNS records into a native zone. These records can change public DNS answers after publication. Set replace=true to replace non-system desired-state records; false upserts imported records. PTR/reverse DNS, SOA, DNSSEC wire records, apex NS, and LUA are skipped or rejected by the API. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       zonefile: z
@@ -6256,6 +6272,7 @@ server.registerTool(
         .optional()
         .describe("If true, delete existing non-system desired-state records before importing. Defaults to false."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id, zonefile, replace }) => {
     const { data } = await apiRequest(
@@ -6292,7 +6309,7 @@ server.registerTool(
   "apply_dns_template",
   {
     description:
-      "Apply a backend-defined DNS template to a native forward zone. Records still pass the same API validation, quotas and conflict rules as manual record writes. Prefer preview=true first to show the user exactly which records a template would write before changing the zone. Requires dns:write when using an API key.",
+      "Apply a backend-defined DNS template to a native forward zone. The written records can change public DNS answers; overwrite=true replaces conflicting records. Records still pass the same API validation, quotas and conflict rules as manual record writes. Prefer preview=true first to show the user exactly which records a template would write before changing the zone. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       template: dnsTemplateIdSchema
@@ -6314,6 +6331,7 @@ server.registerTool(
           "true to replace existing records that conflict with the template. Destructive: confirm the exact conflicts with the user first, ideally from a preview run."
         ),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id, template, parameters, preview, overwrite }) => {
     const { data } = await apiRequest(
@@ -6337,6 +6355,7 @@ server.registerTool(
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest("DELETE", `/account/dns/zones/${encodeURIComponent(String(zone_id))}`);
@@ -6352,6 +6371,7 @@ server.registerTool(
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id }) => {
     const { data } = await apiRequest("POST", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/verify`);
@@ -6393,7 +6413,7 @@ server.registerTool(
   "set_dnssec",
   {
     description:
-      "Enable or disable DNSSEC signing for a native DNS zone. If parent DS records still exist outside VPSNet, remove them first and set parent_ds_removed=true before disabling signing. Secondary-zone DNSSEC is controlled on the primary server. Requires dnssec:manage when using an API key.",
+      "Enable or disable public DNSSEC signing for a native DNS zone. This changes the zone's DNSSEC chain and can affect validating resolvers. If parent DS records still exist outside VPSNet, remove them first and set parent_ds_removed=true before disabling signing. Secondary-zone DNSSEC is controlled on the primary server. Requires dnssec:manage when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       enabled: z.boolean().describe("true to enable/sign the zone, false to disable/remove signing"),
@@ -6402,6 +6422,7 @@ server.registerTool(
         .optional()
         .describe("When disabling DNSSEC for a zone whose parent DS is managed outside VPSNet, set true only after removing the parent DS records."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id, enabled, parent_ds_removed }) => {
     const { data } = await apiRequest("POST", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/dnssec`, {
@@ -6416,7 +6437,7 @@ server.registerTool(
   "upsert_dns_record",
   {
     description:
-      "Create or replace a forward DNS record in desired state for a native zone. PTR and *.arpa are rejected; use change_rdns for reverse DNS. Requires dns:write when using an API key.",
+      "Create or replace a forward DNS record in desired state for a native zone. Replacing an existing record changes the public answer after publication. PTR and *.arpa are rejected; use change_rdns for reverse DNS. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       name: z
@@ -6434,6 +6455,7 @@ server.registerTool(
         .optional()
         .describe("Optional note about this record, max 255 chars."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id, name, type, content, ttl, comment }) => {
     const body: Record<string, unknown> = { name, type, content };
@@ -6452,7 +6474,7 @@ server.registerTool(
   "update_dns_record",
   {
     description:
-      "Edit an existing forward DNS record by its ID (PUT) — change value, TTL, or comment without replacing it. System-managed records cannot be edited. Requires dns:write when using an API key.",
+      "Update an existing forward DNS record by its ID (PUT), replacing its desired value, TTL or comment. A changed value can replace the public DNS answer after publication. System-managed records cannot be edited. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       record_id: positiveIdSchema.describe("DNS record ID to update"),
@@ -6471,6 +6493,7 @@ server.registerTool(
         .optional()
         .describe("Optional note about this record, max 255 chars."),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id, record_id, name, type, content, ttl, comment }) => {
     const body: Record<string, unknown> = { name, type, content };
@@ -6494,6 +6517,7 @@ server.registerTool(
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       record_id: positiveIdSchema.describe("DNS record ID"),
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
   async ({ zone_id, record_id }) => {
     const { data } = await apiRequest(
