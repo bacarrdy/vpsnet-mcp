@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.5 connector
+
+- Clarify directory descriptions and Functions permission requirements.
+- Keep existing execution safeguards and MCP server behavior.
+
 ## 0.6.4 connector / 2.3.5 MCP server
 
 - Use illustrative service identifiers in tool descriptions and examples.

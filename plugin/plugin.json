@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",
@@ -34,7 +34,7 @@
           "Build and run a small website on my VPSnet server, then check its address.",
           "Find why my VPSnet application returns 502 and verify the fix."
         ],
-        "longDescription": "Use your own AI account to install applications, build and run projects, diagnose faults, configure private networks and create and test Functions on your existing VPSnet services. Choose services and permissions when signing in. Linux commands and files require separate access; Windows and BSD support covers service management. Functions execution has separate usage-billing consent and a daily spending ceiling. Purchases and checkout are not available. The current application catalog determines supported managed installations.",
+        "longDescription": "Connect your VPSnet account to install applications, deploy websites, diagnose server issues, manage DNS and domains, configure private networks and VPNs, and create or test Functions on your existing services. Choose which services and actions the connection may access. Linux file access and commands require separate permission. Windows and BSD support covers service management. Available installations follow the live application catalog.",
         "category": "Developer Tools",
         "capabilities": [
           "Server diagnostics",
@@ -102,7 +102,7 @@
         "commerce_description": "Manages existing customer services; no purchases, checkout, subscriptions or billing changes. Executing an existing Functions service consumes metered usage, including failed runs, only with separate OAuth execution consent, a daily account-usage ceiling and per-call acknowledgment. This is disclosed for provider review."
       },
       "publication": {
-        "release_notes": "Focused skills for deployment, troubleshooting, networking and Functions; persistent workload verification, separate Functions execution consent and spending ceiling, and clear task starters."
+        "release_notes": "Clearer directory descriptions for server management, deployment, troubleshooting, networking and Functions."
       }
     }
   }

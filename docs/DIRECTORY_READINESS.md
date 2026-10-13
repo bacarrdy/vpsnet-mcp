@@ -6,7 +6,7 @@ The public plugin README, manifests and skill are in English.
 
 | Provider | Submission or connection format | Remaining external acceptance |
 | --- | --- | --- |
-| OpenAI | `vpsnet-plugin-0.6.4.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
+| OpenAI | `vpsnet-plugin-0.6.5.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
 | Claude | Public `bacarrdy/vpsnet-mcp` GitHub repository, `plugin` path, `main` branch; submit both connector and plugin bundle at https://claude.ai/directory/manage | GitHub publisher access, live OAuth, portal checks, reviewer account and review |
 | Gemini | Custom remote MCP in eligible Connected Apps accounts, or the original Gemini CLI | Real account and regional availability; no verified public self-service directory submission path |
 | Grok | Custom remote MCP at https://grok.com/connectors | Real account OAuth; no verified public self-service directory submission path |
