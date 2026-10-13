@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.4 connector / 2.3.5 MCP server
+
+- Use illustrative service identifiers in tool descriptions and examples.
+- Simplify public documentation and local configuration exclusions.
+- Omit the proxy version from response headers.
+
 ## 0.6.3 connector / 2.3.4 MCP server
 
 - Show purchase tools only when both the connected application policy and granted order permissions allow them.

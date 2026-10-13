@@ -5,7 +5,8 @@ import test from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
-// answered invalidRequest), and nothing could follow an action's noty UUID.
+// Graph requests require metric and period to avoid invalidRequest responses.
+// Event tools must also follow the noty UUID returned by an action.
 test("graph, event and wait tools send what the API needs", async (t) => {
   const NOTY = "18401ea7-0c1d-4c7e-9a55-0123456789ab";
   const requests = [];

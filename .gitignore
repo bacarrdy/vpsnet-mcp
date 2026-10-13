@@ -26,4 +26,8 @@ artifacts/
 # Python packaging helper cache
 __pycache__/
 
-# Internal QA and environment-specific operations belong in private repositories.
+# Private operations and local environment configuration are not distributed.
+/private/
+/local/
+*.private.*
+*.local.*

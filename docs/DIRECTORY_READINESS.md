@@ -2,12 +2,11 @@
 
 Checked against the official requirements on 2026-10-13. This is a release
 candidate, not a provider approval or a guarantee of proactive recommendations.
-The public plugin README, manifests and skill are in English. Internal testing
-and deployment materials are maintained separately in private repositories.
+The public plugin README, manifests and skill are in English.
 
 | Provider | Submission or connection format | Remaining external acceptance |
 | --- | --- | --- |
-| OpenAI | `vpsnet-plugin-0.6.3.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
+| OpenAI | `vpsnet-plugin-0.6.4.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
 | Claude | Public `bacarrdy/vpsnet-mcp` GitHub repository, `plugin` path, `main` branch; submit both connector and plugin bundle at https://claude.ai/directory/manage | GitHub publisher access, live OAuth, portal checks, reviewer account and review |
 | Gemini | Custom remote MCP in eligible Connected Apps accounts, or the original Gemini CLI | Real account and regional availability; no verified public self-service directory submission path |
 | Grok | Custom remote MCP at https://grok.com/connectors | Real account OAuth; no verified public self-service directory submission path |
@@ -58,9 +57,10 @@ and operation behavior in a test environment. Validate each provider with a real
 account before claiming compatibility. Keep test reports and account details
 private.
 
-Before submission, enable and verify OAuth at the production URL after staging
-acceptance. Use an isolated, populated reviewer account reachable without the
-credentials in the private portal fields, not Git or a ZIP. Record an accessible
+Before submission, enable and verify OAuth at the production URL. Use an
+isolated, populated reviewer account that reviewers can access; preserve
+security controls for customer accounts. Put reviewer credentials in the
+private portal fields, not Git or a ZIP. Record an accessible
 demo of the actual positive cases. Serve OpenAI's exact domain challenge only
 after its portal issues it. The public privacy, terms and support URLs must
 remain reachable and accurately describe deployed retention and data handling.

@@ -13,7 +13,7 @@ test("route validation rejects normalization, origin changes and oversized paths
   ]) assert.throws(() => validateApiPath(path), /Invalid VPSnet API route/, path);
 
   for (const path of [
-    "/account/session", "/account/services/vp88903-1/start",
+    "/account/session", "/account/services/vp12345-1/start",
     "/account/services/VD12345/graphs?m=net&p=1d&f=rx%2Ctx",
     "/account/domains/check?domain=example.com",
   ]) assert.doesNotThrow(() => validateApiPath(path));

@@ -112,7 +112,7 @@ test("other URL segments, numeric IDs and enums reject invalid input before HTTP
 
 test("valid service formats and supported route segments retain their intended URLs", async (t) => {
   const { client, requests } = await harness(t);
-  for (const orderNo of ["VP12345", "vp88903", "VD12345", "DS12345", "VP12345-1"]) {
+  for (const orderNo of ["VP12345", "vp12345", "VD12345", "DS12345", "VP12345-1"]) {
     const result = await client.callTool({ name: "get_service", arguments: { orderNo } });
     assert.notEqual(result.isError, true);
     assert.deepEqual(requests.at(-1), { method: "GET", url: `/account/services/${orderNo}` });
