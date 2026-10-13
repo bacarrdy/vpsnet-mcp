@@ -546,6 +546,8 @@ Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp).
 |----------|----------|-------------|
 | `VPSNET_API_KEY` | Yes | Your VPSnet.com API key |
 | `VPSNET_API_URL` | No | API base URL (defaults to `https://api.vpsnet.com`); any `https://*.vpsnet.com` host, e.g. a staging API |
+| `VPSNET_AI_URL` | No | Delegated SSH runtime; production uses `https://ai.vpsnet.com`. Non-production requires the approved API origin followed by `/ai-control`. |
+| `VPSNET_AI_API_ORIGIN` | Non-production SSH only | Operator-approved HTTPS VPSnet API origin; must exactly match `VPSNET_API_URL`. Set both runtime variables privately for a non-production deployment. |
 | `VPSNET_API_TIMEOUT_MS` | No | Per-request timeout (default 45000) |
 
 Requests go out from the machine that runs this server, not from your browser. A

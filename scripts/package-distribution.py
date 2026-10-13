@@ -10,7 +10,7 @@ import json
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
-from validate_plugin import require, validate_package
+from validate_plugin import require, validate_package, validate_directory_text
 
 ENDPOINT = 'https://mcp.vpsnet.com/mcp'
 SHARED = (
@@ -40,7 +40,7 @@ def source(root, relative):
     raw = path.read_bytes()
     if path.suffix != '.png':
         text = raw.decode('utf-8')
-        require(not any(x in text for x in ('.testweb.', '/home/', '/Users/', '/dev/shm/', 'PRIVATE KEY-----')), 'Non-public content: ' + relative)
+        validate_directory_text(text, relative)
         if path.suffix == '.json':
             json.loads(text)
     return raw

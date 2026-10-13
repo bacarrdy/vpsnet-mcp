@@ -103,13 +103,30 @@ test('DNS write authority includes read preflights but neither DNSSEC nor unrela
 });
 
 
-test('VM runtime pairing cannot send staging sessions to production or an arbitrary endpoint', async () => {
+test('VM runtime pairing requires explicit same-origin approval outside production', async () => {
   const { resolveRuntimeBase } = await import('../build/remote-tools.js');
-  assert.equal(resolveRuntimeBase('https://api.vpsnet.com'), 'https://ai.vpsnet.com');
-  assert.equal(resolveRuntimeBase('https://api.testweb.vpsnet.com'), 'https://api.testweb.vpsnet.com/ai-control');
-  assert.throws(() => resolveRuntimeBase('https://api.testweb.vpsnet.com', 'https://ai.vpsnet.com'));
-  assert.throws(() => resolveRuntimeBase('https://api.vpsnet.com', 'https://attacker.example'));
-  assert.throws(() => resolveRuntimeBase('https://other.vpsnet.com', 'https://ai.vpsnet.com'));
+  const fixture = 'https://fixture.vpsnet.com';
+  assert.equal(resolveRuntimeBase('https://api.vpsnet.com', '', ''), 'https://ai.vpsnet.com');
+  assert.equal(resolveRuntimeBase(fixture, fixture + '/ai-control', fixture), fixture + '/ai-control');
+  assert.equal(resolveRuntimeBase('http://127.0.0.1:8080', 'http://127.0.0.1:8081', ''), 'http://127.0.0.1:8081');
+  for (const [api, runtime, approved] of [
+    [fixture, fixture + '/ai-control', ''],
+    [fixture, '', fixture],
+    [fixture, 'https://ai.vpsnet.com', fixture],
+    [fixture, 'https://other.vpsnet.com/ai-control', fixture],
+    [fixture, fixture + '/ai-control', 'https://other.vpsnet.com'],
+    [fixture, fixture + '/ai-control?token=example', fixture],
+    [fixture, fixture + '/ai-control#fragment', fixture],
+    [fixture, fixture + '/other', fixture],
+    ['https://api.vpsnet.com', fixture + '/ai-control', fixture],
+    ['https://attacker.example', 'https://attacker.example/ai-control', 'https://attacker.example'],
+    ['https://ai.vpsnet.com', 'https://ai.vpsnet.com/ai-control', 'https://ai.vpsnet.com'],
+    ['http://fixture.vpsnet.com', 'http://fixture.vpsnet.com/ai-control', 'http://fixture.vpsnet.com'],
+    [fixture + ':8443', fixture + ':8443/ai-control', fixture + ':8443'],
+    ['https://user@fixture.vpsnet.com', 'https://user@fixture.vpsnet.com/ai-control', 'https://user@fixture.vpsnet.com'],
+    [fixture + '/path', fixture + '/path/ai-control', fixture + '/path'],
+    ['http://127.0.0.1:8080', 'https://ai.vpsnet.com', ''],
+  ]) assert.throws(() => resolveRuntimeBase(api, runtime, approved), `${api} -> ${runtime}`);
 });
 
 test('VM opening generates a binding, preserves explicit reconnects and explains invalid input before execution', async t => {

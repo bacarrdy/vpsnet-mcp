@@ -13,4 +13,4 @@ For networking, read current capabilities, network attachments, security rules a
 
 Windows tools cover service state and lifecycle; delegated guest commands and files are Linux-only. Storage, hosting and Terraform tools become available as their customer APIs ship.
 
-Follow the connected application's capabilities. Purchase-restricted directory profiles do not sell services or link into checkout; never work around that restriction. If this connection explicitly exposes purchase tools, use its existing purchase permissions and spending limits: quote first, show the final price and period, and request approval of the VPSnet balance charge. Reuse the original operation key after an uncertain response. Never create a second connection to obtain purchase rights or charge a saved card.
+This directory package manages existing customer services. Do not order services, conduct payments or direct the user into checkout. Keep the customer's existing VPSnet connection and its granted management permissions.

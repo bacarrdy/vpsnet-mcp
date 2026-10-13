@@ -17,15 +17,21 @@ async function lease(orderNo: string, sessionBinding: string, resultsOnly = fals
   }
   return data.token;
 }
-export function resolveRuntimeBase(apiBase = resolveApiBase(), override = process.env.VPSNET_AI_URL): string {
+export function resolveRuntimeBase(apiBase = resolveApiBase(), override = process.env.VPSNET_AI_URL, approvedApiOrigin = process.env.VPSNET_AI_API_ORIGIN): string {
   if (apiBase === 'https://api.vpsnet.com') {
     if (override && override !== 'https://ai.vpsnet.com') throw new Error('Production backend requires ai.vpsnet.com');
     return 'https://ai.vpsnet.com';
   }
-  if (apiBase === 'https://api.testweb.vpsnet.com') {
-    const target = override || 'https://api.testweb.vpsnet.com/ai-control';
-    if (target !== 'https://api.testweb.vpsnet.com/ai-control') throw new Error('Staging backend requires its matching AI runtime');
-    return target;
+  // Non-production delegated tokens stay on an explicitly approved API origin.
+  // Configure both values privately; no environment-specific hostname is bundled.
+  if (approvedApiOrigin && apiBase === approvedApiOrigin) {
+    const approved = new URL(approvedApiOrigin);
+    if (approved.protocol !== 'https:' || !/\.vpsnet\.com$/.test(approved.hostname)
+        || approved.hostname === 'ai.vpsnet.com' || approved.port || approved.origin !== approvedApiOrigin
+        || override !== `${approvedApiOrigin}/ai-control`) {
+      throw new Error('Non-production backend requires its explicitly approved same-origin AI runtime');
+    }
+    return override;
   }
   // Local test harnesses may use loopback only. No token can cross into production.
   const api = new URL(apiBase); const target = new URL(override || 'http://127.0.0.1:8081');

@@ -29,6 +29,18 @@ def https(value, label):
     require(url.scheme == 'https' and url.hostname and not url.username and not url.password, label)
 
 
+def validate_public_text(value, name):
+    require(not any(marker in value for marker in
+                    ('.testweb.', '.staging.', '/home/', '/Users/', '/dev/shm/', 'PRIVATE KEY-----')),
+            'Non-public content: ' + name)
+
+
+def validate_directory_text(value, name):
+    validate_public_text(value, name)
+    require(not re.search(r'\b(?:quote_service_order|quote_domain_register|get_purchase_result|acknowledge_charge|acknowledge_non_refundable|balance charge)\b', value, re.I),
+            'Purchase workflow in directory package: ' + name)
+
+
 def validate_package(package):
     files = list(package.rglob('*'))
     require(len(files) <= 512, 'Plugin exceeds Claude file limit')
@@ -43,7 +55,8 @@ def validate_package(package):
         if file.is_file():
             require(file.stat().st_size < (5 * 1024 * 1024 if file.suffix == '.png' else 256 * 1024), 'Oversized file: ' + name)
             if file.suffix != '.png':
-                file.read_text()  # No opaque executable/archive content in this plugin.
+                value = file.read_text()  # No opaque executable/archive content in this plugin.
+                validate_directory_text(value, name)
     portable = json.loads((package / 'plugin.json').read_text())
     claude = json.loads((package / '.claude-plugin/plugin.json').read_text())
     for manifest in (portable, claude):

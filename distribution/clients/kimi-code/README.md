@@ -15,7 +15,7 @@ Open `/plugins` to inspect the enabled plugin and its MCP server. If OAuth is re
 
 Start with: “Show my connected VPSnet servers and their state. Do not change anything.”
 
-Linux files and commands need separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. Purchases depend on the connected application and its advertised tools. Where available, use the same connection with separate purchase permissions, spending limits and explicit approval of the final balance charge. Disconnect through VPSnet's AI connections page to revoke access.
+Linux files and commands need separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. This package manages existing services; it does not conduct purchases or direct customers into checkout. Disconnect through VPSnet's AI connections page to revoke access.
 
 ## Kimi marketplace
 

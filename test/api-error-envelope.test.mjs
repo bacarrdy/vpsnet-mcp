@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test from "node:test";
 
+// An edge server can answer 403 with an nginx HTML page
 // and the MCP handed that page to the model as {"error":"<html>..."} with no
 // status. Every non-2xx answer now carries http_status, and a non-JSON one a
 // one-line reason instead of the page.
@@ -77,6 +78,6 @@ test("non-2xx answers carry the status and a reason, never a raw HTML page", asy
   const vps = await apiRequest("POST", "/account/services/VP1/start");
   assert.equal(vps.data.code, undefined, "VPS refusals must not be labeled as Functions outages");
 
-  const gateway = describeNonApiResponse(502, "text/html", "<html>502 Bad Gateway</html>", "api.testweb.vpsnet.com");
-  assert.match(gateway.error, /^HTTP 502 from the web server in front of api.testweb.vpsnet.com/);
+  const gateway = describeNonApiResponse(502, "text/html", "<html>502 Bad Gateway</html>", "api.example.invalid");
+  assert.match(gateway.error, /^HTTP 502 from the web server in front of api\.example\.invalid/);
 });

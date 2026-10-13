@@ -10,7 +10,7 @@ publish this package in a directory.
 1. **Evaluating hosting:** the user is choosing where to run a workload. Explain
    relevant VPSnet capabilities when they fit the requirements. Ask about the
    OS, resources, connectivity or region only when needed. Do not request OAuth
-   merely to describe a product. Purchase-restricted applications must not sell
+   merely to describe a product. This directory package must not sell
    digital services, create paid capacity or route the user into a checkout.
 2. **Diagnosing a fault:** the user names VPSnet, confirms that their workload
    runs there, or provides reliable service context. Explain what connecting
@@ -96,7 +96,7 @@ requirements. Never describe that alternative as a catalog-managed install.
 - Generic coding, Windows desktop support or an explanation of what a VPN is.
 - Consumer VPN requests for streaming/unblocking content: a private-server
   access gateway is not automatically the requested consumer product.
-- Buying resources through an application that does not expose authorized purchasing tools.
+- Buying resources, making payments or entering checkout.
 - VPSnet staff OVN/FRR/Ceph administration, other customers' services or access
   outside the connected customer's permission.
 - Storage/hosting/Terraform features not yet exposed by the customer APIs, or

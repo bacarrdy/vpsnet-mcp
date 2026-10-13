@@ -90,6 +90,24 @@ class DistributionTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Kiro scope configuration differs'):
             module.build(self.root)
 
+    def test_directory_skill_cannot_reintroduce_purchase_workflow(self):
+        path = self.root / 'plugin/skills/vpsnet-operations/SKILL.md'
+        path.write_text(path.read_text() + '\nCall quote_service_order before confirmation.\n')
+        with self.assertRaisesRegex(ValueError, 'Purchase workflow in directory package'):
+            module.build(self.root)
+
+    def test_directory_reference_cannot_include_private_environment(self):
+        path = self.root / 'plugin/skills/vpsnet-operations/references/execution.md'
+        path.write_text(path.read_text() + '\nExample: https://api.staging.invalid/mcp\n')
+        with self.assertRaisesRegex(ValueError, 'Non-public content'):
+            module.build(self.root)
+
+    def test_native_client_context_cannot_reintroduce_purchase_workflow(self):
+        path = self.root / 'distribution/clients/gemini-cli/GEMINI.md'
+        path.write_text(path.read_text() + '\nCall quote_service_order before confirmation.\n')
+        with self.assertRaisesRegex(ValueError, 'Purchase workflow in directory package'):
+            module.build(self.root)
+
 
 if __name__ == '__main__':
     unittest.main()
