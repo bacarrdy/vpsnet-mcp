@@ -68,6 +68,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   for (const name of ['get_pricing', 'get_plan_options', 'get_plan_resources', 'calculate_plan_change', 'get_period_options', 'list_certificate_catalog', 'get_certificate_catalog_product', 'list_domain_tlds', 'check_domain_availability', 'get_domain_ordering_status']) assert.ok(!names.includes(name), name);
   const denied = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 91, method: 'tools/call', params: { name: 'restart_service', arguments: { orderNo: 'vp-a' } } });
   assert.equal(denied.body.result.isError, true);
+  assert.match(denied.body.result.content[0].text, /services:manage.*existing VPSnet connection/);
   assert.match(denied.body.result._meta['mcp/www_authenticate'][0], /services:manage/);
   assert.match(denied.body.result._meta['mcp/www_authenticate'][0], /error_description="[^"]+"/);
   assert.ok(!received.some(r => r.path.includes('restart')));
@@ -387,4 +388,116 @@ test('one connection supports approved purchases while catalog clients retain th
   assert.equal(received.at(-1).path,'/account/mcp/orders/domains/confirm');assert.equal(received.at(-1).body.expected_total_eur,12.1);
   const directory=(await call(port,'POST','/mcp',tokens.a,{jsonrpc:'2.0',id:4,method:'tools/list'})).body.result.tools;
   for(const tool of list.filter(x=>x.name.includes('order')||x.name.includes('purchase')))assert.ok(!directory.some(x=>x.name===tool.name),tool.name);
+});
+
+test('HTTP purchase discovery follows live granted scopes and trusted policy on the same connection', async t => {
+  let scope = 'services:read';
+  let ordersAvailable = true;
+  const received = [];
+  const backend = createServer(async (req, res) => {
+    res.setHeader('content-type', 'application/json');
+    if (req.url === '/oauth/mcp/introspect') {
+      res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now()/1000+300,
+        sub: 'owner', grant_id: 'same-grant', scope, services: ['vp-a'],
+        ...(ordersAvailable === undefined ? {} : { orders_available: ordersAvailable }) }));
+      return;
+    }
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    received.push({ path: req.url, token: req.headers.authorization, body: raw ? JSON.parse(raw) : null });
+    res.end(JSON.stringify({ success: true, amount_eur: 12.1, orderno: 'VP123' }));
+  });
+  backend.listen(0, '127.0.0.1'); await once(backend, 'listening');
+  process.env.VPSNET_API_URL = 'http://127.0.0.1:' + backend.address().port;
+  const { createRemoteServer } = await import('../build/http-server.js');
+  const remote = createRemoteServer({ resource, issuer, ordersEnabled: true });
+  remote.listen(0, '127.0.0.1'); await once(remote, 'listening');
+  t.after(() => { for (const server of [remote, backend]) { server.closeAllConnections(); server.close(); } });
+  const port = remote.address().port;
+  const rpc = async (method, params, headers = {}) => (await call(port, 'POST', '/mcp', tokens.a,
+    { jsonrpc: '2.0', id: 501, method, ...(params ? { params } : {}) }, headers)).body;
+  const initialize = clientName => rpc('initialize', {
+    protocolVersion: '2025-03-26', capabilities: {}, clientInfo: { name: clientName, version: '1.0' },
+  });
+  const list = async () => (await rpc('tools/list')).result.tools;
+  const invoke = (name, args = {}, headers) => rpc('tools/call', { name, arguments: args }, headers);
+  const purchaseNames = ['get_order_plans', 'get_order_options', 'quote_service_order', 'confirm_service_order',
+    'quote_domain_register', 'confirm_domain_register', 'get_purchase_result',
+    'list_domain_tlds', 'check_domain_availability', 'get_domain_ordering_status'];
+  const assertNoPurchases = async clientName => {
+    const discovery = [await initialize(clientName), { tools: await list() }];
+    for (const name of purchaseNames) assert.ok(!JSON.stringify(discovery).includes(name), name);
+    assert.doesNotMatch(JSON.stringify(discovery), /purchase permissions|enable purchases|quote first|confirm only after|existing connection; its owner/i);
+    assert.ok(discovery[1].tools.some(tool => tool.name === 'restart_service'), 'management discovery is preserved');
+    for (const name of purchaseNames) {
+      const before = received.length;
+      const denied = await invoke(name, {}, { 'x-purchase-policy': 'allowed', 'x-client-name': 'generic' });
+      assert.ok(denied.error || denied.result?.isError, name);
+      assert.doesNotMatch(JSON.stringify(denied), /enable purchases|purchase permissions|balance charge|quote first/i);
+      assert.equal(received.length, before, `${name} must not reach the API`);
+    }
+  };
+  for (const method of ['initialize', 'tools/list']) {
+    const denied = await call(port, 'POST', '/mcp', undefined, { jsonrpc: '2.0', id: 502, method });
+    assert.equal(denied.status, 401);
+    assert.deepEqual(denied.body, { error: 'invalid_token' });
+  }
+  await assertNoPurchases('generic DCR reader');
+  scope = '';
+  await assertNoPurchases('generic without scopes');
+
+  scope = 'services:read orders:servers';
+  let tools = await list();
+  for (const name of ['get_order_plans', 'get_order_options', 'quote_service_order', 'confirm_service_order', 'get_purchase_result']) {
+    assert.ok(tools.some(tool => tool.name === name), name);
+  }
+  for (const name of ['quote_domain_register', 'confirm_domain_register']) assert.ok(!tools.some(tool => tool.name === name), name);
+  assert.deepEqual(tools.find(tool => tool.name === 'confirm_service_order')._meta.securitySchemes[0].scopes, ['orders:servers']);
+  assert.match((await initialize('ChatGPT')).result.instructions, /purchase permanent VPS servers/,
+    'untrusted clientInfo does not override the backend policy');
+  assert.doesNotMatch((await initialize('generic')).result.instructions, /register domains|enable purchases|purchase permissions/i);
+  const input = { plan: 1, sshKey: 2, idempotencyKey: 'same-connection-order-0001' };
+  assert.ok(!(await invoke('quote_service_order', input)).result.isError);
+  assert.equal(received.at(-1).path, '/account/mcp/orders/services/quote');
+  assert.ok(!(await invoke('confirm_service_order', { ...input, quoteToken: 'q'.repeat(43), expected_total_eur: 12.1, acknowledge_charge: true })).result.isError);
+  assert.equal(received.at(-1).path, '/account/mcp/orders/services/confirm');
+  assert.ok(!(await invoke('get_purchase_result', { idempotencyKey: input.idempotencyKey })).result.isError);
+  assert.equal(received.at(-1).path, '/account/mcp/orders/requests/' + input.idempotencyKey);
+  assert.ok(received.every(request => request.token === 'Bearer ' + tokens.a));
+
+  scope = 'orders:read';
+  tools = await list();
+  assert.ok(tools.some(tool => tool.name === 'get_purchase_result'));
+  for (const name of ['quote_service_order', 'confirm_service_order', 'quote_domain_register', 'confirm_domain_register']) {
+    assert.ok(!tools.some(tool => tool.name === name), name);
+  }
+  assert.doesNotMatch((await initialize('generic')).result.instructions, /quote first|confirm only after/i);
+  const denied = await invoke('confirm_service_order', input);
+  assert.ok(denied.error || denied.result?.isError);
+
+  scope = 'orders:domains domains:read';
+  tools = await list();
+  for (const name of ['quote_domain_register', 'confirm_domain_register', 'get_purchase_result']) assert.ok(tools.some(tool => tool.name === name), name);
+  assert.ok(!tools.some(tool => tool.name === 'confirm_service_order'));
+  assert.deepEqual(tools.find(tool => tool.name === 'confirm_domain_register')._meta.securitySchemes[0].scopes, ['orders:domains']);
+  assert.match((await initialize('generic')).result.instructions, /register domains/);
+  assert.doesNotMatch((await initialize('generic')).result.instructions, /purchase permanent VPS servers/);
+  const domainInput = { domain: 'example.test', idempotencyKey: 'same-connection-domain-0001' };
+  assert.ok(!(await invoke('quote_domain_register', domainInput)).result.isError);
+  assert.equal(received.at(-1).path, '/account/mcp/orders/domains/quote');
+  assert.ok(!(await invoke('confirm_domain_register', { ...domainInput, quoteToken: 'q'.repeat(43),
+    expected_total_eur: 12.1, acknowledge_charge: true, acknowledge_non_refundable: true })).result.isError);
+  assert.equal(received.at(-1).path, '/account/mcp/orders/domains/confirm');
+
+  scope = 'services:read orders:read orders:servers orders:domains domains:read';
+  // The issuer blocks directory providers regardless of accidentally broad token scopes.
+  ordersAvailable = false;
+  await assertNoPurchases('generic');
+  for (const provider of ['ChatGPT', 'Claude']) await assertNoPurchases(provider);
+  for (const invalidPolicy of [undefined, 'true']) {
+    ordersAvailable = invalidPolicy;
+    await assertNoPurchases('generic');
+  }
+  ordersAvailable = true;
+  scope = 'services:read';
+  await assertNoPurchases('generic');
 });

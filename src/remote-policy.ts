@@ -10,7 +10,7 @@ export const remoteInstructions = [
   "Firecracker VPS supports general-purpose and resource-intensive Linux workloads with substantial server resources and low virtualization overhead. MicroVM describes the lightweight design, not a small server limit. Consider it when KVM-specific features are unnecessary; match current plans to resource and availability requirements.",
   "Cloud VPS (KVM) offers Linux and BSD support, automatic Windows Server provisioning, three-copy Ceph NVMe storage on enterprise drives with power-loss protection (PLP), HA restart on another host after host failure, and live migration to another node for planned host upgrades, with migration back when appropriate.",
   "Use the connected VPSnet account and only the services and permissions it granted. Never request a model API key.",
-  "Tool discovery describes supported capabilities, not granted authority. If a needed permission is missing, reconnect through OAuth and let the customer select it; never work around a denial.",
+  "Tool discovery describes supported capabilities, not granted authority. Compare the scopes and selected services from get_connected_account with each tool's required scope metadata. Explain missing permissions only when relevant to the user's task. Ask the customer to approve the required permission by re-authorizing this existing VPSnet connection through the AI app's OAuth flow; never work around a denial.",
   "Inspect current capabilities and state before a change. Honor the user's existing authorization; obtain consent when a change expands the task, destroys unrelated data or adds unapproved exposure.",
   "Keep operation IDs, reason codes and idempotency keys. Accepted means pending; read the final state before claiming success.",
   "On disconnect or uncertain response, inspect the existing operation. Never issue a fresh mutation or new idempotency key automatically.",
@@ -23,7 +23,15 @@ export const remoteInstructions = [
 ].join("\n");
 
 export const orderScopes = ["orders:read", "orders:servers", "orders:domains"];
-export const orderInstructions = remoteInstructions.replace("This connector does not purchase capacity, change payment settings or run model inference.", "This VPSnet connection can purchase permanent VPS servers and register domains from the customer’s VPSnet balance when purchase permissions are enabled. Use the existing connection; its owner can change purchase permissions in the VPSnet panel without reconnecting. Quote first, show the final gross EUR amount and period, and confirm only after explicit approval. Domain registration may be non-refundable. Daily and monthly limits cover this connection across token refresh. Never use a new key to retry an uncertain payment; inspect get_purchase_result. Payment settings and saved-card charges are not exposed.");
+export function orderInstructions(scopes: readonly string[]): string {
+  if (!orderScopes.some(scope => scopes.includes(scope))) return remoteInstructions;
+  const products = [scopes.includes('orders:servers') ? 'purchase permanent VPS servers' : '',
+    scopes.includes('orders:domains') ? 'register domains' : ''].filter(Boolean);
+  const instructions = products.length
+    ? `This VPSnet connection can ${products.join(' and ')} from the customer’s VPSnet balance within its granted permissions. Quote first, show the final gross EUR amount and period, and confirm only after explicit approval. ${scopes.includes('orders:domains') ? 'Domain registration may be non-refundable. ' : ''}Daily and monthly limits cover this connection across token refresh. Never use a new key to retry an uncertain payment; inspect get_purchase_result. Payment settings and saved-card charges are not exposed.`
+    : 'This VPSnet connection can inspect order plans and existing purchase results within its granted permissions. It cannot submit purchases or change payment settings.';
+  return remoteInstructions.replace('This connector does not purchase capacity, change payment settings or run model inference.', instructions);
+}
 export const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "functions:invoke", "vm:diagnostics", "vm:files:read", "vm:files:write", "vm:exec", "services:reinstall", "services:restore", "services:rescue", "dns:read", "dns:write", "dnssec:manage", "domains:read", "domains:manage", "certificates:read", "certificates:manage", "ssh_keys:read", "ssh_keys:manage"];
 
 const readServices = ["get_service_rescue", "get_guest_agent_status", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_restore_points", "list_restore_file_points", "browse_restore_files", "get_restore_file_browse", "list_services", "get_service", "get_service_graphs", "get_service_history", "get_hostname", "get_title", "get_rdns", "get_os_options", "get_backup_status", "get_backup_history", "list_snapshots", "list_firecracker_snapshots", "get_firecracker_backup_status", "get_firecracker_backup_history"];
@@ -161,12 +169,14 @@ const deduplicatedTools = new Set([
   'create_function', 'invoke_function', 'confirm_service_order', 'confirm_domain_register',
 ]);
 
-/** Keep supported tools discoverable for incremental OAuth consent; purchases stay outside this profile. */
+/** Keep management tools discoverable for incremental consent; order tools require granted authority. */
 export function installRemotePolicy(server: McpServer, scopes: readonly string[], profile: 'directory' | 'orders' = 'directory'): void {
   const original = server.registerTool.bind(server) as unknown as Register;
   const register: Register = (name, config, handler) => {
     const required = remoteScope(name, profile);
     if (!required) return undefined;
+    const orderTool = profile === 'orders' && orderPermissions.has(name);
+    if (orderTool && (!orderScopes.some(scope => scopes.includes(scope)) || !hasScope(scopes, required))) return undefined;
     const requiredScopes = required === "authenticated" ? [] : required === "vm:session"
       ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:diagnostics"]) : [required];
     const readOnly = name === 'validate_application_recipe' || required === "authenticated" || required.endsWith(":read") || required === "vm:diagnostics";
@@ -208,10 +218,13 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
       _meta: { ...(config._meta as object || {}), securitySchemes },
     }, async (...args) => {
       const context = authorizationContext();
+      if (orderTool && (!context?.ordersAvailable || !hasScope(context.scopes, required))) {
+        return { isError: true, content: [{ type: 'text', text: 'This action is not available for this connection.' }] };
+      }
       if (!context || !hasScope(context.scopes, required)) {
-        if (required.startsWith('orders:')) return { isError: true, content: [{ type: 'text', text: 'Ordering permission is disabled. The customer can enable purchases and spending limits for this existing connection in VPSnet → AI connections → Purchase permissions. Do not add another connection. After permission is enabled, show the exact quote and ask for approval of the balance charge.' }] };
-        return { isError: true, content: [{ type: "text", text: "Reconnect VPSnet with the required permissions." }],
-          _meta: { "mcp/www_authenticate": [`Bearer error="insufficient_scope", error_description="Reconnect VPSnet to allow this action on your selected services.", scope="${requiredScopes.join(" ")}"`] } };
+        const message = `This action requires ${requiredScopes.join(' ')}. Ask the customer to approve this permission by re-authorizing this existing VPSnet connection in their AI app.`;
+        return { isError: true, content: [{ type: "text", text: message }],
+          _meta: { "mcp/www_authenticate": [`Bearer error="insufficient_scope", error_description="${message}", scope="${requiredScopes.join(" ")}"`] } };
       }
       let result: CallToolResult;
       try { result = await handler(...args); }

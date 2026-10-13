@@ -147,7 +147,7 @@ export function createVpsnetServer(options: { remoteScopes?: readonly string[]; 
 const server = new McpServer(
   { name: "vpsnet", version: JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version },
   {
-    instructions: options.remoteScopes ? (options.remoteProfile === "orders" ? orderInstructions : remoteInstructions) : [
+    instructions: options.remoteScopes ? (options.remoteProfile === "orders" ? orderInstructions(options.remoteScopes) : remoteInstructions) : [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
       "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",

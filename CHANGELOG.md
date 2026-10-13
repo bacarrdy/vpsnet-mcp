@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 connector / 2.3.4 MCP server
+
+- Show purchase tools only when both the connected application policy and granted order permissions allow them.
+- Preserve management capability discovery and explain the exact permission needed for a requested action.
+- Request additional consent through the existing VPSnet connection.
+
 ## 0.6.2 connector / 2.3.3 MCP server
 
 - SSH key installation requires VM execution permission.
