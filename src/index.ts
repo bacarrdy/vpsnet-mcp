@@ -931,7 +931,7 @@ server.registerTool(
   "configure_application_resource_thresholds",
   {
     description:
-      "Replace the complete optional resource-threshold set and email preference for one owned managed application. Read get_application_installation first. Omitted or null numeric fields disable that threshold; omitted email_enabled is false; omitting all four thresholds clears the preferences and disables email. Thresholds highlight measured CPU, memory, combined network-per-minute, and restart-delta samples. When email is enabled, VPSnet sends one account email when a configured threshold is reached and one when it recovers, without repeating while it remains high. Thresholds do not reserve or enforce resources, restart containers, or affect billing. Confirm the exact thresholds and email preference with the user first. Requires applications:manage and is not a paid API-key operation.",
+      "Replace the complete optional resource-threshold set and email preference for one owned managed application. Read get_application_installation first. Omitted or null numeric fields disable that threshold; omitted email_enabled is false; omitting all four thresholds clears the preferences and disables email. Thresholds highlight measured CPU, memory, combined network-per-minute, and restart-delta samples. When email is enabled, VPSnet sends one account email when a configured threshold is reached and one when it recovers, without repeating while it remains high. Replacing thresholds can stop existing alerts. Thresholds do not reserve or enforce resources, restart containers, or affect billing. Confirm the exact thresholds and email preference with the user first. Requires applications:manage and is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
@@ -947,7 +947,7 @@ server.registerTool(
     annotations: {
       title: "Configure application resource thresholds",
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: true,
     },
   },
@@ -1422,7 +1422,7 @@ server.registerTool(
   "validate_application_recipe",
   {
     description:
-      "Resolve image tags to immutable digests, then validate the resulting customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. The successful result includes the exact digest-pinned definition to store. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Requires applications:manage.",
+      "Resolve image tags from their registries to immutable digests, then validate the resulting customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. The successful result includes the exact digest-pinned definition to store. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       compose_yaml: customProjectComposeSchema,
@@ -1433,6 +1433,7 @@ server.registerTool(
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({ orderNo, compose_yaml, registry_credential_ids }) => {
@@ -1518,7 +1519,7 @@ server.registerTool(
   "create_application_recipe",
   {
     description:
-      "Resolve image tags, validate the resulting digest-pinned Compose definition, and freeze that exact definition as the first immutable customer-owned recipe revision. This saves a definition only and does not install or start containers. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
+      "Resolve image tags from their registries, validate the resulting digest-pinned Compose definition, and freeze that exact definition as the first immutable customer-owned recipe revision. This saves a definition only and does not install or start containers. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       name: customProjectNameSchema,
@@ -1538,6 +1539,7 @@ server.registerTool(
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({
@@ -1617,7 +1619,7 @@ server.registerTool(
   "create_application_recipe_revision",
   {
     description:
-      "Resolve image tags, validate the resulting digest-pinned Compose definition, and freeze that exact definition as a later immutable customer-owned recipe revision. This does not update the running installation. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
+      "Resolve image tags from their registries, validate the resulting digest-pinned Compose definition, and freeze that exact definition as a later immutable customer-owned recipe revision. This does not update the running installation. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       project_id: customProjectIdSchema,
@@ -1637,6 +1639,7 @@ server.registerTool(
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
+      openWorldHint: true,
     },
   },
   async ({
@@ -2093,7 +2096,7 @@ server.registerTool(
     annotations: {
       title: "Configure application access",
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: true,
     },
   },
@@ -2285,7 +2288,7 @@ server.registerTool(
     annotations: {
       title: "Cancel queued application action",
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       idempotentHint: true,
     },
   },
@@ -2704,7 +2707,7 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Requires services:manage and a full-access API key.",
+      "Reinstall OS on VPS. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. OAuth requires services:reinstall; API keys require full access.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       osVersion: z
@@ -2722,6 +2725,11 @@ server.registerTool(
         .describe(
           "Cloud VPS and Firecracker VPS only: set true only after the user explicitly confirms deletion of the existing snapshots shown by get_os_options.snapshotDeletion. They cannot provide rollback after reinstall. Never inferred or enabled automatically."
         ),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
     },
   },
   async ({ orderNo, osVersion, rootPassword, confirmSnapshotDelete }) => {
@@ -5605,7 +5613,7 @@ server.registerTool(
   "create_function",
   {
     description:
-      "Create a Firecracker Function. Requires name, runtime_os_id, and code. Read list_functions for current runtimes and limits. Retain the idempotency key for creation recovery. Invocations are usage-billed (CPU + memory seconds) from the account balance.",
+      "Create a Firecracker Function. Requires name, runtime_os_id, and code. Read list_functions for current runtimes and limits. Retain the idempotency key for creation recovery. webhook_enabled exposes a public URL for external callers. Invocations are usage-billed (CPU + memory seconds) from the account balance.",
     inputSchema: {
       ...functionFieldsSchema,
       idempotency_key: z.string().min(16).max(190).regex(/^[A-Za-z0-9._:-]+$/).optional().describe("Stable key for this exact creation. Reuse it after an uncertain response; do not create a second function."),
@@ -5627,13 +5635,18 @@ server.registerTool(
   "update_function",
   {
     description:
-      "Update a Firecracker Function's code or configuration. Call get_function first. If integrity.unreadable_fields names code or environment, the backend refuses the update unless the user explicitly approves replacing every unavailable value from a trusted copy and acknowledge_unreadable_replacement=true is passed. Leave that flag false for ordinary updates.",
+      "Update a Firecracker Function's code or configuration. This replaces submitted fields and can change or disable a public webhook. Call get_function first. If integrity.unreadable_fields names code or environment, the backend refuses the update unless the user explicitly approves replacing every unavailable value from a trusted copy and acknowledge_unreadable_replacement=true is passed. Leave that flag false for ordinary updates.",
     inputSchema: {
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
       ...functionFieldsSchema,
       acknowledge_unreadable_replacement: z.boolean().optional().describe(
         "Explicit customer approval to replace code or environment named by integrity.unreadable_fields; default false"
       ),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      openWorldHint: true,
     },
   },
   async ({ function_id, ...input }) => {
@@ -6026,6 +6039,11 @@ server.registerTool(
         .string()
         .optional()
         .describe("Required for secondary zones. Base64 TSIG secret, 32-64 decoded bytes, e.g. openssl rand -base64 32. It is encrypted and never returned."),
+    },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
     },
   },
   async ({ zone, kind, secondary_masters, secondary_tsig_key_name, secondary_tsig_algorithm, secondary_tsig_secret }) => {

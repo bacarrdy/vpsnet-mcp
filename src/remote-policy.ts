@@ -159,10 +159,18 @@ const additiveTools = new Set([
 ]);
 const externalTools = new Set([
   'run_vm_command', 'invoke_function', 'install_application', 'install_application_recipe',
+  'create_function', 'update_function', 'create_dns_zone',
+  'validate_application_recipe', 'create_application_recipe', 'create_application_recipe_revision',
   'read_vm_file', 'write_vm_file', 'manage_application', 'get_application_health', 'get_application_logs',
+  'reconcile_application', 'repair_application', 'restart_application', 'start_application',
+  'stop_application', 'uninstall_application', 'update_application',
   'verify_dns_zone', 'reissue_dns_zone_verification', 'get_dns_zone_diagnostics',
   'create_free_certificate', 'manage_free_certificate', 'refresh_automatic_ssl_subscription',
   'manage_automatic_ssl_subscription', 'refresh_certificate', 'manage_certificate',
+  'renew_free_certificate', 'revoke_free_certificate', 'recheck_free_certificate', 'cancel_free_certificate',
+  'cancel_automatic_ssl_subscription', 'remove_automatic_ssl_domain', 'replace_automatic_ssl_domain',
+  'cancel_certificate', 'recheck_certificate_validation', 'resend_certificate_validation',
+  'change_certificate_validation', 'reissue_certificate',
 ]);
 const deduplicatedTools = new Set([
   'run_vm_command', 'inspect_vm', 'read_vm_file', 'write_vm_file', 'create_vm_file', 'cancel_vm_operation',
@@ -179,18 +187,17 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     if (orderTool && (!orderScopes.some(scope => scopes.includes(scope)) || !hasScope(scopes, required))) return undefined;
     const requiredScopes = required === "authenticated" ? [] : required === "vm:session"
       ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:diagnostics"]) : [required];
-    const readOnly = name === 'validate_application_recipe' || required === "authenticated" || required.endsWith(":read") || required === "vm:diagnostics";
+    const readOnly = required === "authenticated" || required.endsWith(":read") || required === "vm:diagnostics";
     const securitySchemes = [{ type: "oauth2", scopes: requiredScopes }];
     const annotations = {
       readOnlyHint: readOnly, destructiveHint: !readOnly && !additiveTools.has(name),
       idempotentHint: readOnly || deduplicatedTools.has(name),
-      ...(config.annotations as object || {}),
       openWorldHint: externalTools.has(name),
+      ...(config.annotations as object || {}),
     };
     if (name.startsWith('quote_')) { annotations.readOnlyHint = false; annotations.destructiveHint = false; }
     if (name === 'confirm_domain_register' || name === 'confirm_service_order') annotations.destructiveHint = true;
     if (readOnly) { annotations.readOnlyHint = true; annotations.destructiveHint = false; }
-    if (additiveTools.has(name)) annotations.destructiveHint = false;
     if (deduplicatedTools.has(name)) annotations.idempotentHint = true;
     const inputSchema = { ...(config.inputSchema as Record<string, z.ZodTypeAny>) };
     if (name === 'get_order_plans' && profile === 'orders') inputSchema.type = z.enum(['vps', 'vds', 'firecracker']);

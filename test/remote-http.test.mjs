@@ -53,7 +53,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     if (tool.annotations.readOnlyHint) assert.equal(tool.annotations.destructiveHint, false, tool.name);
     assert.equal(tool._meta.securitySchemes[0].type, 'oauth2');
   }
-  assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, false, 'Opening a session does not replace existing access');
+  assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, true, 'SSH session bootstrap may deploy a delegated key');
   assert.equal(list.body.result.tools.find(t => t.name === 'list_services').annotations.readOnlyHint, true);
   assert.deepEqual(list.body.result.tools.find(t => t.name === 'restart_service')._meta.securitySchemes[0].scopes, ['services:manage']);
   for (const [name, scope] of [['upsert_dns_record', 'dns:write'], ['set_dnssec', 'dnssec:manage'], ['set_domain_nameservers', 'domains:manage'], ['create_free_certificate', 'certificates:manage'], ['enter_service_rescue', 'services:rescue'], ['create_ssh_key', 'ssh_keys:manage'], ['reinstall_os', 'services:reinstall'], ['read_vm_file', 'vm:files:read'], ['write_vm_file', 'vm:files:write'], ['inspect_vm', 'vm:diagnostics'], ['create_vm_file', 'vm:files:write']]) {
@@ -61,7 +61,21 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   }
   assert.ok(!names.includes('create_ddns_token'));
   for (const name of ['create_vm_file','create_ssh_key','start_service']) assert.equal(list.body.result.tools.find(t => t.name === name).annotations.destructiveHint, false);
-  assert.equal(list.body.result.tools.find(t => t.name === 'validate_application_recipe').annotations.readOnlyHint, true);
+  const hints = name => list.body.result.tools.find(t => t.name === name)?.annotations;
+  for (const name of [
+    'set_private_network_names', 'set_network_routed_egress', 'retry_network_security_policy',
+    'retry_private_network', 'retry_private_network_port',
+    'configure_application_resource_thresholds', 'configure_application_access',
+    'cancel_application_action', 'update_function', 'reinstall_os',
+  ]) assert.equal(hints(name)?.destructiveHint, true, `${name} can replace, remove or cancel existing state`);
+  for (const name of [
+    'validate_application_recipe', 'create_application_recipe', 'create_application_recipe_revision',
+    'create_function', 'update_function', 'create_dns_zone',
+  ]) assert.equal(hints(name)?.openWorldHint, true, `${name} can involve external registries, public endpoints or DNS`);
+  assert.equal(hints('validate_application_recipe').readOnlyHint, false, 'validation queues work and resolves image tags');
+  for (const name of ['create_application_recipe', 'create_application_recipe_revision', 'create_function', 'create_dns_zone']) {
+    assert.equal(hints(name).destructiveHint, false, `${name} adds a resource without replacing one`);
+  }
   assert.equal(list.body.result.tools.find(t => t.name === 'run_vm_command').annotations.openWorldHint, true);
   assert.ok(list.body.result.tools.find(t => t.name === 'list_services').inputSchema.properties.page);
   assert.ok(list.body.result.tools.find(t => t.name === 'list_dns_zones').inputSchema.properties.snapshot);

@@ -47,6 +47,9 @@ test("networking is registered with accurate scopes, one-time annotations and pa
   assert.equal(oneTime.annotations.readOnlyHint, false);
   assert.equal(oneTime.annotations.idempotentHint, false);
   assert.ok(oneTime.inputSchema.required.includes("acknowledge_one_time_pickup"));
+  for (const name of ["set_private_network_names", "set_network_routed_egress", "retry_network_security_policy", "retry_private_network", "retry_private_network_port"]) {
+    assert.equal(find(name).annotations.destructiveHint, true, `${name} may remove existing configuration or connectivity`);
+  }
   const order = find("order_network_product");
   for (const field of ["quote_id", "quoteToken", "idempotencyKey", "acknowledge_charge", "payment"]) assert.ok(order.inputSchema.required.includes(field), field);
   assert.match(order.description, /networking:order/);
