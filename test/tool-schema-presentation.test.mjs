@@ -78,3 +78,16 @@ test('bounded expansion retains a finite original recursive subtree', () => {
   assert.deepEqual(result.properties.node.properties.next.properties.next, { $ref: '#/properties/node' });
   assert.equal(result.properties.node.properties.next.properties.value.maxLength, 32);
 });
+
+test('literal reference-shaped data remains data, including properties named like schema keywords', () => {
+  const value = { $ref: '#/properties/source' };
+  const schema = { type: 'object', properties: {
+    source: { type: 'string', minLength: 3 },
+    default: { $ref: '#/properties/source' },
+    data: { type: 'object', const: value, default: value, enum: [value], examples: [value] },
+  }, 'x-example': value };
+  const result = inlineToolInputSchema(schema);
+  assert.deepEqual(result.properties.default, schema.properties.source);
+  assert.deepEqual(result.properties.data, schema.properties.data);
+  assert.deepEqual(result['x-example'], value);
+});

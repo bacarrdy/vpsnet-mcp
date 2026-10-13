@@ -4,10 +4,26 @@ import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 const MAX_DEPTH = 128;
 const MAX_NODES = 100_000;
 const annotations = new Set(['title', 'description', 'default', 'examples', '$comment']);
+const schemaMaps = new Set(['properties', 'patternProperties', '$defs', 'definitions', 'dependentSchemas', 'dependencies']);
+const schemaArrays = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']);
+const childSchemas = new Set(['items', 'additionalItems', 'additionalProperties', 'unevaluatedItems', 'unevaluatedProperties', 'propertyNames', 'contains', 'not', 'if', 'then', 'else', 'contentSchema']);
 
 /** Inline only references within this input schema, without changing validation. */
 export function inlineToolInputSchema(schema: unknown): unknown {
   let remaining = MAX_NODES;
+  function child(key: string, value: unknown, depth: number, ancestors: ReadonlySet<string>): unknown {
+    if (schemaMaps.has(key) && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.fromEntries(Object.entries(value).map(([name, item]) => [name,
+        // Draft-07 dependencies also accepts literal property-name arrays.
+        key === 'dependencies' && Array.isArray(item) ? item : visit(item, depth, ancestors),
+      ]));
+    }
+    if (schemaArrays.has(key) && Array.isArray(value)) return value.map(item => visit(item, depth, ancestors));
+    if (childSchemas.has(key)) return visit(value, depth, ancestors);
+    // Defaults, examples, const/enum values and extension data are instances,
+    // not schemas: a literal object containing "$ref" must remain unchanged.
+    return value;
+  }
   function resolve(pointer: string): unknown {
     if (pointer === '#') return schema;
     if (!pointer.startsWith('#/')) return undefined;
@@ -35,7 +51,7 @@ export function inlineToolInputSchema(schema: unknown): unknown {
         const expanded = visit(target, depth + 1, new Set([...ancestors, reference]));
         const siblings = Object.fromEntries(Object.entries(object)
           .filter(([key]) => key !== '$ref')
-          .map(([key, item]) => [key, visit(item, depth + 1, ancestors)]));
+          .map(([key, item]) => [key, child(key, item, depth + 1, ancestors)]));
         if (expanded !== null && typeof expanded === 'object' && !Array.isArray(expanded)
             && Object.keys(siblings).every(key => annotations.has(key))) {
           return { ...expanded, ...siblings };
@@ -46,7 +62,7 @@ export function inlineToolInputSchema(schema: unknown): unknown {
       }
     }
     return Object.fromEntries(Object.entries(object)
-      .map(([key, item]) => [key, visit(item, depth + 1, ancestors)]));
+      .map(([key, item]) => [key, child(key, item, depth + 1, ancestors)]));
   }
   return visit(schema, 0, new Set());
 }
