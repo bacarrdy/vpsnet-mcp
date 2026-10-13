@@ -151,11 +151,11 @@ export const certificateAcmeSubscriptionActionRequestSchema = z.discriminatedUni
   }).strict(),
   z.object({
     action: z.literal("remove_domain"),
-    domain_id: z.number().int().positive(),
+    domain_id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   }).strict(),
   z.object({
     action: z.literal("replace_domain"),
-    domain_id: z.number().int().positive(),
+    domain_id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     new_domain: certificateDnsIdentifierSchema,
   }).strict(),
 ]);

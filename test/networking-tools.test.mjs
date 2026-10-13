@@ -146,7 +146,7 @@ test("paid inventory wait and operator review remain exact read results with no 
     payment_total: "18.15", currency: "EUR" };
   const { client, call, requests } = await harness(t, () => ({ status: 200, body: response }));
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 282);
+  assert.equal(tools.length, 301);
   assert.match(tools.find(t => t.name === "get_network_product_order").description, /network_product_ip_inventory_wait/);
   assert.match(tools.find(t => t.name === "get_network_product_order").description, /operator review/);
   for (const update of [
