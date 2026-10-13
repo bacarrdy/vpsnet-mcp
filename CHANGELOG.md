@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.7 MCP server
+
+- Describe public DNS and registrar effects with accurate tool annotations.
+- Clarify nameserver glue creation and replacement while preserving its write permissions.
+- Align external-effect hints for application access, notifications, container adoption and Function deletion.
+
 ## 2.3.6 MCP server
 
 - Expose individual application and certificate lifecycle actions with dedicated schemas and permissions.
