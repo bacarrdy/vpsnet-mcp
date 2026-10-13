@@ -50,7 +50,7 @@ test("DNS publication retry queues existing state once and preserves refusals", 
 
   const tool = (await client.listTools()).tools.find(tool => tool.name === "reapply_dns_zone");
   assert.deepEqual(tool.inputSchema.required, ["zone_id"]);
-  assert.deepEqual(tool.annotations, { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true });
+  assert.deepEqual(tool.annotations, { title: 'Reapply DNS zone', readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true });
   for (const zone_id of [0, -1, 1.5, "41", Number.MAX_SAFE_INTEGER + 1]) {
     const invalid = await client.callTool({ name: "reapply_dns_zone", arguments: { zone_id } });
     assert.equal(invalid.isError, true);
