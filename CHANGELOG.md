@@ -4,6 +4,7 @@
 
 - Provide human-readable annotation titles for every tool across hosted and local connections.
 - Expand local input-schema references so guest DNS resolvers and other shared parameters expose their types directly without changing validation.
+- Preserve complete networking parameter schemas and their strict validation in hosted connections.
 - Link VM file tools to the public API reference.
 
 ## 0.6.7 connector / 2.3.11 MCP server
