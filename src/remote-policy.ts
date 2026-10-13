@@ -263,29 +263,40 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     if (name === 'confirm_domain_register' || name === 'confirm_service_order') annotations.destructiveHint = true;
     if (readOnly) { annotations.readOnlyHint = true; annotations.destructiveHint = false; }
     if (deduplicatedTools.has(name)) annotations.idempotentHint = true;
-    const inputSchema = { ...(config.inputSchema as Record<string, z.ZodTypeAny>) };
-    if (name === 'get_order_plans' && profile === 'orders') inputSchema.type = z.enum(['vps', 'vds', 'firecracker']);
+    const objectSchema = config.inputSchema instanceof z.ZodObject ? config.inputSchema : undefined;
+    const inputSchema = { ...(objectSchema ? objectSchema.shape : config.inputSchema as Record<string, z.ZodTypeAny>) };
+    let schemaChanged = false;
+    if (name === 'get_order_plans' && profile === 'orders') {
+      inputSchema.type = z.enum(['vps', 'vds', 'firecracker']);
+      schemaChanged = true;
+    }
     if (profile === 'orders' && (name === 'quote_domain_register' || name === 'confirm_domain_register')) {
       inputSchema.idempotencyKey = z.string().regex(/^[A-Za-z0-9._:-]{16,128}$/)
         .describe('Stable 16–128 character key for this exact purchase; reuse it for quote, confirmation and get_purchase_result.');
+      schemaChanged = true;
     }
     if (name === 'confirm_domain_register') {
       inputSchema.payment = z.object({ payment: z.literal(1), successUrl: z.literal(''), cancelUrl: z.literal('') }).default({ payment: 1, successUrl: '', cancelUrl: '' });
       inputSchema.expected_total_eur = z.number().finite().nonnegative().describe('Exact final total_amount_eur including VAT from the quote, shown to and approved by the customer.');
       inputSchema.acknowledge_charge = z.literal(true);
       inputSchema.acknowledge_non_refundable = z.literal(true).describe('The customer explicitly accepted the domain registration’s non-refundable terms.');
+      schemaChanged = true;
     }
     if (name === 'create_function' || name === 'invoke_function') {
       const key = inputSchema.idempotency_key;
-      if (key instanceof z.ZodOptional) inputSchema.idempotency_key = key.unwrap();
+      if (key instanceof z.ZodOptional) {
+        inputSchema.idempotency_key = key.unwrap();
+        schemaChanged = true;
+      }
     }
     if (name === 'invoke_function') {
       inputSchema.acknowledge_usage_billing = z.literal(true).describe("The customer requested this run and accepted usage charges against their VPSnet balance, within the connection's daily Functions spending limit.");
       inputSchema.wait = z.boolean().default(true).describe("Wait for output when testing a Function. If the run remains pending, keep its invocation ID and poll its final result.");
+      schemaChanged = true;
     }
     return original(name, {
       ...config,
-      inputSchema,
+      inputSchema: objectSchema ? (schemaChanged ? objectSchema.extend(inputSchema) : objectSchema) : inputSchema,
       title: config.title || (config.annotations as { title?: string } | undefined)?.title || defaultToolTitle(name),
       annotations,
       _meta: { ...(config._meta as object || {}), securitySchemes },
