@@ -35,6 +35,13 @@ async function startApi(candidate = {
       }));
       return;
     }
+    const input = JSON.parse(body);
+    if (input.expected_blueprint_version !== candidate.blueprint_version
+      || input.expected_upstream_version !== candidate.upstream_version) {
+      res.statusCode = 409;
+      res.end(JSON.stringify({ success: false, applicationUpdateCandidateChanged: true }));
+      return;
+    }
     res.statusCode = 202;
     res.end(JSON.stringify({
       success: true,
@@ -63,7 +70,7 @@ async function connectClient(t, apiUrl) {
   return client;
 }
 
-test("managed update rechecks the immutable candidate and posts only lifecycle action", async (t) => {
+test("managed update posts exact preconditions for atomic backend enforcement", async (t) => {
   const { api, requests, url } = await startApi();
   t.after(() => api.close());
   const client = await connectClient(t, url);
@@ -82,18 +89,17 @@ test("managed update rechecks the immutable candidate and posts only lifecycle a
   });
 
   assert.equal(result.isError, undefined);
-  assert.equal(requests.length, 2);
-  assert.equal(requests[0].method, "GET");
-  assert.equal(requests[1].method, "POST");
-  assert.deepEqual(requests[1].body, {
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].method, "POST");
+  assert.deepEqual(requests[0].body, {
     action: "update",
     expected_blueprint_version: BLUEPRINT_VERSION,
     expected_upstream_version: UPSTREAM_VERSION,
   });
-  assert.equal(requests[1].headers["idempotency-key"], "update-contract-key-0001");
+  assert.equal(requests[0].headers["idempotency-key"], "update-contract-key-0001");
 });
 
-test("managed update fails closed before POST when the candidate changed", async (t) => {
+test("managed update surfaces the backend refusal when the candidate changed", async (t) => {
   const { api, requests, url } = await startApi({
     blueprint_version: "2026.07.4",
     upstream_version: "1.2.4",
@@ -116,6 +122,6 @@ test("managed update fails closed before POST when the candidate changed", async
 
   assert.equal(result.isError, true);
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].method, "GET");
-  assert.match(result.content[0].text, /applicationUpdateExpectationChanged/);
+  assert.equal(requests[0].method, "POST");
+  assert.match(result.content[0].text, /applicationUpdateCandidateChanged/);
 });

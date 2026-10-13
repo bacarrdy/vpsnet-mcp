@@ -216,3 +216,13 @@ test("Temp VM errors expose bounded remediation rather than arbitrary server tex
     retry_after_seconds: null,
   });
 });
+
+test('catalog degradation preserves sessions and reports unavailable catalog without secrets', () => {
+  for (const degraded of [{ orderable: false, availability: 'coming_soon', catalog_degraded: true }, null]) {
+    const result = safeTempVmPayload(200, { success: true, sessions: [session], options: degraded });
+    assert.equal(result.success, true);
+    assert.equal(result.sessions[0].id, session.id);
+    assert.deepEqual(result.options, { orderable: false, availability: 'unavailable', catalog_degraded: true });
+    assert.doesNotMatch(JSON.stringify(result), /DoNotExpose|preferred_server_id/);
+  }
+});

@@ -26,7 +26,7 @@ export function registerOrderTools(server: McpServer): void {
     return result(status, data);
   });
   server.registerTool('confirm_service_order', {
-    description: 'Purchase the exact previously quoted server from VPSnet balance after explicit customer approval of its final EUR total and billing period. Supply the unchanged quote configuration, token and key. Never automatically create a new key after an uncertain result: inspect get_purchase_result. A receipt is not a ready server; poll get_service for the returned orderno. This connection receives access to its newly ordered server only within the permissions the customer granted.',
+    description: 'Purchase the exact previously quoted server from VPSnet balance after explicit customer approval of its final EUR total and billing period. Supply the unchanged quote configuration, token and key. Never automatically create a new key after an uncertain result: inspect get_purchase_result. A receipt is not a ready server. Poll get_purchase_result for the purchase outcome; get_service for the returned orderno additionally requires services:read. This connection receives access to its newly ordered server only within the permissions the customer granted.',
     inputSchema: { ...configuration,
       quoteToken: z.string().min(32).max(256),
       expected_total_eur: z.number().finite().nonnegative().describe('Exact final amount_eur from the quote, shown to and approved by the customer.'),

@@ -23,7 +23,7 @@ async function harness(t, { quoteRefusal = null } = {}) {
         res.statusCode = 422;
         return res.end(JSON.stringify({ success: false, [quoteRefusal]: true }));
       }
-      return res.end(JSON.stringify({ success: true, amount_eur: 5, quoteToken: "quote-1" }));
+      return res.end(JSON.stringify({ success: true, amount_eur: 5, quoteToken: "a".repeat(64) }));
     }
     res.end(JSON.stringify({ success: true, orderNo: "VP12345" }));
   });
@@ -46,13 +46,18 @@ async function harness(t, { quoteRefusal = null } = {}) {
   const call = args => client.callTool({ name: "order_service", arguments: {
     plan: 7, os: 3, period: 1, resources: [901], idempotencyKey: IDEMPOTENCY, payment: PAYMENT, ...args,
   } });
-  return { client, call, requests };
+  const approve = async args => {
+    const quote = JSON.parse((await call(args)).content[0].text);
+    assert.equal(quote.confirmationRequired, true);
+    return call({ ...args, quoteToken: quote.quoteToken, expected_total_eur: quote.amount_eur, acknowledge_charge: true });
+  };
+  return { client, call, approve, requests };
 }
 
 test("order_service advertises an optional private network UUID and no new tool", async t => {
   const { client, requests } = await harness(t);
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 301);
+  assert.equal(tools.length, 311);
   const tool = tools.find(tool => tool.name === "order_service");
   const field = tool.inputSchema.properties.privateNetworkId;
   assert.equal(field.type, "string");
@@ -64,8 +69,8 @@ test("order_service advertises an optional private network UUID and no new tool"
 });
 
 test("a selected private network reaches the quote and the confirm unchanged", async t => {
-  const { call, requests } = await harness(t);
-  const result = await call({ privateNetworkId: NETWORK });
+  const { approve, requests } = await harness(t);
+  const result = await approve({ privateNetworkId: NETWORK });
   assert.notEqual(result.isError, true);
   assert.equal(requests.length, 2);
   const [quote, confirm] = requests;
@@ -73,16 +78,16 @@ test("a selected private network reaches the quote and the confirm unchanged", a
   assert.equal(confirm.path, "/order/configuration/confirm");
   assert.equal(quote.body.privateNetworkId, NETWORK);
   assert.equal(confirm.body.privateNetworkId, NETWORK);
-  assert.equal(confirm.quoteToken, "quote-1");
+  assert.equal(confirm.quoteToken, "a".repeat(64));
   // Everything the quote priced is what the confirm submits, plus the token.
   const { quoteToken, ...confirmed } = confirm.body;
-  assert.equal(quoteToken, "quote-1");
+  assert.equal(quoteToken, "a".repeat(64));
   assert.deepEqual(confirmed, quote.body);
 });
 
 test("an order without a private network sends no privateNetworkId at all", async t => {
-  const { call, requests } = await harness(t);
-  const result = await call({});
+  const { approve, requests } = await harness(t);
+  const result = await approve({});
   assert.notEqual(result.isError, true);
   assert.equal(requests.length, 2);
   for (const request of requests) {

@@ -49,7 +49,7 @@ test("MCP marks API failures across ordinary and projected tools without retryin
   await client.connect(transport);
   t.after(async () => client.close());
   const listed = await client.listTools();
-  assert.equal(listed.tools.length, 301, "Error handling preserves every registered tool");
+  assert.equal(listed.tools.length, 311, "Error handling preserves every registered tool");
 
   for (const [name, args, projected] of [
     ["get_account", {}, false],
@@ -62,7 +62,7 @@ test("MCP marks API failures across ordinary and projected tools without retryin
     ["list_certificates", {}, true],
     ["list_restore_file_points", { orderNo: "VP1" }, true],
     ["list_temp_vms", {}, true],
-    ["order_service", { plan: 1, idempotencyKey: "mock-order-quote-0001", payment: { payment: 1, successUrl: "", cancelUrl: "" } }, false],
+    ["order_service", { plan: 1, period: 1, idempotencyKey: "mock-order-quote-0001", payment: { payment: 1, successUrl: "", cancelUrl: "" } }, false],
   ]) {
     const before = requests.length;
     const response = await client.callTool({ name, arguments: args });

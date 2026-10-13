@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",
@@ -99,10 +99,11 @@
           ]
         },
         "commerce": false,
-        "commerce_description": "Manages existing customer services; no purchases, checkout, subscriptions or billing changes. Executing an existing Functions service consumes metered usage, including failed runs, only with separate OAuth execution consent, a daily account-usage ceiling and per-call acknowledgment. This is disclosed for provider review."
+        "commerce_description": "Manages existing customer services; no purchases, checkout, subscriptions or billing changes. Executing an existing Functions service consumes metered usage, including failed runs, only with separate OAuth execution consent, a daily account-usage ceiling and per-call acknowledgment. This is disclosed for provider review.",
+        "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Clearer directory descriptions for server management, deployment, troubleshooting, networking and Functions."
+        "release_notes": "Improved native private-network setup, application recovery and operation polling; corrected DNS, certificate, backup and Function contracts. Added a video walkthrough for review."
       }
     }
   }

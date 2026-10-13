@@ -111,23 +111,23 @@ function tool(name: string, method: string, path: string, description: string, f
 
 export const networkingTools: NetworkingTool[] = [
   tool("get_network_payment_methods", "POST", "/public/macroPay/methods", "Read payment-method metadata without starting payment. Choose the exact value of an item with system=balance for API-key network purchases; other methods are refused for API keys. This public catalog needs no networking scope.", { country: z.string().regex(/^[A-Za-z]{2}$/).optional() }, { readOnly: true, fixedBody: { includeBalanceMethod: true, includePreinvoiceMethod: false } }),
-  tool("get_networking_capabilities", "GET", `${N}/capabilities`, "Read account networking availability, quota, creation options and eligible order-time attachments. Never infer support from tool presence."),
+  tool("get_networking_capabilities", "GET", `${N}/capabilities`, "Read account networking availability, quota, creation options and new-server order eligibility. private_network.available/reason_code and order_availability describe selecting an already applied network during a NEW server order; when no such network exists they can be false without denying private-network creation or attachment of existing services. For existing servers, list or create a network and use list_network_attachment_candidates for each service. A refusal from the create, candidate or attach endpoint remains authoritative. Never infer support from tool presence."),
   tool("get_networking_features", "GET", `${N}/features`, "Read current networking feature gates, DNS options and supported contract extensions."),
   tool("get_networking_overview", "GET", `${N}/overview`, "Read owned networks, quota and operation snapshot. operations_has_more signals a bounded backend feed."),
   tool("get_networking_topology", "GET", `${N}/topology`, "Read the account topology with network-scoped identities. Optional metrics=current requests measured traffic.", { metrics: z.literal("current").optional() }, { query: ["metrics"] }),
   tool("list_networking_operations", "GET", `${N}/operations`, "Read recent network operations and operations_has_more. This endpoint has no pagination parameter."),
-  tool("get_networking_operation", "GET", `${N}/operations/{operation_id}`, "Read an accepted network or port operation. DNS updates are instead read from the network settings.dns_change."),
-  tool("list_private_networks", "GET", `${N}/networks`, "List owned private networks, including deletion awaiting verified cleanup."),
+  tool("get_networking_operation", "GET", `${N}/operations/{operation_id}`, "Read an accepted network or port operation only. A successful network_graph_created operation permits checking network.port_intent_ready for the first attachment; it does not prove guest connectivity. Security-policy, appliance and public-binding operation IDs belong to different stores. Poll security policies with get_network_security_policy, appliances with get_network_appliance_operation, public bindings with get_network_public_binding, and DNS changes through get_private_network.settings.dns_change."),
+  tool("list_private_networks", "GET", `${N}/networks`, "List owned private networks, including deletion awaiting verified cleanup. An empty list is a starting state for creating an approved network, not evidence that existing servers cannot use private networking."),
   tool("get_private_network", "GET", networks, "Read one owned network including DHCP reservations, DNS change progress, generation and project_id."),
-  tool("create_private_network", "POST", `${N}/networks`, "Create a private network intent. Every subnet is unique on the whole platform and comes from 100.64.0.0/10. Omit subnet and the platform allocates a free block of subnet_prefix_length (28..24, default 26 = 64 addresses; capabilities.private_network.subnet_sizes lists each size with its server count and suggested block); or name an aligned /28 through /24 inside 100.64.0.0/10 that no network holds (409 subnet_in_use), never both. Creation does not itself attach a server or buy a public address.", { name, subnet: z.object({ cidr: z.string().regex(/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])(?:\.\d{1,3}){2}\/(?:2[4-8])$/) }).strict().optional(), subnet_prefix_length: z.union([z.literal(24), z.literal(25), z.literal(26), z.literal(27), z.literal(28)]).optional().describe("Size of the allocated subnet when subnet is omitted; default 26"), settings: settings.optional(), default_policy: z.enum(["accept", "deny"]).optional() }, { idempotent: true }),
+  tool("create_private_network", "POST", `${N}/networks`, "Create an approved private network for existing services when no suitable owned network exists. A false new-order private_network.available or order_availability result alone does not block this route; honor this endpoint's own quota and feature refusal. Every subnet is unique on the whole platform and comes from 100.64.0.0/10. Omit subnet and the platform allocates a free block of subnet_prefix_length (28..24, default 26 = 64 addresses; capabilities.private_network.subnet_sizes lists each size with its server count and suggested block); or name an aligned /28 through /24 inside 100.64.0.0/10 that no network holds (409 subnet_in_use), never both. Creation is asynchronous: poll its operation and get_private_network until network.port_intent_ready is true, then check attachment candidates. A successful network_graph_created operation and provisioning_status=configured describe the graph stage; the first guest has not yet qualified connectivity. Never wait for applied_generation to equal generation before the first attachment. Creation does not itself attach a server or buy a public address.", { name, subnet: z.object({ cidr: z.string().regex(/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])(?:\.\d{1,3}){2}\/(?:2[4-8])$/) }).strict().optional(), subnet_prefix_length: z.union([z.literal(24), z.literal(25), z.literal(26), z.literal(27), z.literal(28)]).optional().describe("Size of the allocated subnet when subnet is omitted; default 26"), settings: settings.optional(), default_policy: z.enum(["accept", "deny"]).optional() }, { idempotent: true }),
   tool("delete_private_network", "DELETE", networks, "Request deletion of an empty network. Referenced appliances/ports may prevent deletion; quota is released only after verified cleanup.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("retry_private_network", "POST", `${networks}/retry`, "Retry the failed current network operation only; preserve its current generation. It may resume a failed deletion or settings change, so inspect the failed operation before retrying.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("set_private_network_dns", "POST", `${networks}/dns`, "Replace the network's DHCP DNS mode and resolver addresses; changing or disabling them can interrupt name resolution for attached guests. Use dns_servers only for custom mode. Poll get_private_network.settings.dns_change; its DNS update UUID is not in the network operations feed.", { dns_mode: dnsMode, dns_servers: z.array(ipv4).min(1).max(3).optional() }, { idempotent: true, destructive: true }),
   tool("set_private_network_names", "PUT", `${networks}/names`, "Replace the complete internal DNS zone label and alias list. Server names are automatic; these names resolve only inside this network. Omitted aliases are removed and may stop resolving.", { zone_label: dnsLabel, aliases: z.array(dnsAlias).max(64) }, { destructive: true }),
   tool("list_private_network_ports", "GET", `${networks}/ports`, "Read owned network ports, their fixed DHCP addresses, generations and attachment states. Reserved is not connected."),
   tool("list_service_private_ports", "GET", `${N}/services/{service_id}/ports`, "Read private ports and order attachment recovery state for one owned service order number."),
-  tool("list_network_attachment_candidates", "GET", `${networks}/attachment-candidates`, "Read attachable services and each attachment_mode. Follow next_cursor using after when candidates_has_more is true; service_id selects an owned service.", { after: z.string().optional(), service_id: serviceId.optional() }, { query: ["after", "service_id"] }),
-  tool("attach_private_network_port", "POST", `${networks}/ports`, "Attach an owned service; omit ipv4 for automatic allocation or pass a fixed usable address. Check attachment-candidates first; restart=true is explicit permission for a required restart.", { service_id: serviceId, ipv4: ipv4.optional(), restart }, { idempotent: true }),
+  tool("list_network_attachment_candidates", "GET", `${networks}/attachment-candidates`, "For a network with port_intent_ready=true, check each existing service's attachment eligibility and attachment_mode; service_id selects one owned service. Follow next_cursor using after while candidates_has_more is true. Use this per-service result and its reason_code for existing-VM attachment, not new-server order_availability. Do not attach a service the backend marks ineligible.", { after: z.string().optional(), service_id: serviceId.optional() }, { query: ["after", "service_id"] }),
+  tool("attach_private_network_port", "POST", `${networks}/ports`, "Attach an eligible existing owned service to a private network with port_intent_ready=true; omit ipv4 for automatic allocation or pass a fixed usable address. Check list_network_attachment_candidates for this network and service first, including pagination and attachment_mode. Set restart=true only after the user approves a required restart. An accepted attach is pending: poll its operation and verify the final port and service attachment state. Honor this endpoint's own refusal and reason_code.", { service_id: serviceId, ipv4: ipv4.optional(), restart }, { idempotent: true }),
   tool("detach_private_network_port", "DELETE", `${networks}/ports/{port_id}`, "Detach the owned server port. Use the PORT generation and confirm any required restart.", { expected_generation: generation, restart }, { idempotent: true, destructive: true }),
   tool("retry_private_network_port", "POST", `${networks}/ports/{port_id}/retry`, "Retry the failed current port operation with the PORT generation and any required restart approval. Inspect the failed operation: a detach retry can remove the server's private connectivity.", { expected_generation: generation, restart }, { idempotent: true, destructive: true }),
   tool("get_network_vpn_summary", "GET", `${networks}/vpn`, "Read the network's VPN summary, including truthful absence. Native site-to-site is not supported by this tool set."),
@@ -135,15 +135,15 @@ export const networkingTools: NetworkingTool[] = [
   tool("set_network_routed_egress", "POST", `${networks}/routed-egress`, "Request the currently supported NAT transition for an owned network; the backend may refuse mode changes. This can replace the network's Internet route. public_address_id attaches an already-owned paid address and may remove it from a server. This never purchases an address.", { internet_access: internetAccess, expected_generation: generation, public_address_id: uuid.optional() }, { destructive: true }),
   tool("get_security_group_capabilities", "GET", `${N}/security-groups/capabilities`, "Read security-group availability and whether the network default policy can be changed."),
   tool("list_network_security_groups", "GET", sg, "List groups in the owned project. Copy project_id from the network; do not invent an account identifier."),
-  tool("create_network_security_group", "POST", sg, "Create a named allow-rule set. Optional network_id scopes it to that network; otherwise it belongs to the project. IPv6 rules are unavailable.", { name, rules: z.array(rule).max(256), network_id: uuid.optional() }, { idempotent: true }),
-  tool("update_network_security_group", "PUT", `${sg}/{group_id}`, "Replace the complete group name and rule list at its expected revision. Bound servers may be affected; empty rules deny traffic allowed only by this group.", { name, rules: z.array(rule).max(256), expected_revision: generation }, { idempotent: true, destructive: true }),
+  tool("create_network_security_group", "POST", sg, "Create a named allow-rule set. If no egress rule is supplied, the backend adds an egress-any allow rule; updates instead keep exactly the rules supplied. Optional network_id scopes it to that network; otherwise it belongs to the project. IPv6 rules are unavailable.", { name, rules: z.array(rule).max(256), network_id: uuid.optional() }, { idempotent: true }),
+  tool("update_network_security_group", "PUT", `${sg}/{group_id}`, "Replace the complete group name and rule list at its expected revision. Bound servers may be affected; empty rules deny traffic allowed only by this group. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs.", { name, rules: z.array(rule).max(256), expected_revision: generation }, { idempotent: true, destructive: true }),
   tool("delete_network_security_group", "DELETE", `${sg}/{group_id}`, "Delete an unreferenced customer group at its expected revision; referenced groups are refused.", { expected_revision: generation }, { idempotent: true, destructive: true }),
   tool("clone_network_security_group", "POST", `${sg}/{group_id}/clone`, "Clone an owned group into a new name; use the source group's current revision.", { name, expected_revision: generation }, { idempotent: true }),
-  tool("get_network_security_policy", "GET", policy, "Read default policy, assigned groups and policy application state. Policy generation differs from network and port generations."),
-  tool("set_network_default_security_policy", "PUT", policy, "Change accept/deny for servers without custom groups. Explicit custom groups remain restrictive. Use policy generation and default-group revision from get_network_security_policy.", { default_policy: z.enum(["accept", "deny"]), expected_generation: policyGeneration, expected_default_revision: generation }, { idempotent: true, destructive: true }),
-  tool("set_private_port_security_groups", "PUT", `${project}/networks/{network_id}/ports/{port_id}/security-groups`, "Replace the port's complete customer-group list. Empty list selects the network default; at most seven customer groups fit alongside platform DNS. Use policy and port generations separately.", { group_ids: z.array(uuid).max(7), expected_generation: policyGeneration, expected_port_generation: generation }, { idempotent: true, destructive: true }),
-  tool("retry_network_security_policy", "POST", `${policy}/retry`, "Retry the failed network security policy using its current desired state. The pending policy may replace firewall rules and remove network access; inspect its desired state first.", {}, { idempotent: true, destructive: true }),
-  tool("retire_network_security_policy", "DELETE", policy, "Retire the policy only after its server ports are gone. Removing firewall policy requires explicit user approval.", { expected_generation: generation }, { idempotent: true, destructive: true }),
+  tool("get_network_security_policy", "GET", policy, "Read default_policy, assigned group rules and desired/applied policy generations. Policy generation differs from network and port generations. effective_policy.default_ingress/default_egress describe implicit deny fallthrough after allow rules; they do not override default_policy=accept or mean every packet is denied. Custom group rules replace the network default on their assigned ports."),
+  tool("set_network_default_security_policy", "PUT", policy, "Change accept/deny for servers without custom groups. Explicit custom groups remain restrictive. Use policy generation and default-group revision from get_network_security_policy. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs.", { default_policy: z.enum(["accept", "deny"]), expected_generation: policyGeneration, expected_default_revision: generation }, { idempotent: true, destructive: true }),
+  tool("set_private_port_security_groups", "PUT", `${project}/networks/{network_id}/ports/{port_id}/security-groups`, "Replace the port's complete customer-group list. Empty list selects the network default; at most seven customer groups fit alongside platform DNS. Use policy and port generations separately. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs.", { group_ids: z.array(uuid).max(7), expected_generation: policyGeneration, expected_port_generation: generation }, { idempotent: true, destructive: true }),
+  tool("retry_network_security_policy", "POST", `${policy}/retry`, "Retry the failed network security policy using its current desired state. The pending policy may replace firewall rules and remove network access; inspect its desired state first. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs.", {}, { idempotent: true, destructive: true }),
+  tool("retire_network_security_policy", "DELETE", policy, "Retire the policy only after its server ports are gone. Removing firewall policy requires explicit user approval. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("get_network_appliance_capabilities", "GET", `${A}/capabilities`, "Read available load balancer providers/tiers, public qualification, VPN capabilities and quota. Tier availability and prices are returned by the backend, never hardcoded."),
   tool("list_network_appliances", "GET", A, "Read owned load balancers and VPN gateways with one stream cursor."),
   tool("get_network_appliance_billing", "GET", `${A}/billing`, "Read current customer-visible recurring appliance lines and currency."),
@@ -161,7 +161,7 @@ export const networkingTools: NetworkingTool[] = [
   tool("delete_network_vpn_gateway", "DELETE", vpn, "Request teardown of an owned VPN gateway; all devices lose connectivity. Paid time is not refunded by this operation.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("attach_network_vpn_gateway", "POST", `${vpn}/attach`, "Attach or move an account VPN to an owned network only when standalone attachment is advertised. This recreates the gateway and interrupts connections; confirm the interruption.", { network_id: uuid }, { idempotent: true, destructive: true }),
   tool("detach_network_vpn_gateway", "POST", `${vpn}/detach`, "Detach an account VPN from its network when supported; it keeps its paid period and devices but recreates the gateway. Confirm the interruption.", {}, { idempotent: true, destructive: true }),
-  tool("set_vpn_server_access", "POST", `${vpn}/server-access`, "Choose accept or groups_only for the VPN's access to attached servers when this capability is available. Security-policy application is asynchronous.", { mode: z.enum(["accept", "groups_only"]) }, { idempotent: true, destructive: true }),
+  tool("set_vpn_server_access", "POST", `${vpn}/server-access`, "Choose accept or groups_only for the VPN's access to attached servers when this capability is available. The setting operation can already be succeeded while security-policy application is pending. Read the gateway network with get_private_network, then get_network_security_policy using its project_id and network_id; do not treat the setting operation as proof of firewall delivery.", { mode: z.enum(["accept", "groups_only"]) }, { idempotent: true, destructive: true }),
   tool("create_network_vpn_peer", "POST", `${vpn}/peers`, "Add a device with an externally generated one-time PUBLIC reveal key. Pass 0-16 owned grant-candidate IPv4 addresses: split-tunnel VPNs require at least one; full-tunnel VPNs may use an empty list. Keep the matching private key entirely outside MCP. The gateway generates the WireGuard key; wait for config_available before consuming its sealed configuration.", { name: name.max(64), grants: z.array(ipv4).max(16), reveal_public_key: publicKey }, { idempotent: true }),
   tool("take_network_vpn_peer_config", "GET", `${peer}/config`, "Consume the device's sealed configuration ONCE. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys. Save the returned sealed payload externally; a second pickup is 410. Never retry automatically after an uncertain transport result.", { acknowledge_one_time_pickup: z.literal(true) }, { readOnly: false, destructive: true }),
   tool("revoke_network_vpn_peer", "DELETE", peer, "Revoke one device using the VPN GATEWAY generation. Its tunnel access ends after the next applied configuration.", { expected_generation: generation }, { idempotent: true, destructive: true }),
@@ -190,7 +190,7 @@ export const networkingTools: NetworkingTool[] = [
   tool("quote_public_address_renewal", "POST", `${address}/renewal-quote`, "Quote the address's next month without charging; use the returned quote and this key for confirmation.", {}, { quote: true }),
   tool("renew_network_public_address", "POST", `${address}/renew`, "Pay the approved address renewal from balance with its exact quote ID/token and original key.", { quote_id: uuid }, { paid: true }),
   tool("disable_public_address_auto_renew", "POST", `${address}/auto-renew`, "Disable address automatic renewal; ownership lasts until paid_until. There is no early paid-address cancellation route. API keys cannot enable automatic renewal.", {}, { fixedBody: { state: false } }),
-  tool("get_network_public_binding", "GET", binding, "Read one existing owned public binding's generation, state and assigned address. Existing bindings are distinct from purchasing an account public address."),
+  tool("get_network_public_binding", "GET", binding, "Read one existing owned public binding's generation, state and assigned address. Poll this resource after bind, move, forward or delete; public-binding operation IDs are not accepted by get_networking_operation or get_network_appliance_operation. Existing bindings are distinct from purchasing an account public address."),
   tool("bind_network_public_ip", "POST", `${binding}/bind`, "Bind an already reserved floating public binding to an owned private port when supported. Does not purchase an address.", { expected_generation: policyGeneration, private_port_id: uuid }, { idempotent: true, destructive: true }),
   tool("move_network_public_ip", "POST", `${binding}/move`, "Move a prepared floating public binding to another owned private port; confirm interruption to the old target.", { expected_generation: generation, private_port_id: uuid }, { idempotent: true, destructive: true }),
   tool("configure_network_public_forwarding", "POST", `${binding}/forward`, "Configure an existing reserved forwarding binding's TCP/UDP listeners. Forwarding uses one backend per listener; proxy load balancers use their own appliance authority and are refused here.", { expected_generation: policyGeneration, listeners: z.array(z.object({ protocol: z.enum(["tcp", "udp"]), port, backends: z.array(z.object({ private_port_id: uuid, port }).strict()).min(1).max(64) }).strict()).min(1).max(64) }, { idempotent: true, destructive: true }),
@@ -217,6 +217,60 @@ export function networkingRequest(definition: NetworkingTool, args: Record<strin
   return { method: definition.method, path, body, headers, readOnly: definition.options.readOnly === true };
 }
 
+type FollowUpRead = { tool: string; arguments: Record<string, string> };
+
+/** Read-only recovery targets. IDs are copied from validated inputs or owned API results, never guessed. */
+export function networkingFollowUpReads(definition: NetworkingTool, args: Record<string, unknown>, data: unknown): FollowUpRead[] {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+  const value = data as Record<string, any>;
+  if (value.success === false || value.error) return [];
+  const reads: FollowUpRead[] = [];
+  const add = (tool: string, fields: Record<string, unknown>) => {
+    if (!Object.values(fields).every(id => uuid.safeParse(id).success)) return;
+    const read = { tool, arguments: fields as Record<string, string> };
+    if (!reads.some(existing => JSON.stringify(existing) === JSON.stringify(read))) reads.push(read);
+  };
+  if (definition.name === "get_private_network") {
+    if (value.network?.port_intent_ready === true) {
+      add("list_network_attachment_candidates", { network_id: value.network.id ?? args.network_id });
+    }
+    return reads;
+  }
+  if (definition.method === "GET") return reads;
+  if (definition.path.includes("/projects/")) {
+    const project = args.project_id ?? value.policy?.project_id;
+    if (args.network_id) add("get_network_security_policy", { project_id: project, network_id: args.network_id });
+    if (value.policy?.network_id) add("get_network_security_policy", { project_id: project, network_id: value.policy.network_id });
+    for (const policy of Array.isArray(value.policies) ? value.policies : []) {
+      add("get_network_security_policy", { project_id: project, network_id: policy?.network_id });
+    }
+  } else if (definition.path.includes("/public-bindings/")) {
+    add("get_network_public_binding", { binding_id: args.binding_id ?? value.resource_id });
+  } else if (definition.path.includes("/appliances/")) {
+    add("get_network_appliance_operation", { operation_id: value.operation?.id });
+    if (definition.name === "set_vpn_server_access") {
+      // The setting's operation can be succeeded while its separate network policy is pending.
+      const network = value.vpn_gateway?.network_id;
+      const project = value.vpn_gateway?.project_id;
+      if (project) add("get_network_security_policy", { project_id: project, network_id: network });
+      else add("get_private_network", { network_id: network });
+    }
+  } else if (definition.path.includes("/public-addresses/")) {
+    add("get_network_public_address", { address_id: args.address_id ?? value.public_address?.id });
+    if (args.network_id) add("get_network_routed_egress", { network_id: args.network_id });
+  } else if (definition.path.includes("/networks")) {
+    add("get_networking_operation", { operation_id: value.operation?.id ?? value.operation_id });
+    if (definition.name === "set_network_routed_egress") {
+      add("get_network_routed_egress", { network_id: args.network_id });
+    } else if (["set_private_network_dns", "set_private_network_names", "create_private_network"].includes(definition.name)) {
+      add("get_private_network", { network_id: args.network_id ?? value.network?.id });
+    } else if (definition.path.endsWith("/ports") || definition.path.includes("/ports/")) {
+      add("list_private_network_ports", { network_id: args.network_id });
+    }
+  }
+  return reads;
+}
+
 export function registerNetworkingTools(server: McpServer): void {
   for (const definition of networkingTools) {
     server.registerTool(definition.name, {
@@ -231,7 +285,11 @@ export function registerNetworkingTools(server: McpServer): void {
     }, async args => {
       const request = networkingRequest(definition, args);
       const result = await apiRequest(request.method, request.path, request.body, request.headers, { readOnly: request.readOnly });
-      return { content: [{ type: "text" as const, text: formatJson(result.data) }], ...(result.status >= 400 ? { isError: true } : {}) };
+      const reads = result.status < 400 ? networkingFollowUpReads(definition, args, result.data) : [];
+      return { content: [
+        { type: "text" as const, text: formatJson(result.data) },
+        ...(reads.length ? [{ type: "text" as const, text: `Follow-up reads (do not repeat the change): ${JSON.stringify(reads)}` }] : []),
+      ], ...(result.status >= 400 ? { isError: true } : {}) };
     });
   }
 }

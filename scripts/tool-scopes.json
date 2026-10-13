@@ -327,6 +327,18 @@
   ],
   "paid": ""
  },
+ "get_guest_nameservers": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "set_guest_nameservers": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
+ },
  "get_rdns": {
   "scopes": [
    "services:read"
@@ -464,6 +476,18 @@
    "services:manage"
   ],
   "paid": "Paid"
+ },
+ "get_firecracker_backup_status": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_firecracker_backup_history": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
  },
  "list_ssh_keys": {
   "scopes": [
@@ -1159,6 +1183,12 @@
   ],
   "paid": ""
  },
+ "reapply_dns_zone": {
+  "scopes": [
+   "dns:write"
+  ],
+  "paid": ""
+ },
  "reissue_dns_zone_verification": {
   "scopes": [
    "dns:write"
@@ -1271,6 +1301,36 @@
  },
  "get_faq": {
   "scopes": [],
+  "paid": ""
+ },
+ "list_function_history": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "get_application_inspection": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "get_application_recipe_validation": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "get_service_container_discovery": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
+ "rollback_application": {
+  "scopes": [
+   "applications:manage"
+  ],
   "paid": ""
  }
 }

@@ -334,6 +334,13 @@ export function safeCustomProjectInstallPayload(
   };
 }
 
+const CUSTOM_PROJECT_VALIDATION_ERROR_CODES = new Set([
+  "applicationCustomProjectValidationFailed",
+  "applicationCustomProjectValidationDispatchFailed",
+  "applicationCustomProjectValidationExpired",
+  "applicationCustomProjectValidationTimedOut",
+]);
+
 export function safeCustomProjectValidationPayload(
   status: number,
   data: unknown
@@ -349,7 +356,10 @@ export function safeCustomProjectValidationPayload(
   }
 
   const valid = validation.valid === true;
-  const resolvedCompose = valid && typeof validation.resolved_compose_yaml === "string"
+  // Keep the caller's resolved definition while the authoritative worker is
+  // pending, so a later GET can complete this exact validation without a new POST.
+  const pending = validation.state === "queued" || validation.state === "awaiting_reply";
+  const resolvedCompose = (valid || pending) && typeof validation.resolved_compose_yaml === "string"
     ? validation.resolved_compose_yaml.slice(0, 262144)
     : null;
   const resolutions = valid && Array.isArray(validation.image_resolutions)
@@ -374,6 +384,12 @@ export function safeCustomProjectValidationPayload(
     validation: {
       id: boundedString(validation.id, 64),
       state: boundedString(validation.state, 32),
+      compose_digest: typeof validation.compose_digest === "string"
+        && /^[a-f0-9]{64}$/.test(validation.compose_digest)
+        ? validation.compose_digest : null,
+      error_code: typeof validation.error_code === "string"
+        && CUSTOM_PROJECT_VALIDATION_ERROR_CODES.has(validation.error_code)
+        ? validation.error_code : null,
       valid: typeof validation.valid === "boolean" ? validation.valid : null,
       errors: Array.isArray(validation.errors)
         ? validation.errors

@@ -375,3 +375,23 @@ test("free-certificate projection fails closed on private-key artifacts", () => 
   assert.equal(payload.success, false);
   assert.deepEqual(payload.errors, ["invalidCertificateResponse"]);
 });
+
+test("free-certificate failures retain safe remediation reasons in reads and lists", () => {
+  for (const reason of ["dns_name_not_found", "caa_forbids_issuance", "rate_limited", "csr_rejected"]) {
+    const request = { ...freeRequest, state: "failed", failure_reason: reason,
+      failure_at: "2026-10-13 10:00:00", attention_required: true, download_available: false };
+    for (const kind of ["free-request", "free-list"]) {
+      const payload = kind === "free-list" ? { records: [request] } : { request };
+      const result = safeCertificatePayload(kind, 200, { success: true, ...payload });
+      assert.equal(result.success, true);
+      const record = kind === "free-list" ? result.records[0] : result.request;
+      assert.equal(record.failure_reason, reason);
+      assert.equal(record.failure_at, request.failure_at);
+      assert.equal(JSON.stringify(result).includes("must-not-leak"), false);
+    }
+  }
+  const result = safeCertificatePayload("free-request", 200, { success: true,
+    request: { ...freeRequest, state: "failed", failure_reason: "must-not-leak", failure_at: null } });
+  assert.equal(result.request.failure_reason, "issuance_failed");
+  assert.equal(JSON.stringify(result).includes("must-not-leak"), false);
+});

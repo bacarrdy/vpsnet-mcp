@@ -52,17 +52,17 @@ async function harness(t, { snapshots = 1, pending = false } = {}) {
   return { client, call, requests, accepted };
 }
 
-test("advertised snapshot consent is optional and never defaulted; no dedicated feature is introduced", async t => {
+test("advertised snapshot and dedicated consent stay optional and are never defaulted", async t => {
   const { client, requests } = await harness(t);
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 301);
+  assert.equal(tools.length, 311);
   const tool = tools.find(tool => tool.name === "reinstall_os");
   assert.match(tool.description, /cannot provide rollback after reinstall/);
   assert.doesNotMatch(tool.description, /take one first|DELETE it once the reinstall succeeds/);
-  assert.match(tool.description, /Returns a noty UUID/);
+  assert.match(tool.description, /VPS reinstall returns a noty UUID/);
   assert.deepEqual(tool.inputSchema.required, ["orderNo", "osVersion"]);
   assert.deepEqual(Object.keys(tool.inputSchema.properties).sort(),
-    ["orderNo", "osVersion", "rootPassword", "confirmSnapshotDelete"].sort());
+    ["orderNo", "osVersion", "rootPassword", "confirmSnapshotDelete", "confirmReinstall", "sshKey"].sort());
   assert.equal(tool.inputSchema.properties.confirmSnapshotDelete.type, "boolean");
   assert.equal(tool.inputSchema.properties.confirmSnapshotDelete.default, undefined);
   assert.match(tool.inputSchema.properties.confirmSnapshotDelete.description, /only after the user explicitly confirms/);
@@ -85,7 +85,7 @@ test("omitted or false snapshot consent stays absent and refusals are never auto
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /snapshotsWillBeDeleted/);
     assert.deepEqual(requests.at(-1).body, { osVersion: 2 });
-    assert.equal(requests.length, before + 1);
+    assert.equal(requests.length, before + 2);
   }
   assert.equal(accepted.length, 0);
 });
@@ -94,7 +94,7 @@ test("explicit true reaches the exact backend field and retains the acceptance e
   const { call, requests, accepted } = await harness(t);
   const result = await call({ confirmSnapshotDelete: true });
   assert.notEqual(result.isError, true);
-  assert.deepEqual(requests[0], { method: "POST", path: "/account/services/VP12345/change-os",
+  assert.deepEqual(requests[1], { method: "POST", path: "/account/services/VP12345/change-os",
     body: { osVersion: 2, confirmSnapshotDelete: true } });
   assert.deepEqual(JSON.parse(result.content[0].text), { success: true, noty: EVENT });
   assert.equal(accepted.length, 1);
@@ -120,6 +120,6 @@ test("a server without snapshots still accepts reinstall without the new field",
   const { call, requests, accepted } = await harness(t, { snapshots: 0 });
   const result = await call({ rootPassword: "Synthetic123" });
   assert.notEqual(result.isError, true);
-  assert.deepEqual(requests[0].body, { osVersion: 2, rootPassword: "Synthetic123" });
+  assert.deepEqual(requests[1].body, { osVersion: 2, rootPassword: "Synthetic123" });
   assert.equal(accepted.length, 1);
 });

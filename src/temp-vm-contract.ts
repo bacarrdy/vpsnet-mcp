@@ -131,6 +131,9 @@ function safeProfile(value: unknown): Record<string, unknown> | null {
 
 function safeOptions(value: unknown): Record<string, unknown> | null {
   const source = record(value);
+  if (source.catalog_degraded === true) {
+    return { orderable: false, availability: "unavailable", catalog_degraded: true };
+  }
   const storagePolicy = record(source.storage_policy);
   const profiles = Array.isArray(source.profiles)
     ? source.profiles.map(safeProfile).filter((item) => item !== null)
@@ -240,7 +243,7 @@ function errorCodes(value: unknown): string[] {
   const source = record(value);
   const explicit = typeof source.error === "string" ? [source.error] : [];
   const booleans = Object.entries(source)
-    .filter(([, enabled]) => enabled === true)
+    .filter(([key, enabled]) => key !== "success" && enabled === true)
     .map(([key]) => key);
 
   return [...new Set([...explicit, ...booleans])]
@@ -301,15 +304,11 @@ export function safeTempVmPayload(
 
     if (Array.isArray(source.sessions)) {
       const options = safeOptions(source.options);
-      if (options !== null) {
-        return {
-          success: true,
-          sessions: source.sessions
-            .map(safeSession)
-            .filter((item) => item !== null),
-          options,
-        };
-      }
+      return {
+        success: true,
+        sessions: source.sessions.map(safeSession).filter((item) => item !== null),
+        options: options ?? { orderable: false, availability: "unavailable", catalog_degraded: true },
+      };
     }
 
     const session = safeSession(source.session);

@@ -951,3 +951,24 @@ test("certificate projection fails closed on non-EUR or private-key artifacts", 
   assert.equal(artifact.success, false);
   assert.deepEqual(artifact.errors, ["invalidCertificateResponse"]);
 });
+
+test("Automatic SSL preserves customer processing actions and renewals", () => {
+  // The backend masks unresolved paid outcomes and reconciliation as processing.
+  const action = { ...acmeAction, state: "processing", billing_state: "captured" };
+  const renewal = { ...acmeRenewal, state: "processing" };
+  const subscription = { ...acmeSubscription, renewal: { ...acmeSubscription.renewal, current: renewal } };
+  const cases = [
+    ["acme-subscription-action-list", { records: [action] }, (value) => value.records[0]],
+    ["acme-subscription-action", { action }, (value) => value.action],
+    ["acme-subscription-domain-confirmation", { action }, (value) => value.action],
+    ["acme-subscription-renewal-confirmation", { renewal }, (value) => value.renewal],
+    ["acme-subscription", { subscription }, (value) => value.subscription.renewal.current],
+    ["acme-subscription-list", { records: [subscription] }, (value) => value.records[0].renewal.current],
+  ];
+  for (const [kind, body, extract] of cases) {
+    const result = safeCertificatePayload(kind, 200, { success: true, ...body });
+    assert.equal(result.success, true, kind);
+    assert.equal(extract(result).state, "processing", kind);
+    assert.equal(JSON.stringify(result).includes("must-not-leak"), false, kind);
+  }
+});

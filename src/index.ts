@@ -7,7 +7,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import { installRemotePolicy, remoteInstructions, orderInstructions } from "./remote-policy.js";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { registerNetworkingTools } from "./networking-tools.js";
 import { isIP } from "node:net";
@@ -18,7 +18,6 @@ import {
   applicationAccessConfigurationRequestBody,
   applicationAccessSchema,
   applicationSingleAccessSchema,
-  applicationActionCancellationIsAdvertised,
   applicationActionCancellationRequestBody,
   applicationActionIdSchema,
   applicationActionSchema,
@@ -40,7 +39,6 @@ import {
   applicationResourceNetworkMiBPerMinuteSchema,
   applicationResourceRestartDeltaSchema,
   applicationResourceThresholdRequestBody,
-  applicationUpdateCandidateMatches,
   safeApplicationInspectionPayload,
   safeApplicationDataRestorePayload,
   safeApplicationDataRestorePointsPayload,
@@ -158,7 +156,7 @@ const server = new McpServer(
       "Flow: get_order_plans → get_order_options(plan) → order_service.",
       "Payment object format: { payment: <numeric_id>, successUrl: '', cancelUrl: '' }.",
       "For balance payment use payment ID 1: { payment: 1, successUrl: '', cancelUrl: '' }.",
-      "Paid API-key order tools require paid_operations_enabled, the matching paid scope (vps:order/vds:order/ds:order/fc:order), configured daily/monthly spend caps, and an idempotencyKey; order_service performs quote → confirm with a server quoteToken.",
+      "Paid API-key order tools require paid_operations_enabled, the matching paid scope (vps:order/vds:order/ds:order/fc:order), configured daily/monthly spend caps, and an idempotencyKey. First call order_service for a quote, show its exact gross EUR amount and billing period, then call it again with the unchanged configuration, key, returned quoteToken, expected_total_eur and acknowledge_charge=true only after explicit approval.",
       "Resources is an array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword rules: 6-40 chars, alphanumeric only, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other (or neither for auto-generated password).",
@@ -256,7 +254,7 @@ const server = new McpServer(
       "Automatic SSL flow: list_certificate_catalog → quote_automatic_ssl_subscription → order_automatic_ssl_subscription. It works with compatible ACME clients on VPSnet or another provider. A base domain includes its www alias; apex and wildcard names are separate subscribed identifiers and may be ordered together. Choose auto_renew explicitly; every next term is still quoted and prepaid from balance during the final 30 days.",
       "After payment, poll get_automatic_ssl_subscription until state=active and credentials_available=true. The private ACME server URL and EAB credentials are intentionally portal-only behind two-factor verification; they are not MCP or API-key tools and must never enter model context.",
       "Add a DNS name with quote_automatic_ssl_domain → order_automatic_ssl_domain using the exact quote token and unchanged idempotency key. The quote prevents duplicate coverage from base/www and wildcard/base relationships.",
-      "When renewal.available=true, use quote_automatic_ssl_renewal → order_automatic_ssl_renewal. Renewal is balance-only and must be explicitly approved; payment_processing or manual_review is not success.",
+      "When renewal.available=true, use quote_automatic_ssl_renewal → order_automatic_ssl_renewal. Renewal is balance-only and must be explicitly approved; payment_processing=true or state=processing means completion is still pending; poll the subscription and its current renewal before reporting success.",
       "Use list_automatic_ssl_actions before cancel_automatic_ssl_subscription, remove_automatic_ssl_domain or replace_automatic_ssl_domain. Cancellation, removal, and same-type correction are durable and idempotent. Reuse a key only for the exact same request. For reconciliation_required or outcome_ambiguous, call refresh_automatic_ssl_subscription and read state instead of creating a new mutation.",
       "Flow: list_certificate_catalog → quote_certificate → order_certificate. The quote returns the final customer price in EUR including VAT, a short-lived quote token, and the exact public-key type derived from the CSR. Disclose the exact total and obtain explicit approval before ordering.",
       "The customer creates and retains the private key. Certificate tools accept only a signed public PKCS#10 CSR. Never ask for, accept, store, repeat, or place a private key in a tool argument or model context.",
@@ -635,12 +633,13 @@ server.registerTool(
     description: "Get action history for a service Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
+      page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow response pagination for older records."),
     },
   },
-  async ({ orderNo }) => {
+  async ({ orderNo, page }) => {
     const { data } = await apiRequest(
       "GET",
-      `/account/services/${encodeURIComponent(orderNo)}/history`
+      svc(orderNo, "history") + (page === undefined ? "" : `?page=${page}`)
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -1134,6 +1133,7 @@ async function runApplicationAsyncOperation(
       validation: {
         ...latestValidation,
         source_compose_digest: createdValidation.source_compose_digest,
+        compose_digest: latestValidation.compose_digest ?? createdValidation.compose_digest,
         resolved_compose_yaml: createdValidation.resolved_compose_yaml,
         image_resolutions: createdValidation.image_resolutions,
       },
@@ -1144,7 +1144,8 @@ async function runApplicationAsyncOperation(
 function applicationRecipeValidationPassed(data: unknown): boolean {
   const validation = applicationAsyncEnvelope(data, "validation");
   if (validation.state !== "succeeded") return false;
-  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  if (!data || typeof data !== "object" || Array.isArray(data)
+    || (data as Record<string, unknown>).success !== true) return false;
   const value = (data as Record<string, unknown>).validation;
   return Boolean(
     value
@@ -1166,11 +1167,117 @@ function applicationRecipeResolvedCompose(data: unknown): string | null {
     : null;
 }
 
+function applicationPollBindingMatches(
+  data: unknown,
+  key: "inspection" | "validation" | "discovery",
+  id: string,
+  installationId?: string,
+  kind?: "health" | "logs"
+): boolean {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  const value = (data as Record<string, unknown>)[key];
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const operation = value as Record<string, unknown>;
+  return operation.id === id
+    && (installationId === undefined || operation.installation_id === installationId)
+    && (kind === undefined || operation.kind === kind);
+}
+
+function applicationPollBindingFailure() {
+  return {
+    isError: true,
+    content: [{ type: "text" as const, text: formatJson({
+      success: false,
+      error_codes: ["applicationOperationBindingMismatch"],
+    }) }],
+  };
+}
+
+server.registerTool("get_application_inspection", {
+  description: "Poll the exact persisted health or logs inspection returned by get_application_health or get_application_logs when it remains pending. This GET does not queue another inspection. Keep the same service, installation, inspection UUID and kind until succeeded, failed or expired. Requires applications:read.",
+  inputSchema: {
+    orderNo: applicationOrderNoSchema,
+    installation_id: applicationInstallationIdSchema,
+    inspection_id: z.string().uuid(),
+    kind: z.enum(["health", "logs"]),
+  },
+  annotations: { title: "Get application inspection", readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+}, async ({ orderNo, installation_id, inspection_id, kind }) => {
+  const { status, data } = await apiRequest("GET", applicationPath(orderNo,
+    `installations/${encodeURIComponent(installation_id)}/inspections/${encodeURIComponent(inspection_id)}`));
+  if (status >= 200 && status < 300
+    && !applicationPollBindingMatches(data, "inspection", inspection_id, installation_id, kind)) {
+    return applicationPollBindingFailure();
+  }
+  return { content: [{ type: "text", text: safeApplicationInspectionResult(status, data, kind) }] };
+});
+
+server.registerTool("get_application_recipe_validation", {
+  description: "Poll the exact persisted customer recipe validation returned by validate_application_recipe or a pending recipe creation/revision. This GET does not resolve tags or create another validation. Retain the initial resolved_compose_yaml; after this ID succeeds with valid=true, resume creation using that exact pinned document and validation_id. Requires applications:read.",
+  inputSchema: { orderNo: applicationOrderNoSchema, validation_id: z.string().uuid() },
+  annotations: { title: "Get application recipe validation", readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+}, async ({ orderNo, validation_id }) => {
+  const { status, data } = await apiRequest("GET", applicationPath(orderNo,
+    `custom-projects/validations/${encodeURIComponent(validation_id)}`));
+  if (status >= 200 && status < 300 && !applicationPollBindingMatches(data, "validation", validation_id)) {
+    return applicationPollBindingFailure();
+  }
+  return { content: [{ type: "text", text: formatJson(safeCustomProjectValidationPayload(status, data)) }] };
+});
+
+server.registerTool("get_service_container_discovery", {
+  description: "Poll the exact persisted service container discovery returned by discover_service_containers when it remains pending. This GET does not create another discovery and never returns environment values or mounts. Keep the service and discovery UUID until succeeded, failed or expired. Requires applications:read.",
+  inputSchema: { orderNo: applicationOrderNoSchema, discovery_id: z.string().uuid() },
+  annotations: { title: "Get service container discovery", readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+}, async ({ orderNo, discovery_id }) => {
+  const { status, data } = await apiRequest("GET", applicationPath(orderNo,
+    `container-discoveries/${encodeURIComponent(discovery_id)}`));
+  if (status >= 200 && status < 300 && !applicationPollBindingMatches(data, "discovery", discovery_id)) {
+    return applicationPollBindingFailure();
+  }
+  return { content: [{ type: "text", text: formatJson(safeContainerDiscoveryPayload(status, data)) }] };
+});
+
+async function validateApplicationRecipeForSave(
+  orderNo: string,
+  composeYaml: string,
+  registryCredentialIds: string[],
+  validationId?: string
+): Promise<{ status: number; data: unknown }> {
+  const basePath = applicationPath(orderNo, "custom-projects");
+  if (!validationId) {
+    return runApplicationAsyncOperation(`${basePath}/validate`,
+      id => `${basePath}/validations/${id}`, "validation",
+      { compose_yaml: composeYaml, registry_credential_ids: registryCredentialIds });
+  }
+  const result = await apiRequest("GET", `${basePath}/validations/${encodeURIComponent(validationId)}`);
+  if (result.status < 200 || result.status >= 300) return result;
+  const validation = (result.data as { validation?: Record<string, unknown> })?.validation;
+  if (!applicationPollBindingMatches(result.data, "validation", validationId)
+    || validation?.compose_digest !== createHash("sha256").update(composeYaml, "utf8").digest("hex")) {
+    return { status: 409, data: { applicationOperationBindingMismatch: true } };
+  }
+  const expiresAt = (validation?.timestamps as { expires_at?: unknown } | undefined)?.expires_at;
+  const expiry = typeof expiresAt === "string"
+    ? Date.parse(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(expiresAt)
+      ? expiresAt.replace(" ", "T") + "Z" : expiresAt)
+    : NaN;
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+    return { status: 409, data: { applicationCustomProjectValidationExpired: true } };
+  }
+  // The backend independently captures valid, unexpired evidence for this
+  // exact digest and enforces the submitted service's registry ownership.
+  return { status: result.status, data: {
+    ...(result.data as Record<string, unknown>),
+    validation: { ...validation, resolved_compose_yaml: composeYaml },
+  } };
+}
+
 server.registerTool(
   "get_application_health",
   {
     description:
-      "Run an on-demand health inspection of one owned managed application and return the observed container/service health. Use this instead of trusting the last-reported health, which can be stale. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
+      "Run an on-demand health inspection of one owned managed application and return the observed container/service health. Use this instead of trusting the last-reported health, which can be stale. If still pending after polling, retain inspection.id and call get_application_inspection with kind=health. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
@@ -1198,7 +1305,7 @@ server.registerTool(
   "get_application_logs",
   {
     description:
-      "Run an on-demand logs inspection of one owned managed application and return recent, size-bounded container logs for troubleshooting. Optionally select one exact Compose service; omit it to inspect all services. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
+      "Run an on-demand logs inspection of one owned managed application and return recent, size-bounded container logs for troubleshooting. If still pending after polling, retain inspection.id and call get_application_inspection with kind=logs. Optionally select one exact Compose service; omit it to inspect all services. This queues an inspection (a POST), so it needs an API key that permits write operations; a read-only key is rejected. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
@@ -1423,7 +1530,7 @@ server.registerTool(
   "validate_application_recipe",
   {
     description:
-      "Resolve image tags from their registries to immutable digests, then validate the resulting customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. The successful result includes the exact digest-pinned definition to store. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Requires applications:manage.",
+      "Resolve image tags from their registries to immutable digests, then validate the resulting customer-owned Docker Compose document with the authoritative policy on the target Firecracker worker. The successful result includes the exact digest-pinned definition to store. This does not create, install, or modify a project or container. The queued validation is polled for about 30 seconds and may still return pending. Retain its ID and resolved_compose_yaml, poll get_application_recipe_validation, and resume recipe creation with the same pinned document and validation_id after valid=true. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       compose_yaml: customProjectComposeSchema,
@@ -1520,11 +1627,12 @@ server.registerTool(
   "create_application_recipe",
   {
     description:
-      "Resolve image tags from their registries, validate the resulting digest-pinned Compose definition, and freeze that exact definition as the first immutable customer-owned recipe revision. This saves a definition only and does not install or start containers. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
+      "Resolve image tags from their registries, validate the resulting digest-pinned Compose definition, and freeze that exact definition as the first immutable customer-owned recipe revision. This saves a definition only and does not install or start containers. If validation remains pending, retain its ID and resolved_compose_yaml, poll get_application_recipe_validation, then retry with validation_id and that exact pinned document. Plain environment values belong in env; secret_names contain names only. Confirm the exact service, name, Compose definition, variable names, and registry bindings first. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       name: customProjectNameSchema,
       compose_yaml: customProjectComposeSchema,
+      validation_id: z.string().uuid().optional().describe("Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document"),
       env: customProjectEnvironmentSchema,
       secret_names: customProjectSecretNamesSchema,
       registry_credential_ids: customProjectRegistryCredentialIdsSchema,
@@ -1547,32 +1655,27 @@ server.registerTool(
     orderNo,
     name,
     compose_yaml,
+    validation_id,
     env,
     secret_names,
     registry_credential_ids,
     idempotencyKey,
   }) => {
     const basePath = applicationPath(orderNo, "custom-projects");
-    const validation = await runApplicationAsyncOperation(
-      `${basePath}/validate`,
-      (id) => `${basePath}/validations/${encodeURIComponent(String(id))}`,
-      "validation",
-      { compose_yaml, registry_credential_ids }
+    const validation = await validateApplicationRecipeForSave(
+      orderNo, compose_yaml, registry_credential_ids, validation_id
     );
     if (
       validation.status >= 400
       || !applicationRecipeValidationPassed(validation.data)
     ) {
       return {
-        isError: true,
+        isError: validation.status >= 400 || !["queued", "awaiting_reply"].includes(
+          String(applicationAsyncEnvelope(validation.data, "validation").state)
+        ),
         content: [{
           type: "text",
-          text: formatJson(
-            safeCustomProjectValidationPayload(
-              validation.status,
-              validation.data
-            )
-          ),
+          text: formatJson(safeCustomProjectValidationPayload(validation.status, validation.data)),
         }],
       };
     }
@@ -1620,11 +1723,12 @@ server.registerTool(
   "create_application_recipe_revision",
   {
     description:
-      "Resolve image tags from their registries, validate the resulting digest-pinned Compose definition, and freeze that exact definition as a later immutable customer-owned recipe revision. This does not update the running installation. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
+      "Resolve image tags from their registries, validate the resulting digest-pinned Compose definition, and freeze that exact definition as a later immutable customer-owned recipe revision. This does not update the running installation. If validation remains pending, retain its ID and resolved_compose_yaml, poll get_application_recipe_validation, then retry with validation_id and that exact pinned document. In-place updates retain the existing secret names and registry bindings for rollback safety; create a separate project when those bindings must change. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       project_id: customProjectIdSchema,
       compose_yaml: customProjectComposeSchema,
+      validation_id: z.string().uuid().optional().describe("Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document"),
       env: customProjectEnvironmentSchema,
       secret_names: customProjectSecretNamesSchema,
       registry_credential_ids: customProjectRegistryCredentialIdsSchema,
@@ -1647,32 +1751,27 @@ server.registerTool(
     orderNo,
     project_id,
     compose_yaml,
+    validation_id,
     env,
     secret_names,
     registry_credential_ids,
     idempotencyKey,
   }) => {
     const basePath = applicationPath(orderNo, "custom-projects");
-    const validation = await runApplicationAsyncOperation(
-      `${basePath}/validate`,
-      (id) => `${basePath}/validations/${encodeURIComponent(String(id))}`,
-      "validation",
-      { compose_yaml, registry_credential_ids }
+    const validation = await validateApplicationRecipeForSave(
+      orderNo, compose_yaml, registry_credential_ids, validation_id
     );
     if (
       validation.status >= 400
       || !applicationRecipeValidationPassed(validation.data)
     ) {
       return {
-        isError: true,
+        isError: validation.status >= 400 || !["queued", "awaiting_reply"].includes(
+          String(applicationAsyncEnvelope(validation.data, "validation").state)
+        ),
         content: [{
           type: "text",
-          text: formatJson(
-            safeCustomProjectValidationPayload(
-              validation.status,
-              validation.data
-            )
-          ),
+          text: formatJson(safeCustomProjectValidationPayload(validation.status, validation.data)),
         }],
       };
     }
@@ -1823,7 +1922,7 @@ server.registerTool(
   "discover_service_containers",
   {
     description:
-      "Run a bounded read-only Docker discovery on one supported Firecracker service. Returns container names, images, state, health, published ports, Compose labels, and whether each container is VPSnet-managed. It never returns environment values or mounts and does not adopt or modify containers. Requires applications:read.",
+      "Run a bounded read-only Docker discovery on one supported Firecracker service. Returns container names, images, state, health, published ports, Compose labels, and whether each container is VPSnet-managed. If still pending after polling, retain discovery.id and call get_service_container_discovery. It never returns environment values or mounts and does not adopt or modify containers. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
     },
@@ -2159,35 +2258,20 @@ async function performApplicationLifecycleAction({
     };
   }
 
-  if (action === "update") {
+  if (action === "update" || action === "rollback") {
     if (!expected_blueprint_version || !expected_upstream_version) {
       return {
         isError: true,
         content: [{ type: "text" as const, text: formatJson({
           success: false,
-          error_codes: ["applicationUpdateExpectationRequired"],
+          error_codes: [action === "rollback"
+            ? "applicationRollbackExpectationRequired" : "applicationUpdateExpectationRequired"],
         }) }],
       };
     }
-    const current = await apiRequest(
-      "GET",
-      applicationPath(orderNo, `installations/${encodeURIComponent(installation_id)}`)
-    );
-    if (
-      current.status < 200 || current.status >= 300
-      || !applicationUpdateCandidateMatches(current.data, {
-        blueprintVersion: expected_blueprint_version,
-        upstreamVersion: expected_upstream_version,
-      })
-    ) {
-      return {
-        isError: true,
-        content: [{ type: "text" as const, text: formatJson({
-          success: false,
-          error_codes: ["applicationUpdateExpectationChanged"],
-        }) }],
-      };
-    }
+    // The backend checks replay before current eligibility and atomically
+    // verifies these exact versions for a new key. A pre-read here would block
+    // legitimate retries once the original transition changes current state.
   } else if (expected_blueprint_version || expected_upstream_version) {
     return {
       isError: true,
@@ -2204,7 +2288,7 @@ async function performApplicationLifecycleAction({
     applicationLifecycleRequestBody(
       action,
       acknowledge_data_loss === true,
-      action === "update"
+      (action === "update" || action === "rollback")
         ? { blueprintVersion: expected_blueprint_version!, upstreamVersion: expected_upstream_version! }
         : undefined
     ),
@@ -2217,7 +2301,7 @@ server.registerTool(
   "manage_application",
   {
     description:
-      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. For update, first read get_application_installation and copy the exact advertised blueprint_version and upstream_version as execution preconditions. The backend still selects and freezes the eligible immutable release; callers cannot choose an arbitrary target. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Selective data restore is a separate operation exposed by list_application_restore_points and restore_application_data. Requires applications:manage and is not a paid API-key operation.",
+      "Queue one supported lifecycle action for an owned managed application. Confirm the exact action with the user first. For update or rollback, first read get_application_installation and copy the exact advertised blueprint_version and upstream_version as execution preconditions. The backend still selects and freezes the eligible immutable release; callers cannot choose an arbitrary target. Stop interrupts service. Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data; existing server backups are retained. Uninstall requires acknowledge_data_loss=true after explicit user confirmation. A queued response must be verified with get_application_installation and get_application_events. Selective data restore is a separate operation exposed by list_application_restore_points and restore_application_data. Requires applications:manage and is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
@@ -2228,12 +2312,12 @@ server.registerTool(
       expected_blueprint_version: applicationExpectedVersionSchema
         .optional()
         .describe(
-          "Required for update: exact blueprint_version from the current available_actions update capability"
+          "Required for update or rollback: exact blueprint_version from the corresponding available_actions capability"
         ),
       expected_upstream_version: applicationExpectedVersionSchema
         .optional()
         .describe(
-          "Required for update: exact upstream_version from the current available_actions update capability"
+          "Required for update or rollback: exact upstream_version from the corresponding available_actions capability"
         ),
       confirmed: z
         .literal(true)
@@ -2312,11 +2396,21 @@ server.registerTool("update_application", {
   annotations: { title: "Update application", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
 }, async (input) => performApplicationLifecycleAction({ ...input, action: "update" }));
 
+server.registerTool("rollback_application", {
+  description: "Queue the exact reverse transition advertised as type=rollback by get_application_installation. Read its release and backup, disclose replacement of current application data by that backup, and obtain explicit approval. Copy its blueprint_version and upstream_version as execution preconditions; arbitrary targets are refused. Poll installation and events for the final result. Reuse the same idempotency key and exact versions for an unchanged retry even after availability changes. Requires applications:manage.",
+  inputSchema: {
+    ...applicationLifecycleBaseShape,
+    expected_blueprint_version: applicationExpectedVersionSchema.describe("Exact blueprint_version from the advertised rollback release"),
+    expected_upstream_version: applicationExpectedVersionSchema.describe("Exact upstream_version from the advertised rollback release"),
+  },
+  annotations: { title: "Roll back application", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "rollback" }));
+
 server.registerTool(
   "cancel_application_action",
   {
     description:
-      "Request pre-dispatch cancellation of the exact latest action for one owned managed application. This is available only while get_application_installation advertises latest_action.cancellable=true for the same action UUID. The tool re-reads the installation immediately before submitting the cancellation and refuses stale, different, or non-cancellable actions. Cancellation never stops or interrupts a running worker job. Requires applications:manage, the exact latest_action.id UUID, and a fresh client-global idempotencyKey that was not used for the original action or another request. Reuse that key only to replay this exact cancellation request. This is not a paid API-key operation.",
+      "Request pre-dispatch cancellation of the exact latest action for one owned managed application. This is available only while get_application_installation advertises latest_action.cancellable=true for the same action UUID. The backend verifies eligibility for new requests and replays the exact same-key retry even after the advertised state changes. Cancellation never stops or interrupts a running worker job. Requires applications:manage, the exact latest_action.id UUID, and a fresh client-global idempotencyKey that was not used for the original action or another request. Reuse that key only to replay this exact cancellation request. This is not a paid API-key operation.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       installation_id: applicationInstallationIdSchema,
@@ -2337,26 +2431,9 @@ server.registerTool(
       orderNo,
       `installations/${encodeURIComponent(installation_id)}`
     );
-    const current = await apiRequest("GET", installationPath);
-    if (
-      current.status < 200 ||
-      current.status >= 300 ||
-      !applicationActionCancellationIsAdvertised(current.data, action_id)
-    ) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: formatJson({
-              success: false,
-              error_codes: ["applicationActionCancellationNotAdvertised"],
-            }),
-          },
-        ],
-      };
-    }
-
+    // Cancellation eligibility is enforced by the backend after its exact
+    // idempotency replay lookup. Do not reject a successful retry merely
+    // because the action is now cancelled or no longer latest.
     const { status, data } = await apiRequest(
       "POST",
       `${installationPath}/actions/${encodeURIComponent(action_id)}/cancel`,
@@ -2422,7 +2499,7 @@ server.registerTool(
   "console_service",
   {
     description:
-      "Open VNC console access to a running VPS. Read-ish: it requests a console session and returns the tracking event ID (a console URL/token is delivered out-of-band). The service must be running. Requires services:manage and a full-access API key.",
+      "Request a legacy or Cloud VPS console session and return its tracking event ID. This tool cannot redeem the one-time console token: redemption requires the customer signed into the VPSnet panel. Direct the user to the service console in the panel to open it. Firecracker serial console is browser-only and refuses API-key calls. The service must be running unless an active rescue session permits console access. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2541,6 +2618,48 @@ server.registerTool(
       svc(orderNo, "change-root-password"),
       { password }
     );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// Guest resolver configuration is separate from registrar nameservers and
+// authoritative DNS records. The backend retains product, agent and lock guards.
+server.registerTool(
+  "get_guest_nameservers",
+  {
+    description: "Get the server's saved guest DNS resolver configuration: nsData.type is own (VPSnet defaults) or custom, with ns1-ns4 resolver IP addresses. Own mode stores null custom addresses; these are not an observation of the guest's current resolver file. Requires services:read.",
+    inputSchema: { orderNo: serviceOrderNoSchema },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest("GET", svc(orderNo, "change-ns"));
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "set_guest_nameservers",
+  {
+    description: "Change DNS resolvers inside a supported Linux server. Read get_guest_nameservers first and confirm the exact service and resolver change; an unreachable resolver can interrupt guest internet connectivity. type=own restores the service's VPSnet defaults and clears saved custom addresses (omit ns1-ns4). type=custom requires ns1 and ns2, with optional ns3 and ns4; each is an IPv4 or IPv6 address, never a hostname. Returns unchanged=true when already configured, otherwise a noty UUID: follow wait_for_event, then verify the saved configuration and connectivity. This route is not idempotency-keyed; do not automatically replay an uncertain change. Requires services:manage and a full-access API key.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      type: z.enum(["own", "custom"]).describe("own restores VPSnet default resolvers; custom replaces the saved resolver list"),
+      ns1: serviceIpSchema.optional().describe("First resolver IPv4 or IPv6 address; required for custom mode"),
+      ns2: serviceIpSchema.optional().describe("Second resolver IPv4 or IPv6 address; required for custom mode"),
+      ns3: serviceIpSchema.optional().describe("Optional third resolver IPv4 or IPv6 address"),
+      ns4: serviceIpSchema.optional().describe("Optional fourth resolver IPv4 or IPv6 address"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+  },
+  async ({ orderNo, type, ns1, ns2, ns3, ns4 }) => {
+    if (type === "custom" && (ns1 === undefined || ns2 === undefined)) {
+      throw new Error("Custom guest nameservers require both ns1 and ns2 resolver IP addresses.");
+    }
+    const body: Record<string, unknown> = { type };
+    for (const [name, value] of Object.entries({ ns1, ns2, ns3, ns4 })) {
+      if (value !== undefined) body[name] = value;
+    }
+    const { data } = await apiRequest("POST", svc(orderNo, "change-ns"), body);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -2749,9 +2868,11 @@ server.registerTool(
   "reinstall_os",
   {
     description:
-      "Reinstall OS on VPS. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. OAuth requires services:reinstall; API keys require full access.",
+      "Reinstall OS on a VPS or qualified dedicated server. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Dedicated servers erase every disk and have no snapshot rollback; get_os_options reports dedicated=true and confirmRequired=true. Pass confirmReinstall=true only after the user explicitly approves reinstalling that exact dedicated server and losing all disk data. Dedicated reinstall supports an optional sshKey from list_ssh_keys (otherwise the prior install key is reused), never rootPassword, and returns a reinstall job ID. VPS reinstall returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. OAuth requires services:reinstall; API keys require full access.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
+      confirmReinstall: z.boolean().optional().describe("Dedicated only: true only after explicit user approval to reinstall this exact server and erase all its disks; never inferred or defaulted."),
+      sshKey: positiveIdSchema.optional().describe("Dedicated only: account SSH key ID from list_ssh_keys; omitted reuses the installed key."),
       osVersion: z
         .number()
         .describe("OS version ID from get_os_options"),
@@ -2774,8 +2895,21 @@ server.registerTool(
       idempotentHint: false,
     },
   },
-  async ({ orderNo, osVersion, rootPassword, confirmSnapshotDelete }) => {
+  async ({ orderNo, osVersion, rootPassword, confirmSnapshotDelete, confirmReinstall, sshKey }) => {
+    const options = await apiRequest("GET", svc(orderNo, "change-os"));
+    const capability = options.data as { success?: unknown; dedicated?: unknown } | null;
+    if (options.status >= 400 || capability?.success !== true) {
+      return { isError: true, content: [{ type: "text", text: formatJson(options.data) }] };
+    }
     const body: Record<string, unknown> = { osVersion };
+    if (capability.dedicated === true) {
+      if (confirmReinstall !== true) throw new Error("Dedicated reinstall requires explicit user approval of all-disk data loss and confirmReinstall=true.");
+      if (rootPassword !== undefined) throw new Error("Dedicated reinstall does not support rootPassword; use an account sshKey or reuse the installed key.");
+      body.confirmReinstall = true;
+      if (sshKey !== undefined) body.sshKey = sshKey;
+    } else if (confirmReinstall !== undefined || sshKey !== undefined) {
+      throw new Error("confirmReinstall and sshKey are dedicated-only reinstall fields; inspect get_os_options for this service.");
+    }
     if (rootPassword) body.rootPassword = rootPassword;
     if (confirmSnapshotDelete === true) body.confirmSnapshotDelete = true;
     const { data } = await apiRequest(
@@ -2959,6 +3093,30 @@ server.registerTool(
 
 // --- Order New VPS ---
 
+// Keep only a hash of configuration (which may contain a root password), plus
+// the non-secret quote. The backend refuses a second quote for the same key.
+const serviceOrderQuoteCapacity = 1000;
+const serviceOrderQuotesInFlight = new Set<string>();
+const serviceOrderQuotes = new Map<string, {
+  configurationHash: string;
+  total: bigint;
+  quoteToken: string;
+  quote: Record<string, unknown>;
+  confirmation?: Promise<{ content: { type: "text"; text: string }[]; isError?: boolean }>;
+}>();
+const orderMoneySchema = z.union([z.number().finite().nonnegative(), z.string()])
+  .refine(value => /^(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,4})?$/.test(String(value)),
+    "Use an exact nonnegative EUR amount with at most four decimal places");
+const orderMoneyUnits = (value: string | number): bigint => {
+  const [whole, fraction = ""] = String(value).split(".");
+  return BigInt(whole) * 10000n + BigInt(fraction.padEnd(4, "0"));
+};
+const orderConfigurationHash = (body: Record<string, unknown>): string => {
+  const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical)
+    : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([key, entry]) => [key, canonical(entry)])) : value;
+  return createHash("sha256").update(JSON.stringify(canonical(body))).digest("hex");
+};
+
 server.registerTool(
   "get_order_plans",
   {
@@ -3005,7 +3163,7 @@ server.registerTool(
     description: [
       "Order a new VPS. Requires sufficient account balance for balance payment.",
       "Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }.",
-      "API-key orders first call the server quote endpoint, then confirm with the returned quoteToken. The API key must have paid scope/caps enabled.",
+      "First call returns confirmationRequired and an exact gross EUR quote without charging. Show the amount and billing period, obtain explicit approval, then call again with the unchanged order configuration and idempotencyKey, returned quoteToken, expected_total_eur and acknowledge_charge=true. The API key must have paid scope/caps enabled. Never replace the key after an uncertain payment; inspect that original attempt in the VPSnet panel. Quotes are retained in this MCP process; after a restart inspect the original attempt in the panel rather than submitting another order.",
       "Payment acceptance is not server readiness. Poll get_service for the returned order number. stateProcess.waitingReason=public_ip_inventory resumes the same paid CREATE automatically when inventory returns; do not place or pay for another order. stateProcess.attention=true needs operator attention.",
       "Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'.",
@@ -3027,7 +3185,7 @@ server.registerTool(
         .describe(
           "SSH key ID from list_ssh_keys to deploy. Mutually exclusive with rootPassword"
         ),
-      period: positiveIdSchema.optional().describe("Billing period ID from get_order_options"),
+      period: positiveIdSchema.describe("Explicit billing period ID from get_order_options; disclose its term together with the exact gross quote before approval."),
       resources: z
         .array(z.number())
         .optional()
@@ -3039,9 +3197,12 @@ server.registerTool(
         .describe(
           "UUID of one of your private networks to attach the new server to (shown in the control panel under Networking). Sent to both the quote and the confirm; omit for no private network"
         ),
-      idempotencyKey: idempotencyKeySchema.describe(
+      idempotencyKey: paidIdempotencyKeySchema.describe(
         "Required for paid API-key orders. Stable unique key for this exact order attempt, e.g. UUID."
       ),
+      quoteToken: z.string().min(32).max(190).optional().describe("Exact token returned by the first order_service call; required for confirmation."),
+      expected_total_eur: orderMoneySchema.optional().describe("Exact VAT-inclusive amount_eur disclosed to and approved by the customer; required for confirmation."),
+      acknowledge_charge: z.literal(true).optional().describe("Set only after explicit approval of the exact gross EUR total and billing period."),
       payment: z
         .object({
           payment: z
@@ -3060,7 +3221,7 @@ server.registerTool(
         ),
     },
   },
-  async ({ plan, os, rootPassword, sshKey, period, resources, privateNetworkId, idempotencyKey, payment }) => {
+  async ({ plan, os, rootPassword, sshKey, period, resources, privateNetworkId, idempotencyKey, payment, quoteToken: approvedToken, expected_total_eur, acknowledge_charge }) => {
     const body: Record<string, unknown> = { plan, payment, idempotencyKey };
     if (privateNetworkId !== undefined) body.privateNetworkId = privateNetworkId;
     if (os !== undefined) body.os = os;
@@ -3068,27 +3229,69 @@ server.registerTool(
     if (sshKey !== undefined) body.sshKey = sshKey;
     if (period !== undefined) body.period = period;
     if (resources) body.resources = resources;
-    const { status: quoteStatus, data: quoteData } = await apiRequest(
-      "POST",
-      "/order/configuration/quote",
-      body,
-      { "Idempotency-Key": idempotencyKey }
-    );
-    if (quoteStatus >= 400 || (quoteData as { success?: unknown } | null)?.success === false) {
-      return { content: [{ type: "text", text: formatJson(quoteData) }], isError: true };
+    const hash = orderConfigurationHash(body);
+    const prior = serviceOrderQuotes.get(idempotencyKey);
+    const refusal = (error: string, message: string) => ({ isError: true as const,
+      content: [{ type: "text" as const, text: formatJson({ success: false, error, confirmationRequired: true, idempotencyKey, message }) }] });
+    if (prior && prior.configurationHash !== hash) return refusal("orderConfigurationChanged", "Reuse this key only with the unchanged quoted order configuration. No confirmation was sent.");
+    const confirming = approvedToken !== undefined || expected_total_eur !== undefined || acknowledge_charge !== undefined;
+    if (confirming) {
+      if (!prior) return refusal("orderQuoteUnavailable", "This process has no original quote for this key. Inspect the original attempt in the VPSnet panel; do not create a new key to retry an uncertain purchase.");
+      if (acknowledge_charge !== true || expected_total_eur === undefined || approvedToken !== prior.quoteToken) {
+        return refusal("purchaseConfirmationRequired", "Approve the exact quoted gross EUR amount and billing period, then supply all confirmation fields and the original quote token. No confirmation was sent.");
+      }
+      if (orderMoneyUnits(expected_total_eur) !== prior.total) return refusal("orderQuoteChanged", "The approved gross EUR total differs from the original quote. Show that quote and obtain approval again. No confirmation was sent.");
+      // A concurrent call, exact retry or uncertain transport result must not
+      // send another confirmation. Retain the original outcome for this key.
+      prior.confirmation ??= (async () => {
+        try {
+          const { status, data } = await apiRequest("POST", "/order/configuration/confirm", { ...body, quoteToken: prior.quoteToken },
+            { "Idempotency-Key": idempotencyKey, "X-Quote-Token": prior.quoteToken });
+          const response = data as Record<string, unknown> | null;
+          if (response?.quoteMismatch === true || response?.quotePayloadMismatch === true || response?.quoteExpired === true) {
+            return { isError: true, content: [{ type: "text" as const, text: formatJson({ ...response,
+              confirmationRequired: true, idempotencyKey,
+              message: "The original quote is no longer valid. The API refused confirmation before charging. Inspect this original attempt in the VPSnet panel and obtain approval of any changed price or configuration; do not retry an uncertain purchase with a new key." }) }] };
+          }
+          return { ...(status >= 400 ? { isError: true } : {}), content: [{ type: "text" as const, text: formatJson(data) }] as [{ type: "text"; text: string }] };
+        } catch {
+          return refusal("purchaseOutcomeUnknown", "The confirmation outcome is unknown. Inspect this original attempt in the VPSnet panel. Do not submit another order or use a new key.");
+        }
+      })();
+      return prior.confirmation;
     }
-    const quoteToken = (quoteData as { quoteToken?: string }).quoteToken;
-    if (!quoteToken) {
-      throw new Error("Order quote did not return quoteToken");
+    if (prior) return prior.confirmation ?? { content: [{ type: "text", text: formatJson(prior.quote) }] };
+    if (serviceOrderQuotesInFlight.has(idempotencyKey)) {
+      return refusal("orderQuotePending", "The original quote request is still pending. Wait for that result and keep the same key; no second quote or confirmation was sent.");
     }
-    body.quoteToken = quoteToken;
-    const { data } = await apiRequest(
-      "POST",
-      "/order/configuration/confirm",
-      body,
-      { "Idempotency-Key": idempotencyKey, "X-Quote-Token": quoteToken }
-    );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    if (serviceOrderQuotes.size + serviceOrderQuotesInFlight.size >= serviceOrderQuoteCapacity) {
+      return refusal("orderAttemptCapacityReached", "This MCP process has reached its retained order-attempt capacity. No new quote or confirmation was sent. Existing attempts remain available under their original keys. Inspect those attempts in the VPSnet panel; do not restart or replace a key to retry an uncertain purchase.");
+    }
+    serviceOrderQuotesInFlight.add(idempotencyKey);
+    try {
+      const { status: quoteStatus, data: quoteData } = await apiRequest(
+        "POST",
+        "/order/configuration/quote",
+        body,
+        { "Idempotency-Key": idempotencyKey }
+      );
+      if (quoteStatus >= 400 || (quoteData as { success?: unknown } | null)?.success === false) {
+        return { content: [{ type: "text", text: formatJson(quoteData) }], isError: true };
+      }
+      const source = quoteData as Record<string, unknown> | null;
+      const token = z.string().min(32).max(190).safeParse(source?.quoteToken);
+      const amount = orderMoneySchema.safeParse(source?.amount_eur);
+      if (!token.success || !amount.success) return refusal("orderQuoteInvalid", "The API did not return a valid exact gross EUR quote and token. No confirmation was sent. Inspect this original attempt in the VPSnet panel.");
+      const quote: Record<string, unknown> = { success: true, confirmationRequired: true, idempotencyKey,
+        quoteToken: token.data, amount_eur: amount.data, currency: "EUR", amount_includes_vat: true,
+        plan, period,
+        ...(typeof source?.quoteExpiresAt === "string" || typeof source?.quoteExpiresAt === "number" ? { quoteExpiresAt: source.quoteExpiresAt } : {}),
+        message: "No purchase was confirmed. Show this gross EUR total and billing period, obtain explicit approval, then call order_service with the unchanged configuration and key plus quoteToken, expected_total_eur and acknowledge_charge=true." };
+      serviceOrderQuotes.set(idempotencyKey, { configurationHash: hash, total: orderMoneyUnits(amount.data), quoteToken: token.data, quote });
+      return { content: [{ type: "text", text: formatJson(quote) }] };
+    } finally {
+      serviceOrderQuotesInFlight.delete(idempotencyKey);
+    }
   }
 );
 
@@ -3117,12 +3320,13 @@ server.registerTool(
     description: "Get backup history for a service Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
+      page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow response pagination for older records."),
     },
   },
-  async ({ orderNo }) => {
+  async ({ orderNo, page }) => {
     const { data } = await apiRequest(
       "GET",
-      svc(orderNo, "backup/history")
+      svc(orderNo, "backup/history") + (page === undefined ? "" : `?page=${page}`)
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -3132,9 +3336,10 @@ server.registerTool(
   "create_backup",
   {
     description:
-      "Create a new backup. Returns noty UUID for tracking. First call get_backup_status to see available period dates and price. Backup is a paid operation (price shown in get_backup_status). Requires services:manage and a full-access API key.",
+      "Create a new backup. Returns noty UUID for tracking. First call get_backup_status to see available period dates and price. Backup is a paid operation (price shown in get_backup_status). Call only after the user approves the exact service, historical date, directories and disclosed price. Reuse the same idempotencyKey and unchanged request after a lost response; never rotate the key to retry an uncertain payment. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
+      idempotencyKey: paidIdempotencyKeySchema.describe("Stable unique key for this exact approved backup purchase: 16-190 ASCII letters, digits, dots, underscores, colons or hyphens; first character must be alphanumeric. Reuse unchanged on retry."),
       period: z
         .string()
         .describe(
@@ -3161,12 +3366,40 @@ server.registerTool(
         ),
     },
   },
-  async ({ orderNo, period, directories, payment }) => {
+  async ({ orderNo, period, directories, payment, idempotencyKey }) => {
     const { data } = await apiRequest("POST", svc(orderNo, "backup"), {
       period,
       directories,
       payment,
-    });
+    }, { "Idempotency-Key": idempotencyKey });
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+// Firecracker nightly backups have their own customer read model; the legacy
+// /backup endpoints describe Container VPS archive purchases instead.
+server.registerTool(
+  "get_firecracker_backup_status",
+  {
+    description: "Get nightly off-node backup status for a Firecracker VPS, including running count and the latest retained backup's consistency provenance. A guest_agent attestation is the guest's claim. Temporary VMs have no automatic backups. Requires services:read.",
+    inputSchema: { orderNo: serviceOrderNoSchema },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest("GET", svc(orderNo, "firecracker/backup/status"));
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "get_firecracker_backup_history",
+  {
+    description: "Get retained nightly Firecracker VPS backup history, including failed/running attempts and consistency provenance. records and backups contain the same list; this endpoint is not paginated. Temporary VMs return an empty disabled history. Requires services:read.",
+    inputSchema: { orderNo: serviceOrderNoSchema },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest("GET", svc(orderNo, "firecracker/backup/history"));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -3176,11 +3409,17 @@ server.registerTool(
 server.registerTool(
   "list_ssh_keys",
   {
-    description: "List all SSH keys on the account",
-    inputSchema: {},
+    description: "List account SSH public keys. Follow response pagination until all pages are read; perPage accepts 1-200 (default 50).",
+    inputSchema: {
+      page: z.number().int().min(1).max(1000000).optional(),
+      perPage: z.number().int().min(1).max(200).optional(),
+    },
   },
-  async () => {
-    const { data } = await apiRequest("GET", "/account/ssh-keys");
+  async ({ page, perPage }) => {
+    const query = new URLSearchParams();
+    if (page !== undefined) query.set("page", String(page));
+    if (perPage !== undefined) query.set("perPage", String(perPage));
+    const { data } = await apiRequest("GET", "/account/ssh-keys" + (query.size ? `?${query}` : ""));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -4713,14 +4952,11 @@ server.registerTool(
 server.registerTool(
   "list_domain_contacts",
   {
-    description: "List domain registrant/admin/tech/billing contacts owned by the account. Requires domains:read when using an API key.",
-    inputSchema: { page: z.number().int().min(1).max(1000000).optional().describe("Page number; follow the response pagination until all pages are read."), snapshot: z.string().regex(/^[a-f0-9]{64}$/).optional().describe("Reuse pagination.snapshot from page one; if membership changes, restart the list.") },
+    description: "List all domain registrant/admin/tech/billing contacts owned by the account in one response. This endpoint has no pagination or snapshot parameters. Requires domains:read when using an API key.",
+    inputSchema: {},
   },
-  async ({ page, snapshot }) => {
-    const query = new URLSearchParams();
-    if (page !== undefined) query.set('page', String(page));
-    if (snapshot !== undefined) query.set('snapshot', snapshot);
-    const { data } = await apiRequest("GET", "/account/domains/contacts" + (query.size ? "?" + query.toString() : ""));
+  async () => {
+    const { data } = await apiRequest("GET", "/account/domains/contacts");
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -5691,6 +5927,7 @@ const functionBodyFromInput = (input: Record<string, unknown>) => {
   for (const key of [
     "name",
     "runtime_os_id",
+    "private_network_id",
     "entrypoint",
     "description",
     "code",
@@ -5711,6 +5948,7 @@ const functionBodyFromInput = (input: Record<string, unknown>) => {
 const functionFieldsSchema = {
   name: z.string().optional().describe("Function name"),
   runtime_os_id: positiveIdSchema.optional().describe("Runtime OS ID (see list_functions response for available runtimes)"),
+  private_network_id: z.string().regex(/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/).nullable().optional().describe("Private network ID from list_functions privateNetworking discovery. Omit to preserve an existing binding during update; null detaches it. Backend validates ownership and availability."),
   entrypoint: z.string().optional().describe("Entrypoint command/handler"),
   description: z.string().optional().describe("Description (max 2000 chars)"),
   code: z.string().optional().describe("Function source code"),
@@ -5732,6 +5970,29 @@ server.registerTool(
   },
   async () => {
     const { data } = await apiRequest("GET", "/account/firecracker/functions");
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_function_history",
+  {
+    description: "Read paginated account-wide Firecracker Function invocation history. Filter by function, status or search and follow pagination.pages for older runs. Requires services:read for an API key; OAuth uses the Functions read permission.",
+    inputSchema: {
+      function_id: positiveIdSchema.optional().describe("Optional Function ID from list_functions"),
+      status: z.enum(["queued", "running", "succeeded", "failed", "timed_out", "error"]).optional(),
+      search: z.string().max(200).optional(),
+      limit: z.number().int().min(1).max(200).optional().describe("Page size; default 25"),
+      page: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).optional().describe("Page number; default 1"),
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+  },
+  async ({ function_id, status, search, limit, page }) => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries({ function_id, status, search, limit, page })) {
+      if (value !== undefined) query.set(key, String(value));
+    }
+    const { data } = await apiRequest("GET", `/account/firecracker/functions/history${query.size ? `?${query}` : ""}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -5867,7 +6128,7 @@ server.registerTool(
 server.registerTool(
   "list_function_invocations",
   {
-    description: "List invocations of a Firecracker Function with status, duration, and cost.",
+    description: "List the latest 50 invocations of a Firecracker Function with status, duration, and cost. Use list_function_history for older runs and pagination.",
     inputSchema: {
       function_id: positiveIdSchema.describe("Function ID from list_functions"),
     },
@@ -6162,7 +6423,7 @@ server.registerTool(
   "create_dns_zone",
   {
     description:
-      "Create a forward DNS zone in pending verification state. Native zones are managed here; secondary zones AXFR from public primary DNS servers and require TSIG. Returns the TXT verification value ONCE in verificationRecord (name _vpsnet-dns.<zone>) - keep it; a lost value is replaced with reissue_dns_zone_verification. The API records the nameservers the parent zone delegates the name to, so the TXT can still be proven at that previous provider after the domain is pointed at VPSnet. warnings: delegatedToPlatform (the domain already points at VPSnet nameservers - keep them, do not point it back) or parentServedByPlatform (the TXT goes in the parent zone); zone.verification.next_step says what to do next. Requires dns:write when using an API key.",
+      "Create a forward DNS zone in pending verification state. Native zones are managed here; secondary zones AXFR from public primary DNS servers and require TSIG. Returns the ownership TXT in verificationRecord (name _vpsnet-dns.<zone>). If the value is lost, read get_dns_zone.zone.verification.record.value first; use reissue_dns_zone_verification only when it is null/unrecoverable or the customer requests rotation. The API records the nameservers the parent zone delegates the name to, so the TXT can still be proven at that previous provider after the domain is pointed at VPSnet. warnings: delegatedToPlatform (the domain already points at VPSnet nameservers - keep them, do not point it back) or parentServedByPlatform (the TXT goes in the parent zone); zone.verification.next_step says what to do next. Add the TXT at that location, then call verify_dns_zone. Requires dns:write when using an API key.",
     inputSchema: {
       zone: z.string().describe("Zone name, e.g. example.com"),
       kind: dnsZoneKindSchema
@@ -6208,7 +6469,7 @@ server.registerTool(
 server.registerTool(
   "get_dns_zone",
   {
-    description: "Get a DNS zone and desired records. Requires dns:read when using an API key.",
+    description: "Get a DNS zone and desired records, including their record IDs for update_dns_record. A waiting zone's ownership TXT value is available in zone.verification.record.value when recoverable; read it before considering reissue_dns_zone_verification. Requires dns:read when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
@@ -6364,6 +6625,22 @@ server.registerTool(
 );
 
 server.registerTool(
+  "reapply_dns_zone",
+  {
+    description:
+      "Retry publication of a published DNS zone whose apply_state is failed. Read get_dns_zone first: fix any apply_blocking_records before retrying. This queues the existing desired records for publication and can change public DNS answers; success with apply_state=queued does not mean publication completed. Poll get_dns_zone until apply_state is clean or failed, inspecting apply_error on failure. The API refuses zones that are not published, not failed, or still blocked by invalid records. Requires dns:write when using an API key.",
+    inputSchema: {
+      zone_id: positiveIdSchema.describe("DNS zone ID from get_dns_zone with status=published and apply_state=failed"),
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+  },
+  async ({ zone_id }) => {
+    const { data } = await apiRequest("POST", `/account/dns/zones/${encodeURIComponent(String(zone_id))}/reapply`);
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
   "verify_dns_zone",
   {
     description:
@@ -6383,7 +6660,7 @@ server.registerTool(
   "reissue_dns_zone_verification",
   {
     description:
-      "Replace a pending DNS zone's ownership TXT value when the one returned by create_dns_zone was lost (only its hash is stored). Returns the new value once in verificationRecord; the previous value stops being accepted, so the TXT record must be updated to the new value. Only for zones in pending_verification. Rate limited to 5 per minute. Requires dns:write when using an API key.",
+      "Rotate the ownership TXT value for a DNS zone in pending_verification or verification_expired. First read get_dns_zone.zone.verification.record.value; reissue only when that value is null/unrecoverable or the customer requests rotation. Returns the new value in verificationRecord; the previous value stops being accepted, so update the TXT at the location indicated by zone.verification.next_step, then call verify_dns_zone. Reissuing does not itself verify the zone or reset its status. Rate limited to 5 per minute. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
     },
@@ -6437,7 +6714,7 @@ server.registerTool(
   "upsert_dns_record",
   {
     description:
-      "Create or replace a forward DNS record in desired state for a native zone. Replacing an existing record changes the public answer after publication. PTR and *.arpa are rejected; use change_rdns for reverse DNS. Requires dns:write when using an API key.",
+      "Add a forward DNS desired-state record to a native zone, identified by name, type and content together. Different content adds another record and keeps existing values; it does not replace them. An identical tuple updates its TTL/comment and re-enables it if disabled. To replace an existing record's content, read get_dns_zone and pass its exact record_id to update_dns_record. Changes affect public answers after publication. PTR and *.arpa are rejected; use change_rdns for reverse DNS. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
       name: z
@@ -6702,11 +6979,11 @@ server.registerTool(
 server.registerTool(
   "get_login_history",
   {
-    description: "Get account login history (IPs, dates)",
-    inputSchema: {},
+    description: "Get account login history (IPs, dates) with pagination; follow response pagination to read older records.",
+    inputSchema: { page: z.number().int().min(1).max(1000000).optional() },
   },
-  async () => {
-    const { data } = await apiRequest("GET", "/account/history/login");
+  async ({ page }) => {
+    const { data } = await apiRequest("GET", "/account/history/login" + (page === undefined ? "" : `?page=${page}`));
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
@@ -6714,13 +6991,23 @@ server.registerTool(
 server.registerTool(
   "get_management_history",
   {
-    description: "Get management/activity history (service actions, changes)",
-    inputSchema: {},
+    description: "Get management/activity history with pagination and optional exact orderNo or subject_kind/subject_key filters. subject_kind accepts one kind or comma-separated kinds (network, load_balancer, vpn_gateway, nat_gateway, security_group, public_address); subject_key requires exactly one kind. Follow response pagination to read older records.",
+    inputSchema: {
+      page: z.number().int().min(1).max(1000000).optional(),
+      orderNo: serviceOrderNoSchema.optional(),
+      subject_kind: z.string().max(255).regex(/^(?:network|load_balancer|vpn_gateway|nat_gateway|security_group|public_address)(?:,(?:network|load_balancer|vpn_gateway|nat_gateway|security_group|public_address))*$/).optional(),
+      subject_key: z.string().trim().min(1).max(255).optional(),
+    },
   },
-  async () => {
+  async ({ page, orderNo, subject_kind, subject_key }) => {
+    if (subject_key !== undefined && (subject_kind === undefined || subject_kind.includes(","))) {
+      return { isError: true, content: [{ type: "text", text: formatJson({ success: false, error: "managementHistorySubjectFilterInvalid", message: "subject_key requires exactly one subject_kind." }) }] };
+    }
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries({ page, orderNo, subject_kind, subject_key })) if (value !== undefined) query.set(key, String(value));
     const { data } = await apiRequest(
       "GET",
-      "/account/history/management"
+      "/account/history/management" + (query.size ? "?" + query.toString() : "")
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.6 connector / 2.3.10 MCP server
+
+- Correct native private-network setup for existing servers and polling of network changes.
+- Preserve application action retries and expose rollback, inspection and recipe-validation follow-up tools.
+- Preserve SSL processing states, certificate failure explanations and DNS record identity.
+- Expose guest DNS resolver settings and retrying failed DNS zone publication.
+- Add Firecracker backup and Functions history reads, pagination, and partial Function updates.
+- Require stable backup request keys and explicit dedicated-server reinstall consent.
+- Quote API-key server orders before charging and require approval of the exact total and billing period.
+
 ## 2.3.9 MCP server
 
 - Describe VM inspection and file reading as persisted operations with non-destructive write annotations.

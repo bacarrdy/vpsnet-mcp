@@ -33,6 +33,11 @@ async function startApi(latestAction) {
       return;
     }
 
+    if (!latestAction || latestAction.id !== ACTION_ID || latestAction.cancellable !== true) {
+      res.statusCode = 409;
+      res.end(JSON.stringify({ success: false, applicationActionCancellationUnavailable: true }));
+      return;
+    }
     res.statusCode = 202;
     res.end(JSON.stringify({
       success: true,
@@ -61,7 +66,7 @@ async function connectClient(t, apiUrl) {
   return client;
 }
 
-test("application action cancellation pre-reads and posts the exact typed request", async (t) => {
+test("application action cancellation posts the exact typed request to backend eligibility enforcement", async (t) => {
   const { api, requests, url } = await startApi({
     id: ACTION_ID,
     state: "queued",
@@ -83,16 +88,15 @@ test("application action cancellation pre-reads and posts the exact typed reques
   const installationPath =
     `/account/services/VP123/applications/installations/${INSTALLATION_ID}`;
   assert.equal(result.isError, undefined);
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 1);
   assert.deepEqual(
     requests.map(({ method, url: requestUrl }) => ({ method, url: requestUrl })),
     [
-      { method: "GET", url: installationPath },
       { method: "POST", url: `${installationPath}/actions/${ACTION_ID}/cancel` },
     ]
   );
-  assert.deepEqual(requests[1].body, {});
-  assert.equal(requests[1].headers["idempotency-key"], "cancel-contract-key-0001");
+  assert.deepEqual(requests[0].body, {});
+  assert.equal(requests[0].headers["idempotency-key"], "cancel-contract-key-0001");
 });
 
 const refusalCases = [
@@ -114,7 +118,7 @@ const refusalCases = [
 ];
 
 for (const { name, latestAction, actionId } of refusalCases) {
-  test(`application action cancellation refuses ${name} before POST`, async (t) => {
+  test(`application action cancellation refuses ${name} through backend enforcement`, async (t) => {
     const { api, requests, url } = await startApi(latestAction);
     t.after(() => api.close());
     const client = await connectClient(t, url);
@@ -131,10 +135,10 @@ for (const { name, latestAction, actionId } of refusalCases) {
 
     assert.equal(result.isError, true);
     assert.equal(requests.length, 1);
-    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].method, "POST");
     assert.match(
       result.content[0].text,
-      /applicationActionCancellationNotAdvertised/
+      /applicationActionCancellationUnavailable/
     );
   });
 }

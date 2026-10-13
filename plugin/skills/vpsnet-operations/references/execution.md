@@ -38,3 +38,13 @@ read returns the SHA-256 required by `write_vm_file`. A successful replacement
 returns a private `backupPath` for recovery. Inspect the final operation result
 and verify the application after editing. Never write a redacted placeholder
 back over an actual configuration value.
+
+## Networking readiness and recovery
+
+For a new private network, poll `get_networking_operation` and `get_private_network` until `network.port_intent_ready=true`, then inspect each service with `list_network_attachment_candidates`. A successful `network_graph_created` operation can accompany `provisioning_status=configured` and `applied_generation=0`; the first guest attachment supplies endpoint qualification. Do not wait for generation equality before attaching the first eligible port. Preserve actual candidate refusals and obtain approval for a required restart.
+
+Operation IDs belong to separate stores. Network and private-port changes use `get_networking_operation`. Security-group and policy writes return `policies[]` or a policy operation: poll `get_network_security_policy` for each affected network using its project ID, desired/applied generation and reason. Appliance and VPN changes use `get_network_appliance_operation`, then the resource's health. A VPN server-access setting may already be saved while its network policy is pending. Public-binding bind/move/forward/delete use `get_network_public_binding`; their operation IDs are not generic networking operation IDs. DNS changes use `get_private_network.settings.dns_change`; NAT and public-address changes use `get_network_routed_egress` and `get_network_public_address`. Paid product orders, where supported, use `get_network_product_order` and the original quote's recovery path.
+
+For security policy, read `default_policy`, the assigned groups and their rules. `effective_policy.default_ingress/default_egress` describe implicit deny fallthrough after allow rules, rather than overriding a configured accept policy. Creating a group without egress rules adds an egress-any allow rule; updating a group keeps exactly the supplied rules. Verify the applied policy before claiming the firewall has changed.
+
+When native networking is unavailable for the actual service or required design, offer a suitable alternative and explain its tradeoffs. A public-IP WireGuard tunnel is a separate design from VPSnet SDN. Obtain approval before switching designs; retain the native backend refusal rather than treating a new-order availability flag as a service-attachment refusal.

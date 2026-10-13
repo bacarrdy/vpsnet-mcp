@@ -33,9 +33,10 @@ export const applicationActionSchema = z
     "stop",
     "uninstall",
     "update",
+    "rollback",
   ])
   .describe(
-    "Supported lifecycle action. Update applies the backend-selected newer immutable release. Selective data restore is a separate revision-bound operation."
+    "Supported lifecycle action. Update and rollback apply the exact backend-advertised immutable release. Selective data restore is a separate revision-bound operation."
   );
 
 export type ApplicationLifecycleAction = z.infer<
@@ -54,7 +55,7 @@ export const applicationExpectedVersionSchema = z
   .max(96)
   .regex(/^[\x21-\x7E]{1,96}$/)
   .describe(
-    "Exact version copied from the current advertised update capability; this is an execution precondition, not a caller-selected target"
+    "Exact version copied from the advertised update or rollback capability; this is an execution precondition, not a caller-selected target"
   );
 
 const externalHttpsUrlSchema = z.string().max(500).refine((value) => {
@@ -322,9 +323,9 @@ export function applicationLifecycleRequestBody(
     upstreamVersion: string;
   }
 ): Record<string, unknown> {
-  if (action === "update") {
+  if (action === "update" || action === "rollback") {
     if (!expectedUpdate?.blueprintVersion || !expectedUpdate.upstreamVersion) {
-      throw new Error("An exact advertised update release is required.");
+      throw new Error(`An exact advertised ${action} release is required.`);
     }
     return {
       action,
@@ -592,6 +593,9 @@ export function safeApplicationDataRestorePointsPayload(
   return {
     success: true,
     points,
+    incompatible_points: boundedInteger(payload.incompatiblePoints, Number.MAX_SAFE_INTEGER),
+    failed_captures: boundedInteger(payload.failedCaptures, Number.MAX_SAFE_INTEGER),
+    last_failed_capture_at: timestamp(payload.lastFailedCaptureAt),
     quote,
     active_restore: payload.activeRestore === null
       ? null

@@ -843,6 +843,7 @@ function safeAcmeSubscriptionRenewal(value: unknown): Record<string, unknown> | 
   const renewalAt = text(source.renewal_at, 64);
   const state = [
     "awaiting_payment",
+    "processing",
     "prepaid",
     "settled",
     "refund_pending",
@@ -897,6 +898,7 @@ function safeAcmeSubscriptionAction(value: unknown): Record<string, unknown> | n
     "awaiting_payment",
     "queued",
     "submitting",
+    "processing",
     "reconciling",
     "reconciliation_required",
     "succeeded",
@@ -1351,6 +1353,16 @@ function safeFreeTimelineEvent(value: unknown): Record<string, unknown> | null {
   return { event, actor: source.actor, created_at: createdAt };
 }
 
+// Mirrors FreeCertificateFailureCode::all(); never pass stored/internal CA prose.
+const freeCertificateFailureReasons = new Set([
+  "dns_validation_failed", "rate_limited", "validation_unauthorized",
+  "validation_record_mismatch", "caa_forbids_issuance", "hostname_rejected",
+  "validation_connection_failed", "csr_rejected", "authority_unavailable",
+  "authority_protocol_error", "request_malformed", "authority_account_problem",
+  "dns_name_not_found", "dns_propagation_pending", "authority_credentials_changed",
+  "issuance_failed",
+]);
+
 function safeFreeRequest(value: unknown): Record<string, unknown> | null {
   const source = record(value);
   const id = freeCertificateRequestIdSchema.safeParse(source.id);
@@ -1371,6 +1383,11 @@ function safeFreeRequest(value: unknown): Record<string, unknown> | null {
   const authorityName = source.certificate_authority === null
     ? null
     : text(source.certificate_authority, 64);
+  const failureReason = source.failure_reason == null
+    ? null
+    : typeof source.failure_reason === "string" && freeCertificateFailureReasons.has(source.failure_reason)
+      ? source.failure_reason
+      : "issuance_failed";
   const deliveryOrderId = nullableInteger(source.delivery_order_id);
   const timeline = source.timeline === undefined
     ? undefined
@@ -1424,6 +1441,8 @@ function safeFreeRequest(value: unknown): Record<string, unknown> | null {
     not_before: timestamp(source.not_before),
     not_after: timestamp(source.not_after),
     renewal_due_at: timestamp(source.renewal_due_at),
+    failure_reason: failureReason,
+    failure_at: failureReason === null ? null : timestamp(source.failure_at),
     certificate_authority_id: authorityId !== null && authorityId.success ? authorityId.data : null,
     certificate_authority: authorityName,
     download_available: source.download_available,

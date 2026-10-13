@@ -626,12 +626,14 @@ everything else.
 | `get_application_events` | Get bounded customer-safe installation events | `applications:read` | free |
 | `get_application_health` | Run and poll a fresh container-health inspection | `applications:read` | free |
 | `get_application_logs` | Run and poll a size-bounded recent-log inspection | `applications:read` | free |
+| `get_application_inspection` | Poll the exact persisted health or logs inspection returned by get_application_health or get_application_logs when it remains pending. | `applications:read` | free |
 | `list_application_restore_points` | List eligible nightly points for the exact application revision | `applications:manage` | Needs paid scope: `applications:restore` |
 | `quote_application_data_restore` | Freeze the exact selective-restore balance charge without payment | `applications:manage` | Quote: `applications:restore` |
 | `restore_application_data` | Pay and queue confirmed selective replacement of declared application data | `applications:manage` | Paid: `applications:restore` |
 | `get_application_data_restore` | Poll one tenant-bound selective data restore | `applications:read` | free |
 | `list_application_registry_credentials` | List non-secret private registry credential metadata | `applications:read` | free |
 | `validate_application_recipe` | Validate customer Compose against the target worker policy | `applications:manage` | free |
+| `get_application_recipe_validation` | Poll the exact persisted customer recipe validation returned by validate_application_recipe or a pending recipe creation/revision. | `applications:read` | free |
 | `list_application_recipes` | List customer-owned immutable recipe projects | `applications:read` | free |
 | `list_application_recipe_revisions` | List immutable revisions for a customer recipe | `applications:read` | free |
 | `create_application_recipe` | Validate and save a new customer recipe without installing it | `applications:manage` | free |
@@ -639,6 +641,7 @@ everything else.
 | `export_application_recipe` | Export only a customer-owned recipe without secret values | `applications:read` | free |
 | `install_application_recipe` | Install an exact validated customer recipe revision | `applications:manage` | free |
 | `discover_service_containers` | Discover bounded read-only container metadata | `applications:read` | free |
+| `get_service_container_discovery` | Poll the exact persisted service container discovery returned by discover_service_containers when it remains pending. | `applications:read` | free |
 | `prepare_application_compose_adoption` | Prepare and poll a scrubbed candidate for one discovered Compose project | `applications:manage` | free |
 | `get_application_compose_adoption` | Poll one tenant-bound Compose adoption candidate | `applications:read` | free |
 | `confirm_application_compose_adoption` | Confirm the exact source takeover after explicit approval | `applications:manage` | free |
@@ -653,6 +656,7 @@ everything else.
 | `stop_application` | Stop an application after confirming interruption | `applications:manage` | free |
 | `uninstall_application` | Delete an application after explicit data-loss approval | `applications:manage` | free |
 | `update_application` | Apply the eligible immutable update with exact version preconditions | `applications:manage` | free |
+| `rollback_application` | Queue the exact reverse transition advertised as type=rollback by get_application_installation. | `applications:manage` | free |
 | `cancel_application_action` | Cancel the exact latest queued action only while the backend advertises it as cancellable | `applications:manage` | free |
 
 ### Service Actions
@@ -669,8 +673,10 @@ everything else.
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
 | `get_hostname` | Get current and automatic service hostname state | `services:read` | free |
+| `get_guest_nameservers` | Get the server's saved guest DNS resolver configuration: nsData.type is own (VPSnet defaults) or custom, with ns1-ns4 resolver IP addresses. | `services:read` | free |
 | `change_hostname` | Change VPS hostname | `services:manage` | free |
 | `reset_hostname` | Restore the VPSnet-managed automatic hostname | `services:manage` | free |
+| `set_guest_nameservers` | Change DNS resolvers inside a supported Linux server. | `services:manage` | free |
 | `change_root_password` | Change VPS root password | `services:manage` | free |
 | `get_rdns` | Get current rDNS records | `services:read` | free |
 | `change_rdns` | Change reverse DNS (PTR) record | `services:manage` | free |
@@ -712,14 +718,16 @@ everything else.
 |------|-------------|-------|------|
 | `get_order_plans` | Get available plans for an explicitly selected service product | none | free |
 | `get_order_options` | Get configurable options for a plan | none | free |
-| `order_service` | Order a new VPS (optionally attached to one of your private networks with `privateNetworkId`) | none | Paid: `vps:order`, `vds:order`, `ds:order` or `fc:order` (by product) |
+| `order_service` | Quote a new VPS, then confirm the exact total and period after customer approval; optionally attach a private network with `privateNetworkId` | none | Paid: `vps:order`, `vds:order`, `ds:order` or `fc:order` (by product) |
 
 ### Backups
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
 | `get_backup_status` | Get backup status and configuration | `services:read` | free |
+| `get_firecracker_backup_status` | Get nightly off-node backup status for a Firecracker VPS, including running count and the latest retained backup's consistency provenance. | `services:read` | free |
 | `get_backup_history` | Get backup history | `services:read` | free |
-| `create_backup` | Create a new backup (paid) | `services:manage` | Paid |
+| `get_firecracker_backup_history` | Get retained nightly Firecracker VPS backup history, including failed/running attempts and consistency provenance. | `services:read` | free |
+| `create_backup` | Retrieve historical Container VPS backup content with explicit payment consent and a stable request key | `services:manage` | Paid |
 
 ### Restore
 | Tool | Description | Scope | Paid |
@@ -861,20 +869,21 @@ short-lived quote token.
 | `list_service_dns_options` | List owned zones and service addresses available for DNS attachment | `dns:read` | free |
 | `attach_service_dns_record` | Point an owned-zone name at one service address | `dns:write` | free |
 | `list_dns_zones` | List forward DNS zones owned by the account | `dns:read` | free |
-| `create_dns_zone` | Create a native or secondary forward DNS zone | `dns:write` | free |
-| `get_dns_zone` | Get one DNS zone and its desired records | `dns:read` | free |
+| `create_dns_zone` | Create a native or secondary zone awaiting ownership TXT verification | `dns:write` | free |
+| `get_dns_zone` | Get desired records with IDs and a recoverable ownership TXT value | `dns:read` | free |
+| `reapply_dns_zone` | Retry publication of a published DNS zone whose apply_state is failed. | `dns:write` | free |
 | `get_dns_zone_diagnostics` | Inspect delegation, SOA, DNSSEC, and record hygiene | `dns:read` | free |
 | `export_dns_zone` | Export a native zone as a BIND-style zone file | `dns:read` | free |
 | `import_dns_zone` | Import bounded BIND-style records into a native zone | `dns:write` | free |
 | `list_dns_templates` | List backend-defined DNS record templates | `dns:read` | free |
 | `apply_dns_template` | Preview or apply one DNS record template | `dns:write` | free |
 | `delete_dns_zone` | Delete a forward DNS zone | `dns:write` | free |
-| `verify_dns_zone` | Verify ownership (TXT publicly or at the previous provider) and publish a pending zone | `dns:write` | free |
-| `reissue_dns_zone_verification` | Replace a lost ownership TXT value for a pending zone | `dns:write` | free |
+| `verify_dns_zone` | Verify ownership and publish a pending or verification-expired zone | `dns:write` | free |
+| `reissue_dns_zone_verification` | Rotate ownership TXT for a pending or verification-expired zone after checking its recoverable value | `dns:write` | free |
 | `get_dnssec` | Get DNSSEC state and public DNSKEY/DS material | `dns:read` | free |
 | `set_dnssec` | Enable or safely disable DNSSEC signing | `dnssec:manage` | free |
-| `upsert_dns_record` | Create or replace a forward DNS desired-state record | `dns:write` | free |
-| `update_dns_record` | Update one existing non-system DNS record | `dns:write` | free |
+| `upsert_dns_record` | Add a name/type/content tuple; an identical tuple updates TTL/comment and re-enables the record | `dns:write` | free |
+| `update_dns_record` | Replace one existing non-system DNS record's content by exact record ID | `dns:write` | free |
 | `delete_dns_record` | Delete one forward DNS desired-state record | `dns:write` | free |
 | `get_dns_service_status` | Get managed DNS cluster status and published endpoints | `dns:read` | free |
 | `get_dns_zone_history` | Get recent zone and record change history | `dns:read` | free |
@@ -905,6 +914,7 @@ short-lived quote token.
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
 | `list_functions` | List usage-billed Firecracker Functions | `services:read` | free |
+| `list_function_history` | Read paginated account-wide Firecracker Function invocation history. | `services:read` | free |
 | `get_function` | Get one function, including integrity state and protected values when readable | `services:read` | free |
 | `create_function` | Create a Firecracker Function | `services:manage` | free |
 | `update_function` | Update a function; unreadable protected values require explicit replacement approval | `services:manage` | free |
@@ -1106,10 +1116,13 @@ Each example is a request to your assistant and the tools it calls.
    (OS, period, resource IDs) and `list_ssh_keys` for the key ID.
 2. `order_service` with `plan`, `os`, `period`, `resources`, `sshKey` (or
    `rootPassword`, not both), `payment: { payment: 1, successUrl: '', cancelUrl: '' }`
-   and a stable `idempotencyKey`. With an API key it first requests the server
-   quote and then confirms with the returned `quoteToken` in one call, so the key
-   needs `vps:order` (or `vds:order`, `ds:order`, `fc:order`) and spend caps.
-3. Poll `get_service` for the returned order number; payment accepted is not
+   and a stable `idempotencyKey`. The first call returns a quote without charging.
+   The API key needs `vps:order` (or `vds:order`, `ds:order`, `fc:order`) and spend caps.
+3. Show the exact gross EUR total and billing period. After the customer's approval,
+   repeat the unchanged order and key with the returned `quoteToken`,
+   `expected_total_eur` and `acknowledge_charge: true`. Inspect the original attempt
+   in the panel if its outcome is unknown; do not create another key to retry it.
+4. Poll `get_service` for the returned order number; payment accepted is not
    server ready.
 
 ### Networking (quote, then order)
@@ -1129,12 +1142,24 @@ Each example is a request to your assistant and the tools it calls.
 
 > Point www.example.com at 203.0.113.10 with a 5 minute TTL.
 
-1. `list_dns_zones` to find the `zone_id` (needs `dns:read`).
-2. `upsert_dns_record` with `zone_id`, `name: "www"`, `type: "A"`,
-   `content: "203.0.113.10"`, `ttl: 300` (needs `dns:write`). It creates the
-   record or replaces the existing one.
+1. `list_dns_zones` to find the `zone_id`, then `get_dns_zone` to inspect the
+   existing records and their IDs (needs `dns:read`).
+2. To add an A value, call `upsert_dns_record` with `zone_id`, `name: "www"`,
+   `type: "A"`, `content: "203.0.113.10"`, `ttl: 300` (needs `dns:write`).
+   Different content adds another record and keeps existing values. An identical
+   name/type/content tuple updates its TTL/comment and re-enables it if disabled.
+   To replace an existing value, use `update_dns_record` with its exact
+   `record_id` and the desired name, type, content and TTL.
 3. `get_dns_zone` to read the desired records back, or `get_dns_zone_history` to
    see the change.
+
+For a waiting zone whose ownership TXT value was lost, first read
+`get_dns_zone.zone.verification.record.value`. Use
+`reissue_dns_zone_verification` only if that value is null/unrecoverable or the
+customer requests rotation. It supports both `pending_verification` and
+`verification_expired`; the previous value stops being accepted. Update the TXT
+at the location given by `zone.verification.next_step`, then call
+`verify_dns_zone`. Reissuing alone does not verify the zone or reset its status.
 
 ### Order a paid certificate
 
