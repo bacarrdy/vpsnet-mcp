@@ -2260,26 +2260,37 @@ const applicationLifecycleBaseShape = {
   ),
   confirmed: z.literal(true).describe("True only after the user confirms this exact action"),
 };
-for (const action of ["reconcile", "repair", "restart", "start", "stop"] as const) {
-  const descriptions = {
-    reconcile: "Reconcile an owned managed application with its declared configuration. Read the installation first; confirm the action, then poll installation and events until the queued operation completes.",
-    repair: "Repair an owned managed application's runtime. Read current health and events first; confirm the action, then poll installation and events until the queued operation completes.",
-    restart: "Restart an owned managed application. This interrupts service. Confirm the interruption, then poll installation and events until the queued operation completes.",
-    start: "Start a stopped owned managed application. Confirm the action, then poll installation and events until the queued operation completes.",
-    stop: "Stop an owned managed application. This interrupts service. Confirm the interruption, then poll installation and events until the queued operation completes.",
-  };
-  server.registerTool(`${action}_application`, {
-    description: `${descriptions[action]} Requires applications:manage and a client-global idempotency key.`,
-    inputSchema: applicationLifecycleBaseShape,
-    annotations: {
-      title: `${action[0].toUpperCase()}${action.slice(1)} application`,
-      readOnlyHint: false,
-      destructiveHint: action !== "start",
-      idempotentHint: true,
-      openWorldHint: true,
-    },
-  }, async (input) => performApplicationLifecycleAction({ ...input, action }));
-}
+const applicationActionAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: true,
+  openWorldHint: true,
+};
+server.registerTool("reconcile_application", {
+  description: "Reconcile an owned managed application with its declared configuration. Read the installation first; confirm the action, then poll installation and events until the queued operation completes. Requires applications:manage and a client-global idempotency key.",
+  inputSchema: applicationLifecycleBaseShape,
+  annotations: { ...applicationActionAnnotations, title: "Reconcile application" },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "reconcile" }));
+server.registerTool("repair_application", {
+  description: "Repair an owned managed application's runtime. Read current health and events first; confirm the action, then poll installation and events until the queued operation completes. Requires applications:manage and a client-global idempotency key.",
+  inputSchema: applicationLifecycleBaseShape,
+  annotations: { ...applicationActionAnnotations, title: "Repair application" },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "repair" }));
+server.registerTool("restart_application", {
+  description: "Restart an owned managed application. This interrupts service. Confirm the interruption, then poll installation and events until the queued operation completes. Requires applications:manage and a client-global idempotency key.",
+  inputSchema: applicationLifecycleBaseShape,
+  annotations: { ...applicationActionAnnotations, title: "Restart application" },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "restart" }));
+server.registerTool("start_application", {
+  description: "Start a stopped owned managed application. Confirm the action, then poll installation and events until the queued operation completes. Requires applications:manage and a client-global idempotency key.",
+  inputSchema: applicationLifecycleBaseShape,
+  annotations: { ...applicationActionAnnotations, title: "Start application", destructiveHint: false },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "start" }));
+server.registerTool("stop_application", {
+  description: "Stop an owned managed application. This interrupts service. Confirm the interruption, then poll installation and events until the queued operation completes. Requires applications:manage and a client-global idempotency key.",
+  inputSchema: applicationLifecycleBaseShape,
+  annotations: { ...applicationActionAnnotations, title: "Stop application" },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "stop" }));
 server.registerTool("uninstall_application", {
   description: "Permanently delete an owned managed application's containers, configuration, saved credentials, and application data; server backups remain. Read the installation and obtain explicit user confirmation of data loss before calling. Poll installation and events for the final result. Requires applications:manage.",
   inputSchema: {
@@ -3578,15 +3589,16 @@ server.registerTool("revoke_free_certificate", {
   inputSchema: { ...freeCertificateActionBaseShape, reason: freeCertificateActionRequestSchema.options[1].shape.reason },
   annotations: { title: "Revoke free TLS certificate", readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
 }, async ({ free_certificate_request_id, reason }) => performFreeCertificateAction(free_certificate_request_id, { action: "revoke", reason }));
-for (const action of ["recheck", "cancel"] as const) {
-  server.registerTool(`${action}_free_certificate`, {
-    description: action === "recheck"
-      ? "Recheck validation for an owned pending free TLS certificate after reading its current state. Approval is required; poll get_free_certificate for the final result. Requires certificates:manage."
-      : "Cancel an owned pending free TLS certificate request before issuance. Read its current state and obtain explicit user approval; poll get_free_certificate for the final result. Requires certificates:manage.",
-    inputSchema: freeCertificateActionBaseShape,
-    annotations: { title: `${action[0].toUpperCase()}${action.slice(1)} free TLS certificate`, readOnlyHint: false, destructiveHint: action === "cancel", idempotentHint: false, openWorldHint: true },
-  }, async ({ free_certificate_request_id }) => performFreeCertificateAction(free_certificate_request_id, { action }));
-}
+server.registerTool("recheck_free_certificate", {
+  description: "Recheck validation for an owned pending free TLS certificate after reading its current state. Approval is required; poll get_free_certificate for the final result. Requires certificates:manage.",
+  inputSchema: freeCertificateActionBaseShape,
+  annotations: { title: "Recheck free TLS certificate", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+}, async ({ free_certificate_request_id }) => performFreeCertificateAction(free_certificate_request_id, { action: "recheck" }));
+server.registerTool("cancel_free_certificate", {
+  description: "Cancel an owned pending free TLS certificate request before issuance. Read its current state and obtain explicit user approval; poll get_free_certificate for the final result. Requires certificates:manage.",
+  inputSchema: freeCertificateActionBaseShape,
+  annotations: { title: "Cancel free TLS certificate", readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+}, async ({ free_certificate_request_id }) => performFreeCertificateAction(free_certificate_request_id, { action: "cancel" }));
 
 server.registerTool(
   "list_automatic_ssl_subscriptions",
