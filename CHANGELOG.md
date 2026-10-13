@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.9 MCP server
+
+- Describe VM inspection and file reading as persisted operations with non-destructive write annotations.
+- Preserve diagnostic and file-read permissions and read-only result polling.
+
 ## 2.3.8 MCP server
 
 - Mark private network DNS replacement as destructive because resolver changes can interrupt guest name resolution.
