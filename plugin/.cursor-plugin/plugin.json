@@ -1,0 +1,25 @@
+{
+  "name": "vpsnet",
+  "version": "0.6.0",
+  "description": "Deploy applications and websites, troubleshoot servers, configure networks, DNS and TLS, and create and test Functions on existing VPSnet services with customer-selected access.",
+  "author": {
+    "name": "VPSnet"
+  },
+  "homepage": "https://www.vpsnet.com",
+  "repository": "https://github.com/bacarrdy/vpsnet-mcp",
+  "license": "MIT",
+  "keywords": [
+    "vpsnet",
+    "cloud",
+    "servers",
+    "deployment",
+    "troubleshooting",
+    "networking",
+    "dns",
+    "tls",
+    "functions"
+  ],
+  "logo": "assets/icon.png",
+  "skills": "./skills",
+  "mcpServers": "./cursor.mcp.json"
+}

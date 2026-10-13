@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "vpsnet": {
+      "url": "https://mcp.vpsnet.com/mcp",
+      "oauth": {
+        "oauthScopes": [
+          "services:read"
+        ]
+      }
+    }
+  }
+}

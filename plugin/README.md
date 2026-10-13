@@ -33,6 +33,11 @@ account. The plugin can explain fit and requirements; it does not sell services.
 - **Gemini:** add a custom MCP connection where available; availability depends
   on region and account. Gemini CLI supports remote MCP configuration.
 - **Grok:** add a custom connector with the MCP address and OAuth.
+- **Gemini CLI, Cursor and Kimi Code:** use their native client packages, which
+  bundle the same VPSnet task skills and connect to the same OAuth endpoint.
+- **Other remote OAuth clients:** add the endpoint through the application's
+  connector settings. Each application controls its supported transports,
+  sign-in methods and marketplace availability.
 
 All use the same VPSnet account permissions. Installing this package does not
 mean it has been accepted into every provider’s directory.

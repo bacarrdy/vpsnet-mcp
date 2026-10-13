@@ -1,0 +1,30 @@
+{
+  "name": "VPSnet",
+  "shortDescription": "Manage VPSnet servers, applications, DNS, private networks and Functions with customer-selected services and OAuth permissions.",
+  "description": "Connect AI clients to existing VPSnet services through customer OAuth. Inspect servers and applications, diagnose Linux VMs, manage permitted DNS and private-network settings, and work with Functions. File changes and commands require explicit permissions on selected services. The hosted directory profile excludes purchases, billing and account API-key management.",
+  "websiteUrl": "https://www.vpsnet.com",
+  "repositoryUrl": "https://github.com/bacarrdy/vpsnet-mcp",
+  "documentationUrl": "https://github.com/bacarrdy/vpsnet-mcp/blob/main/docs/REMOTE_MCP.md",
+  "installationUrl": "https://github.com/bacarrdy/vpsnet-mcp/blob/main/llms-install.md",
+  "remote": {
+    "url": "https://mcp.vpsnet.com/mcp",
+    "transport": "streamable-http",
+    "authentication": "oauth2",
+    "dynamicClientRegistration": true
+  },
+  "registryName": "com.vpsnet/vpsnet",
+  "license": "MIT",
+  "keywords": [
+    "vpsnet",
+    "hosting",
+    "cloud",
+    "devops",
+    "dns",
+    "networking",
+    "functions",
+    "mcp"
+  ],
+  "privacyPolicyUrl": "https://www.vpsnet.com/en/information/privacy-policy",
+  "iconUrl": "https://raw.githubusercontent.com/bacarrdy/vpsnet-mcp/main/plugin/assets/icon.png",
+  "pricingNote": "A VPSnet account is required. Underlying VPSnet services have their own prices."
+}

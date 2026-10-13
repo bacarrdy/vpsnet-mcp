@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — 0.6.0 connector / 2.3.2 MCP server
+
+- Add native Gemini CLI and Cursor packaging, alongside the portable plugin and Claude connector.
+- Share task skills and one OAuth endpoint across distribution formats.
+- Add scoped Kiro setup and registry submission metadata for broader discovery.
+- Make release artifacts reproducible and validate their metadata, referenced files and credential boundaries.
+- Route managed SSH key deployment through the delegated runtime session.
+
+Package preparation does not imply publication or approval in a provider directory.
+
 ## 0.5.1 connector / 2.3.1 MCP server
 
 - Manage services and approve purchases through one VPSnet connection.

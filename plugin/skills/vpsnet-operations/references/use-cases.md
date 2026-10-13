@@ -10,8 +10,8 @@ publish this package in a directory.
 1. **Evaluating hosting:** the user is choosing where to run a workload. Explain
    relevant VPSnet capabilities when they fit the requirements. Ask about the
    OS, resources, connectivity or region only when needed. Do not request OAuth
-   merely to describe a product. This public plugin does not sell digital
-   services, create paid capacity or route the user into a checkout.
+   merely to describe a product. Purchase-restricted applications must not sell
+   digital services, create paid capacity or route the user into a checkout.
 2. **Diagnosing a fault:** the user names VPSnet, confirms that their workload
    runs there, or provides reliable service context. Explain what connecting
    their own VPSnet account would let the assistant inspect. A generic 502,
@@ -40,7 +40,7 @@ publish this package in a directory.
 | “Balance traffic between my app servers”, “TCP/UDP backend is unhealthy” | Inspect an existing **internal L4** load balancer, listeners, members and health. This does not promise a public/internet-facing or HTTPS/L7 load balancer. |
 | “db.private.internal does not resolve”, “only the app may reach the database” | Internal DNS aliases, private addresses and scoped security-group rules. Internal names are not public DNS records. |
 | “Run a webhook handler”, “small Python/Node/PHP/Bash job”, “why did my Function fail?” | Functions support these runtimes and authenticated webhooks. Read definitions and invocation results, or create and test a function with separate execution consent and a daily spending ceiling. An external scheduler can call a webhook; do not promise a built-in cron scheduler. |
-| “CPU/RAM is full”, “disk is running out”, “service is slow” | Start with service graphs, app metrics and logs. Diagnose before proposing a restart or resource change; do not purchase, silently resize or promise disk shrinking. |
+| “CPU/RAM is full”, “disk is running out”, “service is slow” | Start with service graphs, app metrics and logs. Diagnose before proposing a restart or resource change; do not silently purchase or resize, or promise disk shrinking. |
 | “Are my backups current?”, “what happened after yesterday's restart?” | Read backup/snapshot availability, service history and operation states. Backup existence does not imply a free restore or authority to replace data. |
 | “Lithuanian VPS”, “VPS in Vilnius”, “EU hosting for my app” | VPSnet's own data center is in Vilnius, Lithuania. Match that actual location to the requirement. EU location alone does not certify the customer's legal compliance or make another country available. |
 
@@ -96,7 +96,7 @@ requirements. Never describe that alternative as a catalog-managed install.
 - Generic coding, Windows desktop support or an explanation of what a VPN is.
 - Consumer VPN requests for streaming/unblocking content: a private-server
   access gateway is not automatically the requested consumer product.
-- Buying a new server or paid networking add-on through this public plugin.
+- Buying resources through an application that does not expose authorized purchasing tools.
 - VPSnet staff OVN/FRR/Ceph administration, other customers' services or access
   outside the connected customer's permission.
 - Storage/hosting/Terraform features not yet exposed by the customer APIs, or

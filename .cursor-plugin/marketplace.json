@@ -1,0 +1,16 @@
+{
+  "name": "vpsnet",
+  "owner": {
+    "name": "VPSnet"
+  },
+  "metadata": {
+    "description": "Manage existing VPSnet services with customer-selected access."
+  },
+  "plugins": [
+    {
+      "name": "vpsnet",
+      "source": "./plugin",
+      "description": "Deploy applications, troubleshoot servers and manage networks, DNS, TLS and Functions on VPSnet."
+    }
+  ]
+}

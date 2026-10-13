@@ -1,20 +1,30 @@
 # Directory submission readiness
 
-Checked against the official requirements on 2026-10-11. This is a release
+Checked against the official requirements on 2026-10-13. This is a release
 candidate, not a provider approval or a guarantee of proactive recommendations.
 The public plugin README, manifests and skill are in English. Internal testing
 and deployment materials are maintained separately in private repositories.
 
 | Provider | Submission or connection format | Remaining external acceptance |
 | --- | --- | --- |
-| OpenAI | `artifacts/vpsnet-plugin-0.1.4.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
+| OpenAI | `vpsnet-plugin-0.6.0.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
 | Claude | Public `bacarrdy/vpsnet-mcp` GitHub repository, `plugin` path, `main` branch; submit both connector and plugin bundle at https://claude.ai/directory/manage | GitHub publisher access, live OAuth, portal checks, reviewer account and review |
 | Gemini | Custom remote MCP in eligible Connected Apps accounts, or the original Gemini CLI | Real account and regional availability; no verified public self-service directory submission path |
 | Grok | Custom remote MCP at https://grok.com/connectors | Real account OAuth; no verified public self-service directory submission path |
+| Gemini CLI | Root `gemini-extension.json` and complete native release archive | Public repository/release, `gemini-cli-extension` topic, actual client sign-in and gallery validation |
+| Cursor | `plugin/.cursor-plugin/plugin.json` and root `.cursor-plugin/marketplace.json` | Public repository, native OAuth and marketplace review |
+| Kiro | Portable Agent Plugins bundle; standalone scoped MCP configuration also provided | Power OAuth scope behavior must pass on the actual client before submitting |
+| Kimi Code / Work | Native `kimi.plugin.json` bundle; Work imports through Plugin Builder | Code sign-in, separate Work conversion/test and official marketplace application |
+
+Additional registration drafts and provider requirements are maintained in the
+[catalog kit](../distribution/catalogs/README.md). MiniMax requires provider
+App/Connector onboarding before an OAuth plugin can be submitted. A registry
+entry does not grant approval in another AI application's marketplace.
 
 ## Automated checks
 
-Run `npm test`, `python3 scripts/validate_plugin.py` and
+Run `node --test test/plugin-package.test.mjs test/distribution-package.test.mjs`,
+`python3 scripts/package-distribution.py` and
 `claude plugin validate ./plugin`. The offline validator checks package paths,
 file limits, UTF-8 text, matching versions, a substantive README, license,
 listing lengths and URLs, at most three starter prompts, optional brand-color

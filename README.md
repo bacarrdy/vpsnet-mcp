@@ -32,6 +32,15 @@ publisher requirements, and [supported use cases](plugin/skills/vpsnet-operation
 for server, application and networking scenarios. Directory publication and
 provider account availability are separate from installing this source code.
 
+See [AI client setup](docs/CLIENTS.md) for Gemini CLI, Cursor, Kimi Code, Kiro,
+Cline and other remote OAuth clients. Their packages share the same VPSnet
+endpoint and task skills. The npm package supplies the local MCP server;
+installable plugin bundles also carry the AI application's manifest and skills.
+
+Build all client bundles with `python3 scripts/package-distribution.py`.
+The output includes checksums and identifies each format. Public directory
+submission materials are in [the catalog kit](distribution/catalogs/README.md).
+
 [Ordering](docs/ORDERS.md) uses the existing VPSnet connection, with customer-controlled purchase permissions and spending limits. The AI shows the final price and asks for approval before charging the account balance. Availability follows the application’s distribution rules.
 
 The instructions below describe the existing local stdio/API-key client.
