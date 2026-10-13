@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.6 MCP server
+
+- Expose individual application and certificate lifecycle actions with dedicated schemas and permissions.
+- Correct destructive and external-effect annotations for network, application, Function and DNS tools.
+- Preserve existing client calls and the hosted domain-verification endpoint across deployments.
+
 ## 0.6.5 connector
 
 - Clarify directory descriptions and Functions permission requirements.

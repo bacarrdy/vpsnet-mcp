@@ -219,6 +219,48 @@
   ],
   "paid": ""
  },
+ "reconcile_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "repair_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "restart_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "start_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "stop_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "uninstall_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "update_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
  "cancel_application_action": {
   "scopes": [
    "applications:manage"
@@ -511,6 +553,30 @@
   ],
   "paid": ""
  },
+ "renew_free_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "revoke_free_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "recheck_free_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "cancel_free_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
  "list_automatic_ssl_subscriptions": {
   "scopes": [
    "certificates:read"
@@ -577,6 +643,24 @@
   ],
   "paid": ""
  },
+ "cancel_automatic_ssl_subscription": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "remove_automatic_ssl_domain": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "replace_automatic_ssl_domain": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
  "list_certificate_catalog": {
   "scopes": [
    "certificates:read"
@@ -638,6 +722,36 @@
   "paid": ""
  },
  "manage_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "cancel_certificate": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "recheck_certificate_validation": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "resend_certificate_validation": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "change_certificate_validation": {
+  "scopes": [
+   "certificates:manage"
+  ],
+  "paid": ""
+ },
+ "reissue_certificate": {
   "scopes": [
    "certificates:manage"
   ],

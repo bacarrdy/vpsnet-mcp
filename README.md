@@ -153,7 +153,7 @@ replacement is conclusively contained; uncertain outcomes fail closed.
 
 An immutable update is available only when `get_application_installation`
 returns an `available_actions` entry with `type: "update"`. After explicit user
-confirmation, call `manage_application` with `action: "update"`, the exact
+confirmation, call `update_application` with the exact
 advertised `expected_blueprint_version` and `expected_upstream_version`, and a
 new idempotency key. Keys are client-global: reuse a key only to replay the
 exact same request, never for another service or operation. The
@@ -186,7 +186,7 @@ rather than attempting an action and reading the failure.
 
 Uninstall permanently deletes the managed containers, configuration, saved
 credentials, and application data; existing server backups are retained. The
-`manage_application` call requires `acknowledge_data_loss=true` for uninstall,
+`uninstall_application` call requires `acknowledge_data_loss=true`,
 and it must only be set after explicit user confirmation.
 
 The MCP surface is task-oriented rather than a one-to-one mirror of every REST
@@ -224,7 +224,8 @@ paying twice for names already covered by base/www or wildcard/base rules.
 During the final 30 days, an eligible next term uses
 `quote_automatic_ssl_renewal` → `order_automatic_ssl_renewal` and is prepaid
 from account balance only after the exact EUR total is approved. Cancellation,
-domain removal, and same-type correction use `manage_automatic_ssl_subscription`;
+domain removal, and same-type correction use `cancel_automatic_ssl_subscription`,
+`remove_automatic_ssl_domain`, and `replace_automatic_ssl_domain`;
 ambiguous state is reconciled with `refresh_automatic_ssl_subscription`, never
 by inventing a second mutation. Private ACME server and EAB credentials stay
 in the two-factor-protected customer portal and are intentionally unavailable
@@ -241,7 +242,7 @@ There is no dialog on this surface to collect that confirmation, so the tool
 does not manufacture it. `acknowledge_data_replacement` and
 `acknowledge_restore_charge` must each be `true`, and are only to be set after
 the user has actually approved the disk replacement and the charge — the same
-rule as `acknowledge_data_loss` on `manage_application`. Omitting either is a
+rule as `acknowledge_data_loss` on `uninstall_application`. Omitting either is a
 schema error, so an unattended caller cannot fall through to a charge: nothing
 is even quoted.
 
@@ -644,7 +645,14 @@ everything else.
 | `install_application` | Queue a confirmed, version-pinned managed installation | `applications:manage` | free |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change | `applications:manage` | free |
 | `configure_application_resource_thresholds` | Replace confirmed non-enforcing application resource thresholds and reached/recovered email preference | `applications:manage` | free |
-| `manage_application` | Queue a confirmed lifecycle action, including an eligible immutable update; uninstall also requires explicit data-loss acknowledgement | `applications:manage` | free |
+| `manage_application` | Compatibility tool for older clients; use the individual actions below | `applications:manage` | free |
+| `reconcile_application` | Reconcile an application with its declared configuration | `applications:manage` | free |
+| `repair_application` | Repair an application runtime | `applications:manage` | free |
+| `restart_application` | Restart an application after confirming interruption | `applications:manage` | free |
+| `start_application` | Start a stopped application | `applications:manage` | free |
+| `stop_application` | Stop an application after confirming interruption | `applications:manage` | free |
+| `uninstall_application` | Delete an application after explicit data-loss approval | `applications:manage` | free |
+| `update_application` | Apply the eligible immutable update with exact version preconditions | `applications:manage` | free |
 | `cancel_application_action` | Cancel the exact latest queued action only while the backend advertises it as cancellable | `applications:manage` | free |
 
 ### Service Actions
@@ -752,7 +760,11 @@ cannot be performed by an MCP connection authenticated with an API key.
 | `get_free_certificate_instruction` | Read automatic-DNS status or every required external-DNS CNAME | `certificates:read` | free |
 | `create_free_certificate` | Create one explicitly approved, idempotent no-cost DV request | `certificates:manage` | free |
 | `download_free_certificate` | Retrieve only the issued public leaf and chain, never a private key | `certificates:read` | free |
-| `manage_free_certificate` | Renew, revoke, recheck, or cancel an eligible request | `certificates:manage` | free |
+| `manage_free_certificate` | Compatibility tool for older clients; use the individual actions below | `certificates:manage` | free |
+| `renew_free_certificate` | Request early renewal for the authorized certificate names | `certificates:manage` | free |
+| `revoke_free_certificate` | Revoke an owned certificate after explicit approval | `certificates:manage` | free |
+| `recheck_free_certificate` | Recheck validation for a pending certificate | `certificates:manage` | free |
+| `cancel_free_certificate` | Cancel an eligible pending certificate request | `certificates:manage` | free |
 
 For portable API or assistant installation, use `customer_csr` and retain the
 private key where the CSR was generated. A managed request can renew unattended,
@@ -773,7 +785,10 @@ not treat a queued request as issued.
 | `order_automatic_ssl_domain` | Confirm and pay for the explicitly approved DNS-name quote | `certificates:read` | Paid: `certificates:order` |
 | `quote_automatic_ssl_renewal` | Quote the next eligible subscription term in EUR | `certificates:read` | Quote: `certificates:order` |
 | `order_automatic_ssl_renewal` | Prepay the explicitly approved next term from account balance | `certificates:read` | Paid: `certificates:order` |
-| `manage_automatic_ssl_subscription` | Cancel, remove a name, or correct an eligible name idempotently | `certificates:manage` | free |
+| `manage_automatic_ssl_subscription` | Compatibility tool for older clients; use the individual actions below | `certificates:manage` | free |
+| `cancel_automatic_ssl_subscription` | Cancel an owned Automatic SSL subscription | `certificates:manage` | free |
+| `remove_automatic_ssl_domain` | Remove one eligible DNS name from a subscription | `certificates:manage` | free |
+| `replace_automatic_ssl_domain` | Correct an eligible DNS name within its correction window | `certificates:manage` | free |
 
 Automatic SSL is a portable paid ACME subscription. It works with a compatible
 client on VPSnet or another provider; it is not limited to managed
@@ -794,7 +809,12 @@ tool or API-key response, so an assistant cannot copy them into model context.
 | `download_certificate` | Download the issued public leaf and chain; private keys are never returned | `certificates:read` | free |
 | `list_certificate_actions` | List durable customer-visible management actions | `certificates:read` | free |
 | `refresh_certificate` | Schedule a read-only certificate-authority status reconciliation | `certificates:manage` | free |
-| `manage_certificate` | Queue an idempotent cancellation, validation, or same-name reissue action | `certificates:manage` | free |
+| `manage_certificate` | Compatibility tool for older clients; use the individual actions below | `certificates:manage` | free |
+| `cancel_certificate` | Cancel an eligible pending certificate order | `certificates:manage` | free |
+| `recheck_certificate_validation` | Recheck certificate validation | `certificates:manage` | free |
+| `resend_certificate_validation` | Resend a certificate validation message after approval | `certificates:manage` | free |
+| `change_certificate_validation` | Change the validation method for one certificate name | `certificates:manage` | free |
+| `reissue_certificate` | Request a same-name reissue with a new public CSR | `certificates:manage` | free |
 
 Paid certificates are portable account products: customers may install them on
 Nginx, Apache, lighttpd, OpenLiteSpeed, HAProxy, Caddy, mail, API, load-balancer,
