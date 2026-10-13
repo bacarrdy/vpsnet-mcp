@@ -29,6 +29,7 @@
     "build/temp-vm-contract.js",
     "build/api-path.js",
     "build/tool-result.js",
+    "build/tool-schema.js",
     "build/networking-tools.js",
     "build/remote.js",
     "build/http-server.js",
