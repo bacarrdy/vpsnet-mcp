@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { installToolInputSchemas } from "./tool-schema.js";
 import { registerOrderTools } from "./remote-orders.js";
 import { registerRemoteTools } from "./remote-tools.js";
 
@@ -268,6 +269,7 @@ const server = new McpServer(
 
 installToolResultErrorFlag(server);
 installToolTitles(server);
+installToolInputSchemas(server);
 if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes, options.remoteProfile);
 registerNetworkingTools(server);
 
