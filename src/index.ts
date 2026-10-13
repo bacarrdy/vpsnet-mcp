@@ -2127,6 +2127,89 @@ server.registerTool(
   }
 );
 
+type ApplicationLifecycleInput = {
+  orderNo: string;
+  installation_id: string;
+  action: z.infer<typeof applicationActionSchema>;
+  idempotencyKey: string;
+  expected_blueprint_version?: string;
+  expected_upstream_version?: string;
+  acknowledge_data_loss?: true;
+};
+
+async function performApplicationLifecycleAction({
+  orderNo,
+  installation_id,
+  action,
+  idempotencyKey,
+  expected_blueprint_version,
+  expected_upstream_version,
+  acknowledge_data_loss,
+}: ApplicationLifecycleInput) {
+  if (action === "uninstall" && acknowledge_data_loss !== true) {
+    return {
+      isError: true,
+      content: [{ type: "text" as const, text: formatJson({
+        success: false,
+        error_codes: ["applicationUninstallConfirmationRequired"],
+      }) }],
+    };
+  }
+
+  if (action === "update") {
+    if (!expected_blueprint_version || !expected_upstream_version) {
+      return {
+        isError: true,
+        content: [{ type: "text" as const, text: formatJson({
+          success: false,
+          error_codes: ["applicationUpdateExpectationRequired"],
+        }) }],
+      };
+    }
+    const current = await apiRequest(
+      "GET",
+      applicationPath(orderNo, `installations/${encodeURIComponent(installation_id)}`)
+    );
+    if (
+      current.status < 200 || current.status >= 300
+      || !applicationUpdateCandidateMatches(current.data, {
+        blueprintVersion: expected_blueprint_version,
+        upstreamVersion: expected_upstream_version,
+      })
+    ) {
+      return {
+        isError: true,
+        content: [{ type: "text" as const, text: formatJson({
+          success: false,
+          error_codes: ["applicationUpdateExpectationChanged"],
+        }) }],
+      };
+    }
+  } else if (expected_blueprint_version || expected_upstream_version) {
+    return {
+      isError: true,
+      content: [{ type: "text" as const, text: formatJson({
+        success: false,
+        error_codes: ["applicationUpdateExpectationUnexpected"],
+      }) }],
+    };
+  }
+
+  const { status, data } = await apiRequest(
+    "POST",
+    applicationPath(orderNo, `installations/${encodeURIComponent(installation_id)}/actions`),
+    applicationLifecycleRequestBody(
+      action,
+      acknowledge_data_loss === true,
+      action === "update"
+        ? { blueprintVersion: expected_blueprint_version!, upstreamVersion: expected_upstream_version! }
+        : undefined
+    ),
+    { "Idempotency-Key": idempotencyKey }
+  );
+  return { content: [{ type: "text" as const, text: safeApplicationMutationResult(status, data, orderNo) }] };
+}
+
 server.registerTool(
   "manage_application",
   {
@@ -2166,111 +2249,54 @@ server.registerTool(
       idempotentHint: true,
     },
   },
-  async ({
-    orderNo,
-    installation_id,
-    action,
-    idempotencyKey,
-    expected_blueprint_version,
-    expected_upstream_version,
-    acknowledge_data_loss,
-  }) => {
-    if (action === "uninstall" && acknowledge_data_loss !== true) {
-      return {
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: formatJson({
-              success: false,
-              error_codes: ["applicationUninstallConfirmationRequired"],
-            }),
-          },
-        ],
-      };
-    }
-
-    if (action === "update") {
-      if (!expected_blueprint_version || !expected_upstream_version) {
-        return {
-          isError: true,
-          content: [{
-            type: "text",
-            text: formatJson({
-              success: false,
-              error_codes: ["applicationUpdateExpectationRequired"],
-            }),
-          }],
-        };
-      }
-
-      const current = await apiRequest(
-        "GET",
-        applicationPath(
-          orderNo,
-          `installations/${encodeURIComponent(installation_id)}`
-        )
-      );
-      if (
-        current.status < 200
-        || current.status >= 300
-        || !applicationUpdateCandidateMatches(current.data, {
-          blueprintVersion: expected_blueprint_version,
-          upstreamVersion: expected_upstream_version,
-        })
-      ) {
-        return {
-          isError: true,
-          content: [{
-            type: "text",
-            text: formatJson({
-              success: false,
-              error_codes: ["applicationUpdateExpectationChanged"],
-            }),
-          }],
-        };
-      }
-    } else if (expected_blueprint_version || expected_upstream_version) {
-      return {
-        isError: true,
-        content: [{
-          type: "text",
-          text: formatJson({
-            success: false,
-            error_codes: ["applicationUpdateExpectationUnexpected"],
-          }),
-        }],
-      };
-    }
-
-    const { status, data } = await apiRequest(
-      "POST",
-      applicationPath(
-        orderNo,
-        `installations/${encodeURIComponent(installation_id)}/actions`
-      ),
-      applicationLifecycleRequestBody(
-        action,
-        acknowledge_data_loss === true,
-        action === "update"
-          ? {
-              blueprintVersion: expected_blueprint_version!,
-              upstreamVersion: expected_upstream_version!,
-            }
-          : undefined
-      ),
-      { "Idempotency-Key": idempotencyKey }
-    );
-    return {
-      content: [
-        {
-          type: "text",
-          text: safeApplicationMutationResult(status, data, orderNo),
-        },
-      ],
-    };
-  }
+  performApplicationLifecycleAction
 );
+
+const applicationLifecycleBaseShape = {
+  orderNo: applicationOrderNoSchema,
+  installation_id: applicationInstallationIdSchema,
+  idempotencyKey: idempotencyKeySchema.describe(
+    "Client-global unique key for this exact lifecycle request. Reuse only for an unchanged retry."
+  ),
+  confirmed: z.literal(true).describe("True only after the user confirms this exact action"),
+};
+for (const action of ["reconcile", "repair", "restart", "start", "stop"] as const) {
+  const descriptions = {
+    reconcile: "Reconcile an owned managed application with its declared configuration. Read the installation first; confirm the action, then poll installation and events until the queued operation completes.",
+    repair: "Repair an owned managed application's runtime. Read current health and events first; confirm the action, then poll installation and events until the queued operation completes.",
+    restart: "Restart an owned managed application. This interrupts service. Confirm the interruption, then poll installation and events until the queued operation completes.",
+    start: "Start a stopped owned managed application. Confirm the action, then poll installation and events until the queued operation completes.",
+    stop: "Stop an owned managed application. This interrupts service. Confirm the interruption, then poll installation and events until the queued operation completes.",
+  };
+  server.registerTool(`${action}_application`, {
+    description: `${descriptions[action]} Requires applications:manage and a client-global idempotency key.`,
+    inputSchema: applicationLifecycleBaseShape,
+    annotations: {
+      title: `${action[0].toUpperCase()}${action.slice(1)} application`,
+      readOnlyHint: false,
+      destructiveHint: action !== "start",
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  }, async (input) => performApplicationLifecycleAction({ ...input, action }));
+}
+server.registerTool("uninstall_application", {
+  description: "Permanently delete an owned managed application's containers, configuration, saved credentials, and application data; server backups remain. Read the installation and obtain explicit user confirmation of data loss before calling. Poll installation and events for the final result. Requires applications:manage.",
+  inputSchema: {
+    ...applicationLifecycleBaseShape,
+    acknowledge_data_loss: z.literal(true).describe("The user explicitly confirmed permanent deletion of managed configuration, credentials, and application data"),
+  },
+  annotations: { title: "Uninstall application", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "uninstall" }));
+server.registerTool("update_application", {
+  description: "Queue the backend-selected newer immutable release for an owned managed application. First read get_application_installation and copy the exact advertised blueprint_version and upstream_version as execution preconditions; these are not caller-selected targets. Confirm the update, then poll installation and events for the final result. Requires applications:manage.",
+  inputSchema: {
+    ...applicationLifecycleBaseShape,
+    expected_blueprint_version: applicationExpectedVersionSchema.describe("Exact blueprint_version from the current available_actions update capability"),
+    expected_upstream_version: applicationExpectedVersionSchema.describe("Exact upstream_version from the current available_actions update capability"),
+  },
+  annotations: { title: "Update application", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async (input) => performApplicationLifecycleAction({ ...input, action: "update" }));
 
 server.registerTool(
   "cancel_application_action",
@@ -3494,6 +3520,19 @@ server.registerTool(
   }
 );
 
+async function performFreeCertificateAction(
+  free_certificate_request_id: string,
+  request: z.infer<typeof freeCertificateActionRequestSchema>
+) {
+  const { action, body } = freeCertificateActionRequestBody(request);
+  const { status, data } = await apiRequest(
+    "POST",
+    certificatePath(`/free/${encodeURIComponent(free_certificate_request_id)}/actions/${encodeURIComponent(action)}`),
+    body
+  );
+  return { content: [{ type: "text" as const, text: formatJson(safeCertificatePayload("free-action", status, data)) }] };
+}
+
 server.registerTool(
   "manage_free_certificate",
   {
@@ -3521,22 +3560,33 @@ server.registerTool(
     if (acknowledge_free_certificate_action !== true) {
       throw new Error("Explicit free-certificate action approval is required.");
     }
-    const { action, body } = freeCertificateActionRequestBody(request);
-    const { status, data } = await apiRequest(
-      "POST",
-      certificatePath(
-        `/free/${encodeURIComponent(free_certificate_request_id)}/actions/${encodeURIComponent(action)}`
-      ),
-      body
-    );
-    return {
-      content: [{
-        type: "text",
-        text: formatJson(safeCertificatePayload("free-action", status, data)),
-      }],
-    };
+    return performFreeCertificateAction(free_certificate_request_id, request);
   }
 );
+
+const freeCertificateActionBaseShape = {
+  free_certificate_request_id: freeCertificateRequestIdSchema,
+  acknowledge_free_certificate_action: z.literal(true).describe("The user approved this exact free-certificate action"),
+};
+server.registerTool("renew_free_certificate", {
+  description: "Request early renewal of an owned free TLS certificate after reading its current state. A customer_csr certificate requires a new public CSR for the same authorized names; managed-key certificates normally renew automatically. Approval is required. Issuance is asynchronous: poll get_free_certificate. An ambiguous response requires reading state before retrying. Requires certificates:manage; no private key is returned.",
+  inputSchema: { ...freeCertificateActionBaseShape, csr: freeCertificateActionRequestSchema.options[0].shape.csr },
+  annotations: { title: "Renew free TLS certificate", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+}, async ({ free_certificate_request_id, csr }) => performFreeCertificateAction(free_certificate_request_id, { action: "renew", csr }));
+server.registerTool("revoke_free_certificate", {
+  description: "Revoke an owned free TLS certificate after checking its state and obtaining explicit user approval. Revocation invalidates the certificate; read get_free_certificate for the final state. Requires certificates:manage.",
+  inputSchema: { ...freeCertificateActionBaseShape, reason: freeCertificateActionRequestSchema.options[1].shape.reason },
+  annotations: { title: "Revoke free TLS certificate", readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
+}, async ({ free_certificate_request_id, reason }) => performFreeCertificateAction(free_certificate_request_id, { action: "revoke", reason }));
+for (const action of ["recheck", "cancel"] as const) {
+  server.registerTool(`${action}_free_certificate`, {
+    description: action === "recheck"
+      ? "Recheck validation for an owned pending free TLS certificate after reading its current state. Approval is required; poll get_free_certificate for the final result. Requires certificates:manage."
+      : "Cancel an owned pending free TLS certificate request before issuance. Read its current state and obtain explicit user approval; poll get_free_certificate for the final result. Requires certificates:manage.",
+    inputSchema: freeCertificateActionBaseShape,
+    annotations: { title: `${action[0].toUpperCase()}${action.slice(1)} free TLS certificate`, readOnlyHint: false, destructiveHint: action === "cancel", idempotentHint: false, openWorldHint: true },
+  }, async ({ free_certificate_request_id }) => performFreeCertificateAction(free_certificate_request_id, { action }));
+}
 
 server.registerTool(
   "list_automatic_ssl_subscriptions",
@@ -3931,6 +3981,21 @@ server.registerTool(
   }
 );
 
+async function performAutomaticSslAction(
+  certificate_subscription_id: string,
+  request: z.infer<typeof certificateAcmeSubscriptionActionRequestSchema>,
+  idempotencyKey: string
+) {
+  const { action, body } = certificateAcmeSubscriptionActionRequestBody(request);
+  const { status, data } = await apiRequest(
+    "POST",
+    certificatePath(`/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/actions/${encodeURIComponent(action)}`),
+    body,
+    { "Idempotency-Key": idempotencyKey }
+  );
+  return { content: [{ type: "text" as const, text: formatJson(safeCertificatePayload("acme-subscription-action", status, data)) }] };
+}
+
 server.registerTool(
   "manage_automatic_ssl_subscription",
   {
@@ -3962,23 +4027,34 @@ server.registerTool(
     if (acknowledge_automatic_ssl_action !== true) {
       throw new Error("Explicit Automatic SSL action approval is required.");
     }
-    const { action, body } = certificateAcmeSubscriptionActionRequestBody(request);
-    const { status, data } = await apiRequest(
-      "POST",
-      certificatePath(
-        `/acme-subscriptions/${encodeURIComponent(certificate_subscription_id)}/actions/${encodeURIComponent(action)}`
-      ),
-      body,
-      { "Idempotency-Key": idempotencyKey }
-    );
-    return {
-      content: [{
-        type: "text",
-        text: formatJson(safeCertificatePayload("acme-subscription-action", status, data)),
-      }],
-    };
+    return performAutomaticSslAction(certificate_subscription_id, request, idempotencyKey);
   }
 );
+
+const automaticSslActionBaseShape = {
+  certificate_subscription_id: certificateSubscriptionIdSchema,
+  acknowledge_automatic_ssl_action: z.literal(true).describe("The user approved this exact Automatic SSL action"),
+  idempotencyKey: paidIdempotencyKeySchema.describe("Client-global key for this exact action; reuse only for an unchanged retry"),
+};
+server.registerTool("cancel_automatic_ssl_subscription", {
+  description: "Cancel an owned Automatic SSL subscription after reading get_automatic_ssl_subscription and list_automatic_ssl_actions. Requires explicit approval. The action is durable and idempotent; for an ambiguous outcome, refresh and read state instead of using a new key. Requires certificates:manage.",
+  inputSchema: { ...automaticSslActionBaseShape, reason: certificateAcmeSubscriptionActionRequestSchema.options[0].shape.reason },
+  annotations: { title: "Cancel Automatic SSL subscription", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_subscription_id, reason, idempotencyKey }) => performAutomaticSslAction(certificate_subscription_id, { action: "cancel", reason }, idempotencyKey));
+server.registerTool("remove_automatic_ssl_domain", {
+  description: "Remove one eligible purchased DNS name from an owned Automatic SSL subscription. Read the subscription and list_automatic_ssl_actions to verify eligibility and the exact domain ID, then obtain explicit approval. For an ambiguous outcome, refresh and read state instead of using a new key. Requires certificates:manage.",
+  inputSchema: { ...automaticSslActionBaseShape, domain_id: certificateAcmeSubscriptionActionRequestSchema.options[1].shape.domain_id },
+  annotations: { title: "Remove Automatic SSL domain", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_subscription_id, domain_id, idempotencyKey }) => performAutomaticSslAction(certificate_subscription_id, { action: "remove_domain", domain_id }, idempotencyKey));
+server.registerTool("replace_automatic_ssl_domain", {
+  description: "Replace one eligible purchased DNS name during its Automatic SSL correction window. Read the subscription and list_automatic_ssl_actions to verify the exact domain ID and allowed replacement type, then obtain explicit approval. For an ambiguous outcome, refresh and read state instead of using a new key. Requires certificates:manage.",
+  inputSchema: {
+    ...automaticSslActionBaseShape,
+    domain_id: certificateAcmeSubscriptionActionRequestSchema.options[2].shape.domain_id,
+    new_domain: certificateAcmeSubscriptionActionRequestSchema.options[2].shape.new_domain,
+  },
+  annotations: { title: "Replace Automatic SSL domain", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_subscription_id, domain_id, new_domain, idempotencyKey }) => performAutomaticSslAction(certificate_subscription_id, { action: "replace_domain", domain_id, new_domain }, idempotencyKey));
 
 server.registerTool(
   "list_certificate_catalog",
@@ -4292,6 +4368,21 @@ server.registerTool(
   }
 );
 
+async function performPaidCertificateAction(
+  certificate_order_id: string,
+  request: z.infer<typeof certificateActionRequestSchema>,
+  idempotencyKey: string
+) {
+  const { action, body } = certificateActionRequestBody(request);
+  const { status, data } = await apiRequest(
+    "POST",
+    certificatePath(`/${encodeURIComponent(certificate_order_id)}/actions/${encodeURIComponent(action)}`),
+    body,
+    { "Idempotency-Key": idempotencyKey }
+  );
+  return { content: [{ type: "text" as const, text: formatJson(safeCertificatePayload("action", status, data)) }] };
+}
+
 server.registerTool(
   "manage_certificate",
   {
@@ -4323,23 +4414,49 @@ server.registerTool(
     if (acknowledge_certificate_action !== true) {
       throw new Error("Explicit certificate-action approval is required.");
     }
-    const { action, body } = certificateActionRequestBody(request);
-    const { status, data } = await apiRequest(
-      "POST",
-      certificatePath(
-        `/${encodeURIComponent(certificate_order_id)}/actions/${encodeURIComponent(action)}`
-      ),
-      body,
-      { "Idempotency-Key": idempotencyKey }
-    );
-    return {
-      content: [{
-        type: "text",
-        text: formatJson(safeCertificatePayload("action", status, data)),
-      }],
-    };
+    return performPaidCertificateAction(certificate_order_id, request, idempotencyKey);
   }
 );
+
+const paidCertificateActionBaseShape = {
+  certificate_order_id: certificateOrderIdSchema,
+  acknowledge_certificate_action: z.literal(true).describe("The user approved this exact paid-certificate action"),
+  idempotencyKey: paidIdempotencyKeySchema.describe("Client-global key for this exact action; reuse only for an unchanged retry"),
+};
+server.registerTool("cancel_certificate", {
+  description: "Cancel an eligible pending paid TLS certificate order. Read the product capabilities, current order and list_certificate_actions, then obtain explicit approval. If the outcome is ambiguous, refresh and read state before retrying. Requires certificates:manage.",
+  inputSchema: { ...paidCertificateActionBaseShape, reason: certificateActionRequestSchema.options[0].shape.reason },
+  annotations: { title: "Cancel paid TLS certificate", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_order_id, reason, idempotencyKey }) => performPaidCertificateAction(certificate_order_id, { action: "cancel", reason }, idempotencyKey));
+server.registerTool("recheck_certificate_validation", {
+  description: "Recheck validation for the specified DNS names in an owned paid TLS certificate order. Read current validation and list_certificate_actions first, then obtain explicit approval. Poll get_certificate_validation for the final result. Requires certificates:manage.",
+  inputSchema: { ...paidCertificateActionBaseShape, domains: certificateActionRequestSchema.options[1].shape.domains },
+  annotations: { title: "Recheck paid certificate validation", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_order_id, domains, idempotencyKey }) => performPaidCertificateAction(certificate_order_id, { action: "recheck_validation", domains }, idempotencyKey));
+server.registerTool("resend_certificate_validation", {
+  description: "Resend validation instructions for an owned paid TLS certificate order. Read current validation and list_certificate_actions first, then obtain explicit approval. Poll get_certificate_validation for the final result. Requires certificates:manage.",
+  inputSchema: paidCertificateActionBaseShape,
+  annotations: { title: "Resend paid certificate validation", readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_order_id, idempotencyKey }) => performPaidCertificateAction(certificate_order_id, { action: "resend_validation" }, idempotencyKey));
+server.registerTool("change_certificate_validation", {
+  description: "Change the validation method for one authorized DNS name on an owned paid TLS certificate order. Read current validation and list_certificate_actions first, then obtain explicit approval. For an ambiguous outcome, refresh and read state instead of using a new key. Requires certificates:manage.",
+  inputSchema: {
+    ...paidCertificateActionBaseShape,
+    domain: certificateActionRequestSchema.options[3].shape.domain,
+    validation_method: certificateActionRequestSchema.options[3].shape.validation_method,
+  },
+  annotations: { title: "Change paid certificate validation", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_order_id, domain, validation_method, idempotencyKey }) => performPaidCertificateAction(certificate_order_id, { action: "change_validation", domain, validation_method }, idempotencyKey));
+server.registerTool("reissue_certificate", {
+  description: "Request a free same-name reissue of an owned paid TLS certificate using a new public CSR. Read the product, current order and list_certificate_actions; keep the paid DNS name set unchanged and obtain explicit approval. Never provide a private key. For an ambiguous outcome, refresh and read state instead of using a new key. Requires certificates:manage.",
+  inputSchema: {
+    ...paidCertificateActionBaseShape,
+    csr: certificateActionRequestSchema.options[4].shape.csr,
+    common_name: certificateActionRequestSchema.options[4].shape.common_name,
+    alternative_names: certificateActionRequestSchema.options[4].shape.alternative_names,
+  },
+  annotations: { title: "Reissue paid TLS certificate", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+}, async ({ certificate_order_id, csr, common_name, alternative_names, idempotencyKey }) => performPaidCertificateAction(certificate_order_id, { action: "reissue", csr, common_name, alternative_names }, idempotencyKey));
 
 // --- DNS ---
 

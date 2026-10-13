@@ -2,6 +2,7 @@ import { RemoteAuthError } from './remote-auth-error.js';
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { networkingTools } from "./networking-tools.js";
 import { authorizationContext } from "./request-context.js";
 
@@ -37,7 +38,7 @@ export const supportedScopes = ["services:read", "services:manage", "application
 const readServices = ["get_service_rescue", "get_guest_agent_status", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_restore_points", "list_restore_file_points", "browse_restore_files", "get_restore_file_browse", "list_services", "get_service", "get_service_graphs", "get_service_history", "get_hostname", "get_title", "get_rdns", "get_os_options", "get_backup_status", "get_backup_history", "list_snapshots", "list_firecracker_snapshots", "get_firecracker_backup_status", "get_firecracker_backup_history"];
 const manageServices = ["suspend_service", "resume_service", "flush_iptables", "toggle_ipv6", "toggle_extra_settings", "reinstall_os", "rollback_snapshot", "delete_snapshot", "rollback_firecracker_snapshot", "delete_firecracker_snapshot", "start_service", "stop_service", "restart_service", "change_hostname", "reset_hostname", "change_title", "change_rdns", "clear_rdns"];
 const readApps = ["list_application_registry_credentials", "get_application_data_restore", "list_application_catalog", "list_service_applications", "get_application_installation", "get_application_events", "get_application_health", "get_application_logs", "list_application_recipes", "list_application_recipe_revisions", "export_application_recipe", "discover_service_containers", "get_application_compose_adoption"];
-const manageApps = ["configure_application_resource_thresholds", "validate_application_recipe", "create_application_recipe", "create_application_recipe_revision", "install_application_recipe", "prepare_application_compose_adoption", "confirm_application_compose_adoption", "install_application", "configure_application_access", "manage_application", "cancel_application_action"];
+const manageApps = ["configure_application_resource_thresholds", "validate_application_recipe", "create_application_recipe", "create_application_recipe_revision", "install_application_recipe", "prepare_application_compose_adoption", "confirm_application_compose_adoption", "install_application", "configure_application_access", "manage_application", "reconcile_application", "repair_application", "restart_application", "start_application", "stop_application", "uninstall_application", "update_application", "cancel_application_action"];
 const permissions = new Map<string, string>([
   ["get_event", "services:read"], ["wait_for_event", "services:read"],
   ...readServices.map(n => [n, "services:read"] as const), ...manageServices.map(n => [n, "services:manage"] as const),
@@ -53,11 +54,13 @@ const permissions = new Map<string, string>([
   ["create_free_certificate", "certificates:manage"],
   ["download_free_certificate", "certificates:read"],
   ["manage_free_certificate", "certificates:manage"],
+  ...["renew_free_certificate", "revoke_free_certificate", "recheck_free_certificate", "cancel_free_certificate"].map(n => [n, "certificates:manage"] as const),
   ["list_automatic_ssl_subscriptions", "certificates:read"],
   ["get_automatic_ssl_subscription", "certificates:read"],
   ["list_automatic_ssl_actions", "certificates:read"],
   ["refresh_automatic_ssl_subscription", "certificates:manage"],
   ["manage_automatic_ssl_subscription", "certificates:manage"],
+  ...["cancel_automatic_ssl_subscription", "remove_automatic_ssl_domain", "replace_automatic_ssl_domain"].map(n => [n, "certificates:manage"] as const),
   ["list_certificate_catalog", "certificates:read"],
   ["get_certificate_catalog_product", "certificates:read"],
   ["list_certificates", "certificates:read"],
@@ -67,6 +70,7 @@ const permissions = new Map<string, string>([
   ["list_certificate_actions", "certificates:read"],
   ["refresh_certificate", "certificates:manage"],
   ["manage_certificate", "certificates:manage"],
+  ...["cancel_certificate", "recheck_certificate_validation", "resend_certificate_validation", "change_certificate_validation", "reissue_certificate"].map(n => [n, "certificates:manage"] as const),
   ["list_domains", "domains:read"],
   ["get_domain", "domains:read"],
   ["list_domain_tlds", "domains:read"],
@@ -177,8 +181,24 @@ const deduplicatedTools = new Set([
   'create_function', 'invoke_function', 'confirm_service_order', 'confirm_domain_register',
 ]);
 
+// Keep cached aggregate calls valid, but advertise the individually scoped
+// actions to new directory clients. The SDK uses one handler for tools/list;
+// filtering its result leaves the normal tools/call dispatcher intact.
+const legacyAggregateTools = new Set([
+  'manage_application', 'manage_free_certificate',
+  'manage_automatic_ssl_subscription', 'manage_certificate',
+]);
+
 /** Keep management tools discoverable for incremental consent; order tools require granted authority. */
 export function installRemotePolicy(server: McpServer, scopes: readonly string[], profile: 'directory' | 'orders' = 'directory'): void {
+  const setRequestHandler = server.server.setRequestHandler.bind(server.server) as (...args: any[]) => void;
+  server.server.setRequestHandler = ((schema: unknown, handler: (...args: any[]) => any) => {
+    if (schema !== ListToolsRequestSchema) return setRequestHandler(schema, handler);
+    return setRequestHandler(schema, async (...args: any[]) => {
+      const response = await handler(...args);
+      return { ...response, tools: response.tools.filter((tool: { name: string }) => !legacyAggregateTools.has(tool.name)) };
+    });
+  }) as typeof server.server.setRequestHandler;
   const original = server.registerTool.bind(server) as unknown as Register;
   const register: Register = (name, config, handler) => {
     const required = remoteScope(name, profile);
