@@ -65,10 +65,12 @@ demo of the actual positive cases. Serve OpenAI's exact domain challenge only
 after its portal issues it. The public privacy, terms and support URLs must
 remain reachable and accurately describe deployed retention and data handling.
 
-The OpenAI submission-errors page still mentions annotation justifications,
-while its current plugin guidelines explicitly say they are no longer required.
-We supply explicit annotations and do not invent an undocumented metadata field;
-provide explanations in the portal if its live review asks for them.
+OpenAI's [tool-scanning review guidance](https://developers.openai.com/plugins/deploy/app-review#metadata-stored-during-tool-scanning)
+requires submission justifications explaining how the server-provided annotation
+values match each tool's behavior; the [submission errors reference](https://developers.openai.com/plugins/deploy/submission-errors)
+identifies missing justifications as `justification_required`. The remote server
+already supplies explicit safety annotations, so provide matching justifications
+in the submission portal without changing those server-provided values.
 
 ## Official references
 
