@@ -63,7 +63,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   for (const name of ['create_vm_file','create_ssh_key','start_service']) assert.equal(list.body.result.tools.find(t => t.name === name).annotations.destructiveHint, false);
   const hints = name => list.body.result.tools.find(t => t.name === name)?.annotations;
   for (const name of [
-    'set_private_network_names', 'set_network_routed_egress', 'retry_network_security_policy',
+    'set_private_network_dns', 'set_private_network_names', 'set_network_routed_egress', 'retry_network_security_policy',
     'retry_private_network', 'retry_private_network_port',
     'configure_application_resource_thresholds', 'configure_application_access',
     'cancel_application_action', 'update_function', 'reinstall_os',
