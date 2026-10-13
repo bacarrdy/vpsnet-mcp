@@ -153,6 +153,37 @@ export function hasScope(scopes: readonly string[], required: string): boolean {
 type Handler = (...args: unknown[]) => CallToolResult | Promise<CallToolResult>;
 type Register = (name: string, config: Record<string, unknown>, handler: Handler) => unknown;
 
+const titleAcronyms: Record<string, string> = {
+  acme: 'ACME', api: 'API', ca: 'CA', cpu: 'CPU', csr: 'CSR', ddns: 'DDNS',
+  dns: 'DNS', dnssec: 'DNSSEC', ds: 'DS', eab: 'EAB', fqdn: 'FQDN',
+  http: 'HTTP', https: 'HTTPS', id: 'ID', ip: 'IP', ipv4: 'IPv4', ipv6: 'IPv6',
+  kvm: 'KVM', mcp: 'MCP', ns: 'NS', os: 'OS', ptr: 'PTR', ram: 'RAM',
+  rdns: 'rDNS', sdn: 'SDN', ssh: 'SSH', ssl: 'SSL', tls: 'TLS', txt: 'TXT',
+  url: 'URL', vds: 'VDS', vm: 'VM', vpn: 'VPN', vps: 'VPS', vpsnet: 'VPSnet',
+};
+
+function defaultToolTitle(name: string): string {
+  return name.split(/[_-]+/).filter(Boolean).map((word, index) =>
+    titleAcronyms[word.toLowerCase()] ?? (index === 0 ? word[0].toUpperCase() + word.slice(1) : word)
+  ).join(' ');
+}
+
+/** Give every transport a discoverable title while retaining authored annotations. */
+export function installToolTitles(server: McpServer): void {
+  const original = server.registerTool.bind(server) as unknown as Register;
+  const register: Register = (name, config, handler) => {
+    const annotations = (config.annotations ?? {}) as Record<string, unknown>;
+    const authored = [annotations.title, config.title].find(
+      title => typeof title === 'string' && title.trim().length > 0,
+    );
+    return original(name, {
+      ...config,
+      annotations: { ...annotations, title: authored ?? defaultToolTitle(name) },
+    }, handler);
+  };
+  server.registerTool = register as unknown as typeof server.registerTool;
+}
+
 // Network effects are declared beside each operation in networking-tools.ts.
 // Other additions below preserve existing data; all replacements/deletions
 // retain the conservative destructive hint unless their registration says more.
@@ -255,9 +286,7 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     return original(name, {
       ...config,
       inputSchema,
-      title: config.title || name.split('_').map(word =>
-        ['vm', 'dns', 'vpn', 'ip', 'rdns', 'os', 'ssh'].includes(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' '),
+      title: config.title || (config.annotations as { title?: string } | undefined)?.title || defaultToolTitle(name),
       annotations,
       _meta: { ...(config._meta as object || {}), securitySchemes },
     }, async (...args) => {

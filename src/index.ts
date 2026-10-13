@@ -6,7 +6,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
-import { installRemotePolicy, remoteInstructions, orderInstructions } from "./remote-policy.js";
+import { installRemotePolicy, installToolTitles, remoteInstructions, orderInstructions } from "./remote-policy.js";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { registerNetworkingTools } from "./networking-tools.js";
@@ -267,6 +267,7 @@ const server = new McpServer(
 );
 
 installToolResultErrorFlag(server);
+installToolTitles(server);
 if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes, options.remoteProfile);
 registerNetworkingTools(server);
 
