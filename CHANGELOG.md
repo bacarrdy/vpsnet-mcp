@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.8 MCP server
+
+- Mark private network DNS replacement as destructive because resolver changes can interrupt guest name resolution.
+
 ## 2.3.7 MCP server
 
 - Describe public DNS and registrar effects with accurate tool annotations.
