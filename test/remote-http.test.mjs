@@ -68,6 +68,13 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     assert.match(list.body.result.tools.find(t => t.name === name).description, /persisted/);
   }
   assert.equal(hints('get_vm_operation')?.readOnlyHint, true, 'polling an existing operation remains read-only');
+  assert.equal(hints('browse_restore_files')?.readOnlyHint, false, 'services:read must not override the queued browse side effect');
+  assert.equal(hints('browse_restore_files')?.destructiveHint, false, 'browsing does not restore or overwrite backup or guest files');
+  assert.equal(hints('browse_restore_files')?.idempotentHint, true, 'an identical request reuses its required idempotency key');
+  assert.deepEqual(list.body.result.tools.find(t => t.name === 'browse_restore_files')._meta.securitySchemes[0].scopes, ['services:read']);
+  for (const name of ['list_restore_file_points', 'get_restore_file_browse']) {
+    assert.equal(hints(name)?.readOnlyHint, true, `${name} only reads existing data`);
+  }
   for (const name of [
     'set_private_network_dns', 'set_private_network_names', 'set_network_routed_egress', 'retry_network_security_policy',
     'retry_private_network', 'retry_private_network_port',

@@ -5764,7 +5764,7 @@ server.registerTool(
   "browse_restore_files",
   {
     description:
-      "Queue a free, read-only listing of one directory inside a backup point. This does NOT restore anything, does not charge the account, and does not modify the server. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so the server selects pages of 200 or 1,000 entries: while result.nextOffset is non-null, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. Use result.pageSize rather than assuming 200 when moving backwards. When nextOffset is null the listing cannot be paged further even if truncated is true — that is a capped scan; check result.listingStatus: 'complete' means the folder was read end to end, 'partial' means the listing is a bounded lower-bound slice, so never present it as the whole folder. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
+      "Create a persisted asynchronous browse job to list one directory inside a backup point. This queues worker activity and stores the listing result; it does not restore files, change backup contents or the running server, or charge the account. Start at the backup root by passing only backupPointId. To open a subdirectory, pass sourceBrowseId plus the directoryEntryId of a type=directory entry from that result; filesystem paths are never accepted. A directory can hold an enormous number of files, so the server selects pages of 200 or 1,000 entries: while result.nextOffset is non-null, call again with the same sourceBrowseId and directoryEntryId and offset set to result.nextOffset. Use result.pageSize rather than assuming 200 when moving backwards. When nextOffset is null the listing cannot be paged further even if truncated is true — that is a capped scan; check result.listingStatus: 'complete' means the folder was read end to end, 'partial' means the listing is a bounded lower-bound slice, so never present it as the whole folder. Optionally pass filter to search entry NAMES in that one directory (substring, case-insensitive, never recursive) — but only when list_restore_file_points reported searchAvailable=true, otherwise this tool refuses rather than silently returning an unfiltered listing. The call is asynchronous: it returns a browse id in a pending state, and you must poll get_restore_file_browse until state is succeeded. Requires services:read and, because it is a POST, an API key that permits write operations plus an idempotencyKey.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       backupPointId: fileBrowsePointIdSchema,
@@ -5786,7 +5786,7 @@ server.registerTool(
     },
     annotations: {
       title: "Browse backup files",
-      readOnlyHint: true,
+      readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
     },

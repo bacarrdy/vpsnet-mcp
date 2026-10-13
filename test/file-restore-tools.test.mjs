@@ -155,7 +155,7 @@ async function withServer(t, { searchAvailable }) {
   return { client, requests };
 }
 
-test("browse tools are read-only and bind to the exact backup file routes", async (t) => {
+test("browse queues work while point listing and result polling remain read-only", async (t) => {
   const { client, requests } = await withServer(t, { searchAvailable: true });
 
   const { tools } = await client.listTools();
@@ -165,7 +165,8 @@ test("browse tools are read-only and bind to the exact backup file routes", asyn
     "browse_restore_files",
     "get_restore_file_browse",
   ]) {
-    assert.equal(byName.get(name).annotations?.readOnlyHint, true, name);
+    assert.equal(byName.get(name).annotations?.readOnlyHint, name !== "browse_restore_files", name);
+    assert.equal(byName.get(name).annotations?.idempotentHint, true, name);
     assert.equal(byName.get(name).annotations?.destructiveHint, false, name);
   }
 

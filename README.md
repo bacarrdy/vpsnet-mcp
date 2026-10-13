@@ -262,7 +262,9 @@ one. `list_restore_file_points`, `browse_restore_files` and
 charge the account, never overwrite the disk, and never put a file back on the
 server. Initially supported on Firecracker VPS.
 
-Browsing is asynchronous. `browse_restore_files` returns a browse id in a
+Browsing is asynchronous. `browse_restore_files` creates a persisted job and
+queues worker activity, so its MCP annotation is `readOnlyHint: false` even
+though the backup and running server are unchanged. It returns a browse id in a
 pending state; poll `get_restore_file_browse` until `state` is `succeeded`.
 Entries exist only in that state — a `failed` browse carries an `errorCode` and
 no listing, and must not be presented as an empty directory.
@@ -736,7 +738,7 @@ everything else.
 | `list_restore_points` | List whole-service restore points | `services:read` | free |
 | `request_restore` | **Paid and destructive:** restore the whole service disk from a point | `services:read` | Paid: `services:restore` |
 | `list_restore_file_points` | List browsable backup points and whether folder search is available (free) | `services:read` | free |
-| `browse_restore_files` | Queue a listing of one directory inside a backup (free, read-only) | `services:read` | free |
+| `browse_restore_files` | Queue a backup directory listing job without restoring files | `services:read` | free |
 | `get_restore_file_browse` | Poll a queued backup directory listing (free, read-only) | `services:read` | free |
 
 ### SSH Keys

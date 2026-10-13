@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.7 connector / 2.3.11 MCP server
+
+- Mark `browse_restore_files` as non-read-only because it starts asynchronous browse work, while retaining `services:read`; functionality and authorization scopes are unchanged.
+
 ## 0.6.6 connector / 2.3.10 MCP server
 
 - Correct native private-network setup for existing servers and polling of network changes.

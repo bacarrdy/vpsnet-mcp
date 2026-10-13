@@ -190,9 +190,9 @@ const deduplicatedTools = new Set([
   'run_vm_command', 'inspect_vm', 'read_vm_file', 'write_vm_file', 'create_vm_file', 'cancel_vm_operation',
   'create_function', 'invoke_function', 'confirm_service_order', 'confirm_domain_register',
 ]);
-// These read guest state but queue durable operations, so their read scopes do
+// These read guest or backup state but queue durable operations, so their read scopes do
 // not imply a read-only MCP call.
-const queuedReadTools = new Set(['inspect_vm', 'read_vm_file', 'get_application_health', 'get_application_logs', 'discover_service_containers']);
+const queuedReadTools = new Set(['browse_restore_files', 'inspect_vm', 'read_vm_file', 'get_application_health', 'get_application_logs', 'discover_service_containers']);
 
 // Keep cached aggregate calls valid, but advertise the individually scoped
 // actions to new directory clients. The SDK uses one handler for tools/list;
