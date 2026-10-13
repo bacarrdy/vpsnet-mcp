@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — 0.6.1 connector / 2.3.2 MCP server
+## 0.6.2 connector / 2.3.3 MCP server
+
+- SSH key installation requires VM execution permission.
+
+## 0.6.1 connector / 2.3.2 MCP server
 
 - Add native Gemini CLI and Cursor packaging, alongside the portable plugin and Claude connector.
 - Share task skills and one OAuth endpoint across distribution formats.

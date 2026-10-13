@@ -295,7 +295,7 @@ This MCP server manages your VPS infrastructure through the VPSnet.com API, incl
 
 1. AI reads the local machine's public key (`~/.ssh/id_rsa.pub`)
 2. Uploads it to VPSnet.com via `create_ssh_key`
-3. Deploys it to a VPS via `deploy_ssh_key` (or passes it when ordering with `order_service`)
+3. Deploys it to a VPS via `deploy_ssh_key` with explicit `vm:exec` permission for remote OAuth (or passes it when ordering with `order_service`)
 4. Connects directly: `ssh root@<vps_ip>`
 
 Most AI coding environments (Claude Code, Cline, Cursor, Codex) have built-in terminal access, so the AI can SSH into your VPS immediately after deploying a key — no extra tools needed.
@@ -672,7 +672,7 @@ everything else.
 | `change_title` | Change service display title | `services:manage` | free |
 | `toggle_ipv6` | Enable or disable IPv6 | `services:manage` | free |
 | `toggle_extra_settings` | Toggle ppp, fuse, tuntap, or nfs | `services:manage` | free |
-| `deploy_ssh_key` | Deploy an SSH key to a VPS | `services:manage` | free |
+| `deploy_ssh_key` | Deploy an SSH key to a VPS; remote OAuth also requires `vm:exec` | `services:manage` | free |
 
 ### OS Reinstall
 | Tool | Description | Scope | Paid |

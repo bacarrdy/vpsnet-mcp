@@ -1,6 +1,6 @@
 {
   "name": "vpsnet",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Manage existing VPSnet services: deploy applications and websites, diagnose server faults, configure networks, DNS and TLS, and create and test Functions with customer-selected access.",
   "mcpServers": {
     "vpsnet": {

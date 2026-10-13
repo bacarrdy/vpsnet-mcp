@@ -2665,7 +2665,7 @@ server.registerTool(
   "deploy_ssh_key",
   {
     description:
-      "Deploy an SSH key to VPS. Returns a noty UUID; follow it with wait_for_event. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here. Requires services:manage and a full-access API key.",
+      "Deploy an SSH key to VPS. Returns a noty UUID; follow it with wait_for_event. ASYNC — wait 15-30 seconds after deploying before attempting SSH. Use list_ssh_keys to get available key IDs. To add your own key first: read ~/.ssh/id_rsa.pub from local machine, then create_ssh_key, then deploy it here. Remote OAuth requires vm:exec; direct API-key use requires services:manage and a full-access key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       ssh_key: positiveIdSchema.describe("SSH key ID from list_ssh_keys"),

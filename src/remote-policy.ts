@@ -27,7 +27,7 @@ export const orderInstructions = remoteInstructions.replace("This connector does
 export const supportedScopes = ["services:read", "services:manage", "applications:read", "applications:manage", "networking:read", "networking:manage", "functions:read", "functions:manage", "functions:invoke", "vm:diagnostics", "vm:files:read", "vm:files:write", "vm:exec", "services:reinstall", "services:restore", "services:rescue", "dns:read", "dns:write", "dnssec:manage", "domains:read", "domains:manage", "certificates:read", "certificates:manage", "ssh_keys:read", "ssh_keys:manage"];
 
 const readServices = ["get_service_rescue", "get_guest_agent_status", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_restore_points", "list_restore_file_points", "browse_restore_files", "get_restore_file_browse", "list_services", "get_service", "get_service_graphs", "get_service_history", "get_hostname", "get_title", "get_rdns", "get_os_options", "get_backup_status", "get_backup_history", "list_snapshots", "list_firecracker_snapshots", "get_firecracker_backup_status", "get_firecracker_backup_history"];
-const manageServices = ["suspend_service", "resume_service", "flush_iptables", "toggle_ipv6", "toggle_extra_settings", "deploy_ssh_key", "reinstall_os", "rollback_snapshot", "delete_snapshot", "rollback_firecracker_snapshot", "delete_firecracker_snapshot", "start_service", "stop_service", "restart_service", "change_hostname", "reset_hostname", "change_title", "change_rdns", "clear_rdns"];
+const manageServices = ["suspend_service", "resume_service", "flush_iptables", "toggle_ipv6", "toggle_extra_settings", "reinstall_os", "rollback_snapshot", "delete_snapshot", "rollback_firecracker_snapshot", "delete_firecracker_snapshot", "start_service", "stop_service", "restart_service", "change_hostname", "reset_hostname", "change_title", "change_rdns", "clear_rdns"];
 const readApps = ["list_application_registry_credentials", "get_application_data_restore", "list_application_catalog", "list_service_applications", "get_application_installation", "get_application_events", "get_application_health", "get_application_logs", "list_application_recipes", "list_application_recipe_revisions", "export_application_recipe", "discover_service_containers", "get_application_compose_adoption"];
 const manageApps = ["configure_application_resource_thresholds", "validate_application_recipe", "create_application_recipe", "create_application_recipe_revision", "install_application_recipe", "prepare_application_compose_adoption", "confirm_application_compose_adoption", "install_application", "configure_application_access", "manage_application", "cancel_application_action"];
 const permissions = new Map<string, string>([
@@ -102,6 +102,7 @@ const permissions = new Map<string, string>([
   ["get_ssh_key", "ssh_keys:read"],
   ["create_ssh_key", "ssh_keys:manage"],
   ["delete_ssh_key", "ssh_keys:manage"],
+  ["deploy_ssh_key", "vm:exec"],
   ["enter_service_rescue", "services:rescue"],
   ["exit_service_rescue", "services:rescue"],
   ["get_system_status", "authenticated"],

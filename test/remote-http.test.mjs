@@ -102,6 +102,50 @@ test('DNS write authority includes read preflights but neither DNSSEC nor unrela
   assert.ok(supportedScopes.join(' ').length <= 512);
 });
 
+test('generic SSH key installation requires explicit VM execution authority', async t => {
+  let scopes = 'services:manage ssh_keys:manage';
+  const backendCalls = [];
+  const backend = createServer(async (req, res) => {
+    res.setHeader('content-type', 'application/json');
+    if (req.url === '/oauth/mcp/introspect') {
+      res.end(JSON.stringify({ active: true, aud: resource, iss: issuer, exp: Date.now() / 1000 + 300, sub: 'a', grant_id: 'a', scope: scopes, services: ['vp-a'] }));
+      return;
+    }
+    backendCalls.push(req.url);
+    if (req.url === '/account/ssh-keys') {
+      res.end(JSON.stringify({ success: true, id: 7 }));
+    } else if (req.url === '/account/services/vp-a/change-ssh-key') {
+      res.end(JSON.stringify({ success: true, noty: 'test-key-installation' }));
+    } else {
+      res.writeHead(404); res.end('{}');
+    }
+  });
+  backend.listen(0, '127.0.0.1'); await once(backend, 'listening');
+  process.env.VPSNET_API_URL = 'http://127.0.0.1:' + backend.address().port;
+  const { createRemoteServer } = await import('../build/http-server.js');
+  const remote = createRemoteServer({ resource, issuer }); remote.listen(0, '127.0.0.1'); await once(remote, 'listening');
+  t.after(() => { remote.closeAllConnections(); remote.close(); backend.closeAllConnections(); backend.close(); });
+  const port = remote.address().port;
+  const invoke = async (name, args) => (await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 110, method: 'tools/call', params: { name, arguments: args } })).body.result;
+  const list = await call(port, 'POST', '/mcp', tokens.a, { jsonrpc: '2.0', id: 111, method: 'tools/list' });
+  assert.deepEqual(list.body.result.tools.find(tool => tool.name === 'deploy_ssh_key')._meta.securitySchemes[0].scopes, ['vm:exec']);
+
+  const created = await invoke('create_ssh_key', { name: 'test key', public_key: 'ssh-ed25519 ' + 'A'.repeat(68) + ' test' });
+  assert.equal(created.isError, undefined);
+  assert.deepEqual(backendCalls, ['/account/ssh-keys']);
+  for (const extra of ['', ' vm:diagnostics', ' vm:files:read', ' vm:files:write', ' vm:files']) {
+    scopes = 'services:manage ssh_keys:manage' + extra;
+    const denied = await invoke('deploy_ssh_key', { orderNo: 'vp-a', ssh_key: 7 });
+    assert.equal(denied.isError, true, extra);
+    assert.match(denied._meta['mcp/www_authenticate'][0], /scope="vm:exec"/, extra);
+    assert.deepEqual(backendCalls, ['/account/ssh-keys'], 'denial must precede key installation');
+  }
+  scopes += ' vm:exec';
+  const installed = await invoke('deploy_ssh_key', { orderNo: 'vp-a', ssh_key: 7 });
+  assert.equal(installed.isError, undefined);
+  assert.deepEqual(backendCalls, ['/account/ssh-keys', '/account/services/vp-a/change-ssh-key']);
+});
+
 
 test('VM runtime pairing requires explicit same-origin approval outside production', async () => {
   const { resolveRuntimeBase } = await import('../build/remote-tools.js');
