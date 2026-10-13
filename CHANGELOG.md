@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.3.12 MCP server
+
+- Provide human-readable annotation titles for every tool across hosted and local connections.
+- Expand local input-schema references so guest DNS resolvers and other shared parameters expose their types directly without changing validation.
+- Link VM file tools to the public API reference.
+
 ## 0.6.7 connector / 2.3.11 MCP server
 
 - Mark `browse_restore_files` as non-read-only because it starts asynchronous browse work, while retaining `services:read`; functionality and authorization scopes are unchanged.
