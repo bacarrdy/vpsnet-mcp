@@ -62,6 +62,12 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   assert.ok(!names.includes('create_ddns_token'));
   for (const name of ['create_vm_file','create_ssh_key','start_service']) assert.equal(list.body.result.tools.find(t => t.name === name).annotations.destructiveHint, false);
   const hints = name => list.body.result.tools.find(t => t.name === name)?.annotations;
+  for (const name of ['inspect_vm', 'read_vm_file']) {
+    assert.equal(hints(name)?.readOnlyHint, false, `${name} starts a durable operation`);
+    assert.equal(hints(name)?.destructiveHint, false, `${name} does not change guest files or settings`);
+    assert.match(list.body.result.tools.find(t => t.name === name).description, /persisted/);
+  }
+  assert.equal(hints('get_vm_operation')?.readOnlyHint, true, 'polling an existing operation remains read-only');
   for (const name of [
     'set_private_network_dns', 'set_private_network_names', 'set_network_routed_egress', 'retry_network_security_policy',
     'retry_private_network', 'retry_private_network_port',

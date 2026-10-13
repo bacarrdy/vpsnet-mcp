@@ -187,6 +187,9 @@ const deduplicatedTools = new Set([
   'run_vm_command', 'inspect_vm', 'read_vm_file', 'write_vm_file', 'create_vm_file', 'cancel_vm_operation',
   'create_function', 'invoke_function', 'confirm_service_order', 'confirm_domain_register',
 ]);
+// These read guest state but queue durable operations, so their read scopes do
+// not imply a read-only MCP call.
+const queuedReadTools = new Set(['inspect_vm', 'read_vm_file']);
 
 // Keep cached aggregate calls valid, but advertise the individually scoped
 // actions to new directory clients. The SDK uses one handler for tools/list;
@@ -214,7 +217,7 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     if (orderTool && (!orderScopes.some(scope => scopes.includes(scope)) || !hasScope(scopes, required))) return undefined;
     const requiredScopes = required === "authenticated" ? [] : required === "vm:session"
       ? (scopes.some(s => s.startsWith("vm:")) ? scopes.filter(s => s.startsWith("vm:")) : ["vm:diagnostics"]) : [required];
-    const readOnly = required === "authenticated" || required.endsWith(":read") || required === "vm:diagnostics";
+    const readOnly = !queuedReadTools.has(name) && (required === "authenticated" || required.endsWith(":read") || required === "vm:diagnostics");
     const securitySchemes = [{ type: "oauth2", scopes: requiredScopes }];
     const annotations = {
       readOnlyHint: readOnly, destructiveHint: !readOnly && !additiveTools.has(name),
