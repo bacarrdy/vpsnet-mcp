@@ -1,0 +1,1658 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-10-14",
+  "purpose": "Dated publication and installation routes; neither a universal compatibility certification nor evidence that every submission is approved.",
+  "baseline": {
+    "source_commit": "740368386d41139cb1c68c586b24759333500927",
+    "source_plugin_version": "0.6.9",
+    "verified_published_plugin_version": "0.6.9",
+    "verified_published_mcp_version": "2.3.14",
+    "published_artifact_feed": "distribution/releases/published.json",
+    "official_registry_observed_version": "0.6.7"
+  },
+  "classification": {
+    "catalog_listed": "A specific public record was observed; ownership/health/update authority may still be unknown.",
+    "review_intake": "Concrete submission/review route; VPSnet acceptance not established.",
+    "source_install": "Documented direct Git/archive/marketplace-source distribution; curated listing not implied.",
+    "private_connection": "User/workspace/instance connection; no verified global listing.",
+    "new_adapter": "Separate native application/provider/bot package needed; portable ZIP is insufficient.",
+    "blocked": "A documented limitation or unresolved authentication gate prevents current compatibility claims.",
+    "unknown": "No current public route established by bounded official-source review; not a claim of permanent closure."
+  },
+  "connection": {
+    "url": "https://mcp.vpsnet.com/mcp",
+    "transport": "streamable-http",
+    "authentication": "customer_oauth",
+    "policy": "Customer-selected services and requested scopes; directory profile excludes purchases, billing and account API-key management.",
+    "cost_disclosure": "Existing VPSnet services have separate prices. Functions execution, including failed runs, consumes metered usage only with separate execution consent, daily ceiling and per-call acknowledgment.",
+    "source": "distribution/catalogs/metadata.json"
+  },
+  "publication_rule": "Do not mark acceptance without exact provider decision or public record. Record source/package hash, deployment, registry/catalog, installed bundle and active session separately. Updates never add OAuth authority.",
+  "targets": [
+    {
+      "id": "openai-directory",
+      "name": "OpenAI ChatGPT plugin directory",
+      "group": "ai-clients",
+      "distribution_class": "review_intake",
+      "public_intake": "Upload reviewed portable ZIP at https://platform.openai.com/plugins; complete validation and review.",
+      "remaining_gate": "Publisher access, domain challenge, isolated reviewer access, actual OAuth/demo and portal approval.",
+      "customer_auth": "Customer OAuth; preserve discovery, PKCE and requested scopes.",
+      "package": "Versioned portable ZIP; use verified published artifact.",
+      "update_path": "Hosted tools may be rescanned; bundled changes need a new immutable reviewed version. Custom MCP Refresh and new conversation are separate.",
+      "official_sources": [
+        "https://developers.openai.com/plugins/deploy/submission",
+        "https://developers.openai.com/plugins/deploy/app-review"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/openai/README.md"
+    },
+    {
+      "id": "chatgpt-custom",
+      "name": "ChatGPT custom remote MCP",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "User adds custom MCP; this does not publish to the public directory.",
+      "remaining_gate": "Account/workspace eligibility and actual native sign-in.",
+      "customer_auth": "Remote OAuth.",
+      "package": "Remote URL; no ZIP required.",
+      "update_path": "Refresh connection metadata, then new conversation.",
+      "official_sources": [
+        "https://developers.openai.com/plugins/deploy/connect-chatgpt"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/openai/README.md"
+    },
+    {
+      "id": "codex",
+      "name": "Codex CLI / native source plugins",
+      "group": "ai-clients",
+      "distribution_class": "source_install",
+      "public_intake": "Add the repository marketplace and install the plugin using native controls.",
+      "remaining_gate": "Validate actual installation; self-added marketplace is separate from curated approval.",
+      "customer_auth": "Remote customer OAuth.",
+      "package": "Portable plugin plus .agents/plugins/marketplace.json.",
+      "update_path": "codex plugin marketplace upgrade <name> --json; inspect installed state separately.",
+      "official_sources": [
+        "https://learn.chatgpt.com/docs/cli/reference",
+        "https://developers.openai.com/plugins/build/plugins"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/openai/README.md"
+    },
+    {
+      "id": "openai-workspace",
+      "name": "ChatGPT Work / desktop workspace plugins",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "Admin imports plugin source into the workspace; follow documented app availability.",
+      "remaining_gate": "Workspace administration and supported product surface; not consumer directory publication.",
+      "customer_auth": "Per-user OAuth.",
+      "package": "Workspace GitHub source / native plugin.",
+      "update_path": "Workspace GitHub daily sync or Sync now; moving source and active sessions remain separate. Event subscriptions require a different supported protocol/webhook integration.",
+      "official_sources": [
+        "https://learn.chatgpt.com/docs/enterprise/plugin-management",
+        "https://developers.openai.com/plugins/build/mcp-events"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/openai/README.md"
+    },
+    {
+      "id": "claude-directory",
+      "name": "Claude / Cowork connector and plugin directory",
+      "group": "ai-clients",
+      "distribution_class": "review_intake",
+      "public_intake": "Submit connector and GitHub plugin bundle at https://claude.ai/directory/manage.",
+      "remaining_gate": "Publisher access, actual OAuth/reviewer account and separate directory approval.",
+      "customer_auth": "Customer OAuth.",
+      "package": "Public GitHub repository, plugin path, reviewed branch/version.",
+      "update_path": "Source updates and provider review/sync depend on installation source; no universal push promise.",
+      "official_sources": [
+        "https://claude.com/docs/plugins/submit",
+        "https://claude.com/docs/directory/publish"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/DIRECTORY_READINESS.md"
+    },
+    {
+      "id": "claude-code",
+      "name": "Claude Code native marketplace",
+      "group": "ai-clients",
+      "distribution_class": "source_install",
+      "public_intake": "Add VPSnet Git marketplace and install vpsnet@vpsnet.",
+      "remaining_gate": "Actual native OAuth test; source marketplace install is not directory approval.",
+      "customer_auth": "Customer OAuth.",
+      "package": "Claude marketplace and plugin/.",
+      "update_path": "claude plugin update vpsnet@vpsnet, then /reload-plugins or new session. Third-party auto-update defaults off.",
+      "official_sources": [
+        "https://code.claude.com/docs/en/discover-plugins",
+        "https://code.claude.com/docs/en/plugin-marketplaces"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/UPDATES.md"
+    },
+    {
+      "id": "grok",
+      "name": "Grok custom connectors",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "Add custom MCP at https://grok.com/connectors; no public self-service vendor directory intake established.",
+      "remaining_gate": "Actual customer OAuth and eligible account; no ZIP/publication claim.",
+      "customer_auth": "Remote customer OAuth; precise discovery and reconnect behavior need live validation.",
+      "package": "Remote URL; no native plugin ZIP update contract established.",
+      "update_path": "Manage custom connector; tool-cache refresh and forced update notifications remain undocumented.",
+      "official_sources": [
+        "https://docs.x.ai/grok/connectors"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gemini-web",
+      "name": "Gemini browser / mobile",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "Eligible user adds custom Connected App; no public self-service directory intake verified.",
+      "remaining_gate": "Currently US, personal account, age 18+, English and Keep Activity; web setup first.",
+      "customer_auth": "Remote OAuth with DCR.",
+      "package": "Remote URL; CLI bundle does not install browser app.",
+      "update_path": "Manage/reconnect Connected App; no native ZIP update contract.",
+      "official_sources": [
+        "https://support.google.com/gemini/answer/17209137"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "gemini-cli",
+      "name": "Gemini CLI",
+      "group": "ai-clients",
+      "distribution_class": "source_install",
+      "public_intake": "Public repo root manifest plus gemini-cli-extension topic supports gallery discovery.",
+      "remaining_gate": "Actual native sign-in and gallery crawl; source skills now mirrored, but unreleased changes are not old published ZIP bytes.",
+      "customer_auth": "Remote OAuth.",
+      "package": "Native extension archive or Git source.",
+      "update_path": "gemini extensions update vpsnet; restart. /mcp reload rediscovers tools.",
+      "official_sources": [
+        "https://geminicli.com/docs/extensions/reference/",
+        "https://geminicli.com/docs/extensions/releasing/",
+        "https://geminicli.com/docs/tools/mcp-server/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/gemini-cli/README.md"
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor IDE / Agent marketplace",
+      "group": "ai-clients",
+      "distribution_class": "review_intake",
+      "public_intake": "Native plugin publication at https://cursor.com/marketplace/publish.",
+      "remaining_gate": "Actual OAuth, publisher review and acceptance.",
+      "customer_auth": "Remote OAuth.",
+      "package": "Cursor plugin and marketplace manifests.",
+      "update_path": "Use native source-specific updates; explicit local reinstall differs from team sync.",
+      "official_sources": [
+        "https://cursor.com/docs/reference/plugins",
+        "https://cursor.com/docs/plugins",
+        "https://cursor.com/docs/mcp"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/cursor/README.md"
+    },
+    {
+      "id": "kiro",
+      "name": "Kiro Power / standalone MCP",
+      "group": "ai-clients",
+      "distribution_class": "review_intake",
+      "public_intake": "Power submission at https://kiro.dev/powers/submit/; standalone custom MCP is separate.",
+      "remaining_gate": "Power OAuth requested-scope behavior must pass real client test before submission.",
+      "customer_auth": "Power auth unverified; supplied standalone config requests services:read only.",
+      "package": "Portable Power candidate or standalone scoped MCP.",
+      "update_path": "Use Power update controls; reconnect with explicit scopes for expanded access.",
+      "official_sources": [
+        "https://kiro.dev/docs/powers/create/",
+        "https://kiro.dev/docs/powers/installation/",
+        "https://kiro.dev/docs/mcp/configuration/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/kiro/README.md"
+    },
+    {
+      "id": "github-copilot-client",
+      "name": "VS Code / GitHub Copilot",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "Add remote server using MCP: Add Server; registry listing handled separately.",
+      "remaining_gate": "Native sign-in, organization policy and client tool approvals.",
+      "customer_auth": "Remote OAuth.",
+      "package": "Native .vscode/mcp.json uses servers; portable format uses mcpServers.",
+      "update_path": "MCP: Reset Cached Tools; update native plugin source separately.",
+      "official_sources": [
+        "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
+        "https://code.visualstudio.com/docs/agents/reference/mcp-configuration",
+        "https://code.visualstudio.com/api/extension-guides/ai/mcp"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "devin",
+      "name": "Windsurf / Devin Desktop and Local",
+      "group": "ai-clients",
+      "distribution_class": "source_install",
+      "public_intake": "Current Devin Local supports native plugin sources; legacy Cascade uses its own MCP setup.",
+      "remaining_gate": "Select actual agent/version; do not reuse old filenames across agents.",
+      "customer_auth": "Remote OAuth depends on actual client.",
+      "package": "Agent Plugins-compatible Local bundle; Cascade MCP config is separate.",
+      "update_path": "Use active client native plugin/reconnect controls; Cascade enabled tools can be capped.",
+      "official_sources": [
+        "https://docs.devin.ai/desktop/cascade/mcp",
+        "https://docs.devin.ai/desktop/devin-local",
+        "https://docs.devin.ai/cli/extensibility/mcp/configuration"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "roo",
+      "name": "Roo Code",
+      "group": "ai-clients",
+      "distribution_class": "blocked",
+      "public_intake": "Local MCP setup documented; hosted customer OAuth not established.",
+      "remaining_gate": "Verify native OAuth or separately review a consent-preserving bridge.",
+      "customer_auth": "Browser OAuth/DCR/refresh unknown in reviewed guide.",
+      "package": "Private MCP config; portable ZIP support not established.",
+      "update_path": "Server restart UI; no native package auto-update promise.",
+      "official_sources": [
+        "https://roocodeinc.github.io/Roo-Code/features/mcp/using-mcp-in-roo/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "cline",
+      "name": "Cline native MCP / curated marketplace",
+      "group": "ai-clients",
+      "distribution_class": "review_intake",
+      "public_intake": "Current curated marketplace README accepts registry entry PRs; use current schema.",
+      "remaining_gate": "Actual install/OAuth and curator approval; older issue packet needs reconciliation with current PR flow.",
+      "customer_auth": "Remote OAuth; CLI authorization wizard documented.",
+      "package": "MCP entry or companion skills; Cline JS/TS plugin format is separate from portable ZIP.",
+      "update_path": "Use current client MCP wizard; native plugins apply to SDK/CLI/Kanban, not all IDE surfaces.",
+      "official_sources": [
+        "https://docs.cline.bot/mcp/mcp-overview",
+        "https://docs.cline.bot/customization/plugins",
+        "https://docs.cline.bot/customization/skills"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/catalogs/cline/issue.md"
+    },
+    {
+      "id": "mistral-work",
+      "name": "Mistral Vibe Work / Studio",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "Admin adds custom remote connector. Directory terms exist but exact public submission intake is unverified.",
+      "remaining_gate": "Actual OAuth, mutation approval and provider inquiry for public directory.",
+      "customer_auth": "Remote OAuth DCR; personal authorization.",
+      "package": "Custom connector and separate Agent Skills import.",
+      "update_path": "Functions → Refresh tools; skill edits apply to new chats.",
+      "official_sources": [
+        "https://docs.mistral.ai/vibe/work/connectors/mcp-connectors",
+        "https://docs.mistral.ai/vibe/work/safety-and-approvals",
+        "https://docs.mistral.ai/vibe/work/skills"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "mistral-code",
+      "name": "Mistral Vibe Code CLI",
+      "group": "ai-clients",
+      "distribution_class": "blocked",
+      "public_intake": "No native hosted VPSnet OAuth path under current documented limitation.",
+      "remaining_gate": "OAuth MCP explicitly unsupported; do not bypass using shared customer credentials.",
+      "customer_auth": "Native OAuth unsupported.",
+      "package": "Local skill/config capability does not supply customer OAuth.",
+      "update_path": "No hosted OAuth update/reconnect contract.",
+      "official_sources": [
+        "https://docs.mistral.ai/vibe/code/cli/mcp-servers",
+        "https://docs.mistral.ai/vibe/code/cli/skills"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity custom connectors / Skills",
+      "group": "ai-clients",
+      "distribution_class": "private_connection",
+      "public_intake": "Custom Remote connector is documented; public Skills Marketplace does not prove MCP provider submission.",
+      "remaining_gate": "Pro/Max/Enterprise eligibility and organization policy; real OAuth test.",
+      "customer_auth": "OAuth with DCR/manual fallback.",
+      "package": "Remote connector; independent SKILL.md/ZIP upload.",
+      "update_path": "Reconnect connector; replace uploaded skill explicitly. No generic inbound update-push claim.",
+      "official_sources": [
+        "https://www.perplexity.ai/help-center/en/articles/13915507-adding-custom-remote-connectors",
+        "https://www.perplexity.ai/changelog/what-we-shipped---march-13-2026",
+        "https://www.perplexity.ai/changelog/effort-mode-gpt-6-astra-and-skills-marketplace"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "qwen-code",
+      "name": "Qwen Code",
+      "group": "ai-clients",
+      "distribution_class": "source_install",
+      "public_intake": "Public Git/archive/npm or compatible marketplace install, including Agent Plugins v1.",
+      "remaining_gate": "Actual OAuth test; no implication of Qwen browser listing.",
+      "customer_auth": "Remote OAuth.",
+      "package": "Portable root plugin.json or native extension.",
+      "update_path": "qwen extensions update <name> or --all; pinned npm stays pinned; MCP config restart differs from runtime extension reload.",
+      "official_sources": [
+        "https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/",
+        "https://github.com/QwenLM/qwen-code/blob/main/docs/developers/tools/mcp-server.md",
+        "https://qwenlm.github.io/qwen-code-docs/en/users/extension/introduction/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "docs/CLIENTS.md"
+    },
+    {
+      "id": "kimi-code",
+      "name": "Kimi Code",
+      "group": "ai-clients",
+      "distribution_class": "source_install",
+      "public_intake": "Custom source install; Curated partners enrollment is separate from Kimi Work marketplace.",
+      "remaining_gate": "Native login and unknown partner catalog intake.",
+      "customer_auth": "Remote OAuth setup requires client validation.",
+      "package": "Native kimi.plugin.json bundle.",
+      "update_path": "Update installed plugin when available; /plugins reload refreshes records, /reload or /new activates; local copy reinstall.",
+      "official_sources": [
+        "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html",
+        "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/mcp.html"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/kimi-code/README.md"
+    },
+    {
+      "id": "gx01",
+      "name": "Microsoft Copilot consumer (copilot.com/mobile)",
+      "group": "additional-ai",
+      "distribution_class": "unknown",
+      "public_intake": "No open VPSnet vendor submission process identified.",
+      "remaining_gate": "Absence from reviewed docs does not prove technical impossibility or a permanently closed partner program.",
+      "customer_auth": "User signs in and consents to listed services; arbitrary VPSnet OAuth integration is not established.",
+      "package": "No documented user-supplied MCP or third-party plugin package in this consumer page.",
+      "update_path": "Connector management exists; no vendor package update mechanism established.",
+      "official_sources": [
+        "https://support.microsoft.com/en-us/microsoft-copilot/connecting-microsoft-copilot-to-other-services"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx02",
+      "name": "Microsoft 365 Copilot / Copilot Studio",
+      "group": "additional-ai",
+      "distribution_class": "new_adapter",
+      "public_intake": "Package and validate; use Partner Center Microsoft 365 and Copilot offer, submit for certification, then publish after approval.",
+      "remaining_gate": "Native package schema, end-to-end VPSnet OAuth and eligible public tool surface need implementation/validation.",
+      "customer_auth": "Studio supports none, API key and OAuth 2; OAuth discovery/DCR or manual configuration. Validate VPSnet end-user flow.",
+      "package": "Microsoft 365 app/plugin ZIP manifest/icons and external service references; existing portable ZIP is not automatically this format.",
+      "update_path": "Submit revised package through its publication lifecycle; admin rollout and installed client state remain separate.",
+      "official_sources": [
+        "https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent",
+        "https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/publish-plugin-publicly"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx04",
+      "name": "Poe public server/API bots",
+      "group": "additional-ai",
+      "distribution_class": "new_adapter",
+      "public_intake": "Create Bot → Server bot, configure endpoint/access key and public visibility; API createBot is another documented create/update route.",
+      "remaining_gate": "Per-user VPSnet account linking, token isolation, consent and action confirmation need a separate design.",
+      "customer_auth": "Poe Access Key authenticates platform-to-bot requests; it is not a VPSnet customer OAuth grant.",
+      "package": "Implement Poe streaming bot protocol (or supported API-bot endpoint), not an unchanged MCP/plugin ZIP.",
+      "update_path": "Update hosted backend and creator/API bot settings. No force-update promise for active conversations.",
+      "official_sources": [
+        "https://creator.poe.com/docs/server-bots/quick-start",
+        "https://creator.poe.com/docs/server-bots/poe-protocol-specification"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx05",
+      "name": "You.com consumer assistants / developer MCP",
+      "group": "additional-ai",
+      "distribution_class": "unknown",
+      "public_intake": "No reviewed official public process for adding VPSnet tools to You.com consumer chat.",
+      "remaining_gate": "Arbitrary inbound MCP, third-party consumer catalog and update controls remain unknown.",
+      "customer_auth": "Outbound You.com MCP uses OAuth 2.1 or You.com API key; these are not VPSnet customer authentication.",
+      "package": "You.com hosted/local MCP is a different server, not a VPSnet plugin intake.",
+      "update_path": "Outbound API/MCP server updates do not establish consumer plugin installation or refresh.",
+      "official_sources": [
+        "https://you.com/docs/integrations",
+        "https://you.com/docs/agents/mcp-server"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx06",
+      "name": "Manus custom MCP connectors / Projects",
+      "group": "additional-ai",
+      "distribution_class": "private_connection",
+      "public_intake": "User Create → Add MCP by URL is concrete private setup. Project publication is not evidence of a public vendor connector catalog.",
+      "remaining_gate": "Self-service public vendor connector intake and propagation of user authorization through shared Projects are not established.",
+      "customer_auth": "Prebuilt OAuth flows documented; custom API key/token options exist. Exact VPSnet custom OAuth discovery needs validation.",
+      "package": "Remote MCP URL/JSON configuration; not the portable plugin marketplace ZIP.",
+      "update_path": "Manage/reconfigure connector and Project setup; universal refresh or automatic package updates are undocumented.",
+      "official_sources": [
+        "https://www.manus.im/features/connectors",
+        "https://manus.im/docs/integrations/mcp-connectors"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx07",
+      "name": "Manus Open Apps partner program",
+      "group": "additional-ai",
+      "distribution_class": "unknown",
+      "public_intake": "Standard clients serve their team; trusted_public enrollment requires the documented partner contact.",
+      "remaining_gate": "This is not a documented public submission path for a VPSnet MCP connector in Manus.",
+      "customer_auth": "Manus OAuth/account authorization, not automatically VPSnet OAuth.",
+      "package": "Register Manus Open App; API/skills integration belongs to a distinct adapter.",
+      "update_path": "Application registration and provider agreement control release; no universal install update documented.",
+      "official_sources": [
+        "https://open.manus.im/docs/v2/open-app"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx08",
+      "name": "Genspark custom connectors and Custom Agent Store",
+      "group": "additional-ai",
+      "distribution_class": "review_intake",
+      "public_intake": "Create/test agent → Configure → Share → Custom Agent Store. Public native connector catalog intake is not documented.",
+      "remaining_gate": "An agent shared to the store is not proof its custom MCP travels with it or each user receives a safe separate OAuth flow.",
+      "customer_auth": "OAuth, API key/token or MCP URL; permission policy and provider scopes apply.",
+      "package": "Configure a custom connector and agent instructions in Genspark; portable ZIP import is not established.",
+      "update_path": "Configure/edit → Update saves agent changes; manage connector separately.",
+      "official_sources": [
+        "https://www.genspark.ai/helpcenter/connectors-and-integrations",
+        "https://www.genspark.ai/helpcenter/custom-super-agent"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx09",
+      "name": "DeepSeek consumer chat vs developer/model integrations",
+      "group": "additional-ai",
+      "distribution_class": "unknown",
+      "public_intake": "No verified public DeepSeek-browser plugin/MCP marketplace intake.",
+      "remaining_gate": "Consumer arbitrary-MCP support and publication remain unknown. A tool-calls page fetch timed out; no unsupported API claim is inferred from it.",
+      "customer_auth": "DeepSeek API key/model billing plus host subscription may apply; VPSnet OAuth remains the host/adapter's responsibility.",
+      "package": "Host MCP integration or a new tool-calling adapter; no consumer plugin package established.",
+      "update_path": "Host integration update controls apply; no consumer VPSnet package update process found.",
+      "official_sources": [
+        "https://api-docs.deepseek.com/quick_start/agent_integrations/github_copilot/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx10",
+      "name": "Z.ai/GLM developer API vs consumer chat",
+      "group": "additional-ai",
+      "distribution_class": "new_adapter",
+      "public_intake": "No consumer-chat public VPSnet plugin submission path verified.",
+      "remaining_gate": "OAuth discovery/refresh automation for this API path and consumer store eligibility remain unknown.",
+      "customer_auth": "Z.ai API key plus custom provider headers; page does not establish managed end-user VPSnet OAuth lifecycle.",
+      "package": "API request MCP tool configuration using Streamable HTTP/SSE.",
+      "update_path": "Developer adapter changes and endpoint compatibility; no consumer refresh/install mechanism established.",
+      "official_sources": [
+        "https://docs.z.ai/guides/capabilities/mcp-call"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx11",
+      "name": "ZCode native plugins / MCP",
+      "group": "additional-ai",
+      "distribution_class": "source_install",
+      "public_intake": "Settings → Plugins → Create → Add marketplace accepts repository/Git/local source. Public catalog is curated; no self-submit procedure established.",
+      "remaining_gate": "No promise of automatic updates; public curation intake and actual VPSnet live OAuth need validation.",
+      "customer_auth": "Enable OAuth, then user clicks Open authorization; successful approval reconnects tools.",
+      "package": ".zcode-plugin/plugin.json or Claude-compatible .claude-plugin/plugin.json; .mcp.json and marketplace manifest.",
+      "update_path": "Refresh marketplace, then Manage installed → Check for updates; marketplace entry version and plugin manifest version must both advance.",
+      "official_sources": [
+        "https://zcode.z.ai/en/docs/mcp-services",
+        "https://zcode.z.ai/en/docs/plugin"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx12",
+      "name": "Kimi Work official plugin marketplace",
+      "group": "additional-ai",
+      "distribution_class": "review_intake",
+      "public_intake": "Personal plugin detail → envelope feedback → Apply for official marketplace publication → provide email; human review follows.",
+      "remaining_gate": "Kimi Work marketplace approval is distinct from Kimi Code Curated partners; no claim of VPSnet listing.",
+      "customer_auth": "Existing authenticated MCP must retain per-user provider authorization; exact native account-linking validation remains necessary.",
+      "package": "Plugin Builder converts repository/marketplace/plugin sources into personal Kimi Work plugins.",
+      "update_path": "Reconvert/re-register after source changes; maintain source and converted package. Official publication update policy needs confirmation during review.",
+      "official_sources": [
+        "https://www.kimi.com/en/help/plugins-and-skills/create",
+        "https://www.kimi.com/en/help/plugins-and-skills/publish"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/kimi-code/README.md"
+    },
+    {
+      "id": "gx14",
+      "name": "MiniMax Code desktop / MiniMax Agent cloud, CN/US",
+      "group": "additional-ai",
+      "distribution_class": "review_intake",
+      "public_intake": "Official Plugin Marketplace submission form: new/update, ZIP or public GitHub/ref/subdirectory; select CN/US and desktop/cloud independently.",
+      "remaining_gate": "VPSnet provider identifier and authenticated Connector are not yet approved. Static package validation cannot prove live onboarding.",
+      "customer_auth": "Standard OAuth Authorization Code + PKCE S256/DCR/refresh supported; provider must be confirmed after joint testing per region.",
+      "package": "Native .minimax-plugin/plugin.json at ZIP root; App references confirmed provider. Other desktop imports do not satisfy submission format.",
+      "update_path": "Preserve name, advance SemVer for content changes, resubmit immutable source with maintenance proof. Track submission status in the same Feishu account.",
+      "official_sources": [
+        "https://agent.minimax.io/docs/code/agents/plugin-submission",
+        "https://agent.minimax.io/docs/code/agents/plugins"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/clients/minimax/README.md"
+    },
+    {
+      "id": "gx16",
+      "name": "Qwen consumer browser",
+      "group": "additional-ai",
+      "distribution_class": "unknown",
+      "public_intake": "No verified public VPSnet submission intake.",
+      "remaining_gate": "Consumer MCP/skill import, marketplace eligibility and region-specific rules remain unknown.",
+      "customer_auth": "No verified arbitrary external VPSnet OAuth/MCP setup.",
+      "package": "No verified consumer third-party package schema.",
+      "update_path": "No verified vendor plugin update controls.",
+      "official_sources": [
+        "https://qwen.ai/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx17",
+      "name": "Doubao consumer agents / former Coze publication channel",
+      "group": "additional-ai",
+      "distribution_class": "blocked",
+      "public_intake": "Coze explicitly removed NEW low-code agent publication to Doubao on 2026-07-01; previously published agents are unaffected.",
+      "remaining_gate": "Direct Doubao partnership/creator intake for tools remains unknown; do not infer all Doubao agents were removed.",
+      "customer_auth": "No current external VPSnet OAuth setup verified.",
+      "package": "Consumer agent publication format not established for this integration.",
+      "update_path": "No current VPSnet distribution update route through that retired channel.",
+      "official_sources": [
+        "https://www.doubao.com/legal/privacy",
+        "https://docs.coze.cn/recent-updates"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx18",
+      "name": "Coze China custom MCP plugins / plugin store",
+      "group": "additional-ai",
+      "distribution_class": "review_intake",
+      "public_intake": "Create/import MCP plugin → test → Publish; public and enterprise plugin-store routes are separate.",
+      "remaining_gate": "VPSnet customer infrastructure actions may need enterprise route; per-user OAuth end-to-end and current store eligibility need validation.",
+      "customer_auth": "None/service API key or manually configured OAuth2/OIDC; exact PKCE/DCR compatibility not established.",
+      "package": "Native plugin created through Coze console; HTTPS domain required, IP URL rejected.",
+      "update_path": "Synchronize imported tool definitions and republish; current creator docs require handling concurrent published changes.",
+      "official_sources": [
+        "https://docs.coze.cn/guides_create_a_plugin_based_on_mcp",
+        "https://docs.coze.cn/create-plugin"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "gx19",
+      "name": "Baidu ERNIE agents capability-plugin platform",
+      "group": "additional-ai",
+      "distribution_class": "unknown",
+      "public_intake": "Legacy docs describe upload/domain → debug → review → publish, but current account intake was not verified.",
+      "remaining_gate": "Substantive documentation could not be fetched; current eligibility, public intake and per-user authentication are unresolved.",
+      "customer_auth": "Indexed authentication documentation lists none/service Basic/Bearer; end-user VPSnet OAuth is not demonstrated.",
+      "package": "Legacy ai-plugin.json plus OpenAPI YAML/HTTP adapter, not unchanged MCP ZIP.",
+      "update_path": "Indexed current FAQ mentions plugin review/distribution; no automatic install refresh established.",
+      "official_sources": [
+        "https://agents.baidu.com/docs/develop/plugin/ability-plugin/basic/quick_start/",
+        "https://agents.baidu.com/docs/develop/ability-plugin/advanced/auth/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "dust",
+      "name": "Dust",
+      "group": "europe-enterprise",
+      "distribution_class": "review_intake",
+      "public_intake": "Provider-hosted community guidance invites test/auth/DCR instructions to its public intake contact; listing follows testing/approval/backlog.",
+      "remaining_gate": "Actual personal OAuth, callback acceptance, safe mutation confirmations and reviewer access.",
+      "customer_auth": "Automatic discovery/DCR; choose Personal Level Credentials.",
+      "package": "Remote connector plus separate skill import.",
+      "update_path": "Review tools and reimport/edit skills; no release-push or list_changed guarantee.",
+      "official_sources": [
+        "https://docs.dust.tt/docs/user-documentation/admins/tools-management/adding-an-mcp-server.md",
+        "https://community.dust.tt/x/intros/msg_qQ03sphKVq69/how-to-submit-motleys-mcp-for-listing-on-dusts-nat"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/catalogs/dust/intake.md"
+    },
+    {
+      "id": "langdock",
+      "name": "Langdock",
+      "group": "europe-enterprise",
+      "distribution_class": "review_intake",
+      "public_intake": "Email official directory intake support@langdock.com using documented submission fields.",
+      "remaining_gate": "Reviewer demo access/signup, official testing permission, actual OAuth and confirmations; at most 60enabled tools.",
+      "customer_auth": "OAuth DCR/PKCE; personal connections and reauthorization.",
+      "package": "Remote connector; separately uploaded Skills.",
+      "update_path": "Review enabled tool/schema list after changes; reimport/edit Skills.",
+      "official_sources": [
+        "https://docs.langdock.com/en/using-langdock/integrations/mcp-directory",
+        "https://docs.langdock.com/en/using-langdock/guides/integrations/mcp/mcp"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      },
+      "repository_artifact": "distribution/catalogs/langdock/intake.md"
+    },
+    {
+      "id": "lighton",
+      "name": "LightOn / Paradigm",
+      "group": "europe-enterprise",
+      "distribution_class": "blocked",
+      "public_intake": "Private enterprise admin MCP setup; public partnership inquiry exists, not listing approval.",
+      "remaining_gate": "Customer browser OAuth and public publisher intake unverified.",
+      "customer_auth": "Optional encrypted Bearer documented; per-user OAuth unknown.",
+      "package": "Company-scoped remote config.",
+      "update_path": "Admin edit; OAuth reconnect/tool refresh unknown.",
+      "official_sources": [
+        "https://docs.lighton.ai/en/administration/agent-management/mcp-servers",
+        "https://lighton.ai/talk-to-us"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "sana",
+      "name": "Sana Agents",
+      "group": "europe-enterprise",
+      "distribution_class": "private_connection",
+      "public_intake": "Enterprise admin publishes custom MCP to workspace users/groups; no global catalog intake verified.",
+      "remaining_gate": "Enterprise plan; actual personal OAuth and write confirmations.",
+      "customer_auth": "Automatic OAuth discovery; DCR/static registration.",
+      "package": "Workspace connector; no public portable plugin format established.",
+      "update_path": "No documented universal schema/release refresh guarantee.",
+      "official_sources": [
+        "https://support.sana.ai/en/articles/357502-mcp-integration-guide",
+        "https://support.sana.ai/en/articles/517120-developer-s-guide-best-practices-for-building-custom-mcp-servers-for-sana-s-mcp-connector"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "deepl",
+      "name": "DeepL Agent",
+      "group": "europe-enterprise",
+      "distribution_class": "unknown",
+      "public_intake": "No verified incoming VPSnet plugin intake; DeepL outbound MCP and language app marketplace are different directions.",
+      "remaining_gate": "Incoming remote OAuth/MCP eligibility unknown.",
+      "customer_auth": "Incoming customer OAuth unknown.",
+      "package": "No native incoming package established.",
+      "update_path": "No incoming plugin update contract.",
+      "official_sources": [
+        "https://www.deepl.com/en/ai-agents",
+        "https://www.deepl.com/en/partners/contact-us"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "aleph",
+      "name": "Aleph Alpha / PhariaAI",
+      "group": "europe-enterprise",
+      "distribution_class": "new_adapter",
+      "public_intake": "Organization applications can be developed; no verified incoming public MCP/plugin catalog.",
+      "remaining_gate": "Custom application scope and per-user OAuth require separate design.",
+      "customer_auth": "Incoming VPSnet OAuth unknown.",
+      "package": "Proprietary runtime/app adapter; Pharia Skills are not portable SKILL.md proof.",
+      "update_path": "Custom application release; no native external plugin contract.",
+      "official_sources": [
+        "https://docs.aleph-alpha.com/phariaai-dev-guide/latest/phariaai-applications/index.html",
+        "https://docs.aleph-alpha.com/phariaai-dev-guide/latest/pharia-data/mcp-integration.html"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "haystack",
+      "name": "deepset / Haystack",
+      "group": "europe-enterprise",
+      "distribution_class": "new_adapter",
+      "public_intake": "Reviewed integration-page PR accepted by developer catalog after a working integration exists.",
+      "remaining_gate": "OAuth-capable client/adapter example needed; header support alone is insufficient.",
+      "customer_auth": "Browser OAuth not established in reviewed MCPToolset guide.",
+      "package": "Developer integration/code and optional versioned Skills.",
+      "update_path": "Catalog PR and dependency releases; enterprise Skills agents pin versions.",
+      "official_sources": [
+        "https://github.com/deepset-ai/haystack-integrations",
+        "https://docs.haystack.deepset.ai/docs/mcptoolset"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "hf-chatui",
+      "name": "Hugging Face Chat UI / Spaces / HuggingChat",
+      "group": "europe-enterprise",
+      "distribution_class": "private_connection",
+      "public_intake": "OSS Chat UI accepts remote MCP. Spaces discovery requires an actual hosted app; hosted HuggingChat support is not established.",
+      "remaining_gate": "Validate exact deployed client/callback and approvals; no external-URL-only listing intake verified.",
+      "customer_auth": "Pinned OSS client supports discovery/DCR/S256/refresh; hosted deployment unknown.",
+      "package": "Instance config; a Space would be a separate hosted application.",
+      "update_path": "OSS tool cache is not release notification; Spaces Git changes redeploy app.",
+      "official_sources": [
+        "https://huggingface.co/docs/chat-ui/configuration/mcp-tools",
+        "https://huggingface.co/docs/hub/en/spaces-mcp-servers"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-1",
+      "name": "Lovable",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Custom connection is per-user. Admin can add public/internal MCP Registry-compatible /v0/servers directory; no default registry. No verified self-service submission path for global featured connector catalog.",
+      "remaining_gate": "Document native URL/OAuth install; login with a customer-owned selected test service.",
+      "customer_auth": "default native sign-in",
+      "package": "Add name+URL in Connectors > + > MCP server. Independently import each SKILL.md directory via GitHub subdirectory/file URL or .zip/.skill. Portable plugin.json is not an auto-install format.",
+      "update_path": "Remote endpoint delivers current server behavior. GitHub skill import is workspace content; automatic upstream sync not documented. Re-import/edit explicitly. Registry removal preserves existing connections.",
+      "official_sources": [
+        "https://docs.lovable.dev/integrations/custom-mcp",
+        "https://docs.lovable.dev/integrations/mcp-registries"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-2",
+      "name": "Replit",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Curated MCP list and audited partner skills exist; reviewed docs expose no open provider submission endpoint. Public one-click install link and GitHub skills work independently of curated acceptance.",
+      "remaining_gate": "Add generated secret-free one-click URL to customer guide/release notes.",
+      "customer_auth": "native",
+      "package": "Base64 JSON install link {displayName,baseUrl}; no auth headers for native OAuth. Skills in /.agents/skills or public GitHub import.",
+      "update_path": "Tools loaded through configured server; no published version/update contract for custom connection. Installed skills persist in project; GitHub auto-sync not documented.",
+      "official_sources": [
+        "https://docs.replit.com/features/mcp/overview",
+        "https://docs.replit.com/build/connect-via-mcp"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-3",
+      "name": "Bolt / StackBlitz Bolt.new",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Built-in connectors and skills library exist; self-service public provider listing route not verified. Custom connectors and project/workspace skills can be shared through installation instructions.",
+      "remaining_gate": "Document HTTP + MCP OAuth + VPSnet endpoint.",
+      "customer_auth": "MCP OAuth native",
+      "package": "UI Custom MCP server: name,URL,HTTP,MCP OAuth. Separate GitHub SKILL.md import or .md/.mdx/.zip.",
+      "update_path": "Bolt automatically discovers new remote MCP tools; Refresh connection allows review. GitHub imported skills are disconnected snapshots: re-import and remove outdated skill to update.",
+      "official_sources": [
+        "https://support.bolt.new/building/using-bolt/connect-mcp",
+        "https://support.bolt.new/building/skills"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-4",
+      "name": "v0 / Vercel",
+      "group": "builders-automation",
+      "distribution_class": "review_intake",
+      "public_intake": "Bring-your-own server immediately available to installing user/team. Public Vercel Marketplace requires native or connectable-account integration plus approval checklist and reviewer walkthrough; generic MCP URL alone is insufficient.",
+      "remaining_gate": "Prepare custom-server setup guide and customer login smoke test.",
+      "customer_auth": "OAuth 2.0 supported",
+      "package": "Custom MCP UI or v0 API mcpServers.create; no portable plugin ZIP import documented for this surface. Marketplace requires Vercel integration implementation/metadata.",
+      "update_path": "Custom endpoint changes are hosted changes; explicit MCP tool-list refresh/version contract not documented. Integration availability changes immediate. Marketplace revisions use integration console/review process as applicable.",
+      "official_sources": [
+        "https://v0.app/docs/MCP",
+        "https://vercel.com/docs/integrations/create-integration/approval-checklist"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-5",
+      "name": "n8n",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "In-product MCP registry mentioned by current docs; no provider submission/update policy verified. Existing core node suffices without custom community node. Public workflow-template route requires separate creator submission.",
+      "remaining_gate": "Prepare small read-only workflow template and native credential instructions.",
+      "customer_auth": "native OAuth2 credential",
+      "package": "n8n workflow JSON template using core MCP Client or MCP Client Tool, plus separate MCP OAuth credential. Do not embed credentials.",
+      "update_path": "Workflow node fetches tools from endpoint; credentials persist in instance. Template import is a copy; changes need reimport/edit. Registry/update process not verified.",
+      "official_sources": [
+        "https://docs.n8n.io/integrations/builtin/credentials/mcp",
+        "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-langchain.mcpClient"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-6",
+      "name": "Make",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Verified-server dropdown exists; reviewed docs do not expose provider submission form/acceptance rule. Custom URL works independently. PulseMCP officially recommended for discovery.",
+      "remaining_gate": "Document custom URL, OAuth and exact callback.",
+      "customer_auth": "native supported",
+      "package": "MCP Client scenario connection; Call a tool or Execute an action with AI. No plugin ZIP needed. AI Agents can attach MCP tools.",
+      "update_path": "Dynamic available tools; Make updates verified-server list. Scenario/blueprint is copied; public listing update flow unknown.",
+      "official_sources": [
+        "https://apps.make.com/c5ZhYquO55e90hoCJ0rzt",
+        "https://help.make.com/make-ai-agents-new-mcp-tools-are-now-available"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-7",
+      "name": "Zapier / Zapier Agents",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Custom server connection is not a named public Zapier app listing. Public VPSnet integration would require separate Zapier developer app; no MCP-only listing submission verified.",
+      "remaining_gate": "Document Streamable HTTP + OAuth Yes + endpoint, without customer API key.",
+      "customer_auth": "select Yes; then bearer-token field ignored",
+      "package": "MCP Client app connection; actions Run Tool / Run Read-Only Tool, triggers New Tool / New Tool Result. Agent action surface supported by response-handling docs.",
+      "update_path": "New Tool trigger can detect new tools; response schema/version remains hosted-provider contract. Zaps/templates copied; no universal plugin update channel.",
+      "official_sources": [
+        "https://help.zapier.com/hc/en-us/articles/38777069364109-Connect-remote-MCP-servers-to-Zapier-using-MCP-Client"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-9",
+      "name": "Dify",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Native MCP connection is workspace configuration. Public Marketplace submits exactly one .difypkg per PR to langgenius/dify-plugins; CI+review; GitHub/local-file distribution alternatives.",
+      "remaining_gate": "Use native MCP DCR first; maintain stable vpsnet identifier.",
+      "customer_auth": "native MCP authorize",
+      "package": "Native Integrations > Tools > MCP: URL,name,stable identifier. Marketplace alternative .difypkg with manifest.yaml,Python SDK/provider/tools/docs/privacy.",
+      "update_path": "Native tool list refreshed manually; identifier change breaks app references. Marketplace increment manifest version/rebuild/new package PR; preserve previous versions.",
+      "official_sources": [
+        "https://docs.dify.ai/en/cloud/use-dify/workspace/tools",
+        "https://docs.dify.ai/en/develop-plugin/publishing/marketplace-listing/submit-plugin-to-marketplace"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-10",
+      "name": "Flowise",
+      "group": "builders-automation",
+      "distribution_class": "blocked",
+      "public_intake": "Custom flows/configuration; official tutorial links Docker MCP catalog. No open Flowise MCP-provider catalog submission path established.",
+      "remaining_gate": "Do not label current hosted OAuth native compatible until tested.",
+      "customer_auth": "not documented for Custom MCP in reviewed official tutorial",
+      "package": "Custom MCP JSON tool config with url+headers, or stdio. Existing plugin ZIP not directly supported.",
+      "update_path": "Refresh Available Actions pulls current tools. Hosted server updates apply remotely; exported flows/config copies do not auto-update.",
+      "official_sources": [
+        "https://docs.flowiseai.com/tutorials/tools-and-mcp"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-11",
+      "name": "Langflow",
+      "group": "builders-automation",
+      "distribution_class": "blocked",
+      "public_intake": "Private/project server configuration. No verified public external MCP-provider listing route; bundled custom Python component would be separate contribution.",
+      "remaining_gate": "Inspect current client auth capability; do not infer from Langflow-as-MCP-server OAuth docs.",
+      "customer_auth": "client docs describe headers; OAuth server feature is a different direction",
+      "package": "Register external MCP server JSON/HTTP/SSE or stdio; attach MCP Tools component to Agent. Flow export JSON.",
+      "update_path": "MCP Tools caching optional default false; edit stored connection or imported flow; no upstream plugin auto-update contract.",
+      "official_sources": [
+        "https://docs.langflow.org/mcp-client"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-12",
+      "name": "Open WebUI",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Admin config gives instance availability; per-user OAuth. Open WebUI Community publishes skills/prompts/tools/functions, not direct global native MCP settings. Community account separate.",
+      "remaining_gate": "Document DCR OAuth2.1, endpoint and minimal custom scopes.",
+      "customer_auth": "choose OAuth 2.1 (DCR), not OAuth SSO passthrough",
+      "package": "Admin Settings > External Tools > MCP(Streamable HTTP). Separate SKILL.md import/community skill content if desired.",
+      "update_path": "Users enable OAuth tool per chat for first consent; automatic token refresh. Endpoint behavior hosted; saved config/Community skill copies require explicit edit/reimport.",
+      "official_sources": [
+        "https://docs.openwebui.com/features/extensibility/mcp/",
+        "https://docs.openwebui.com/ecosystem/community/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-13",
+      "name": "AnythingLLM",
+      "group": "builders-automation",
+      "distribution_class": "blocked",
+      "public_intake": "Community Hub accepts custom agent skills/flows/system prompts, a different format from native MCP configuration. Hosted AnythingLLM Cloud has no MCP support.",
+      "remaining_gate": "Do not advertise hosted-cloud integration.",
+      "customer_auth": "not documented in official MCP configuration guide",
+      "package": "anythingllm_mcp_servers.json under storage/plugins, type streamable,url,headers; stdio bridge possible after validation.",
+      "update_path": "MCP config requires reload/restart through management UI after change. Hosted provider updates remote tools; skill/flow Hub import is separate.",
+      "official_sources": [
+        "https://docs.anythingllm.com/mcp-compatibility/overview",
+        "https://docs.anythingllm.com/cloud/limitations"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-14",
+      "name": "LibreChat",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Instance/user MCP config; docs allow Smithery discovery/install and server-specific guide contribution. No LibreChat global first-party plugin acceptance inferred.",
+      "remaining_gate": "Prepare YAML sample without secrets and exact callback rule.",
+      "customer_auth": "native OAuth2",
+      "package": "librechat.yaml mcpServers.vpsnet type:streamable-http,url; or MCP Settings panel if permission allows. No plugin ZIP needed.",
+      "update_path": "YAML edits require LibreChat restart. MCP Settings entries apply immediately; OAuth panel save starts disconnected until authenticated. Tokens refresh automatically.",
+      "official_sources": [
+        "https://www.librechat.ai/docs/features/mcp"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-15",
+      "name": "OpenClaw / ClawHub",
+      "group": "builders-automation",
+      "distribution_class": "source_install",
+      "public_intake": "Public ClawHub skills/plugins with GitHub-backed publisher login; scan/moderation can hold/block visibility. Skill submission is concrete; approval untested.",
+      "remaining_gate": "Prepare native config with explicit streamable-http and narrow scope.",
+      "customer_auth": "auth:oauth, shared operator login or per-requester",
+      "package": "openclaw.json mcp.servers.vpsnet + optional companion SKILL.md folder. ClawHub skill publish; code plugin requires OpenClaw package metadata, not portable plugin.json alone.",
+      "update_path": "openclaw skills update --all or plugins update --all. clawhub skill publish skips unchanged content; new skill1.0.0, subsequent changes patch by default or explicit --version.",
+      "official_sources": [
+        "https://docs.openclaw.ai/cli/mcp/transports",
+        "https://docs.openclaw.ai/clawhub/quickstart"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "builder-16",
+      "name": "Hermes Agent / Nous Research",
+      "group": "builders-automation",
+      "distribution_class": "source_install",
+      "public_intake": "Skills can be published to own GitHub repo via hermes skills publish --to github --repo owner/repo; taps, direct GitHub, skills.sh and well-known skill endpoints support discovery. No promise of global curated acceptance.",
+      "remaining_gate": "Prepare mcp_servers snippet + explicit native login instruction and narrow scope.",
+      "customer_auth": "auth:oauth",
+      "package": "~/.hermes/config.yaml mcp_servers.vpsnet url,auth:oauth; companion SKILL.md with version/author/license/metadata.hermes. Existing agent plugin.json is not sufficient.",
+      "update_path": "hermes skills update for installed source-aware skills. MCP config auto-reloads; interactive OAuth should run via fresh-terminal hermes mcp login due to short reload timeout. Automatic token refresh.",
+      "official_sources": [
+        "https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp",
+        "https://hermes-agent.nousresearch.com/docs/reference/mcp-config-reference/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "dify-marketplace",
+      "name": "Dify public Marketplace",
+      "group": "builders-automation",
+      "distribution_class": "new_adapter",
+      "public_intake": "Submit one native .difypkg per reviewed PR to langgenius/dify-plugins.",
+      "remaining_gate": "Implement/test native provider adapter and OAuth lifecycle, metadata/privacy and package validation.",
+      "customer_auth": "New adapter must preserve per-user VPSnet OAuth; no bundled secrets.",
+      "package": "manifest.yaml/Python SDK/provider/tools plus .difypkg; portable ZIP cannot be submitted.",
+      "update_path": "Increment native manifest version, rebuild and submit new package; preserve existing identifiers.",
+      "official_sources": [
+        "https://docs.dify.ai/en/develop-plugin/publishing/marketplace-listing/submit-plugin-to-marketplace"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "anything-cloud",
+      "name": "AnythingLLM managed Cloud",
+      "group": "builders-automation",
+      "distribution_class": "blocked",
+      "public_intake": "No MCP integration in documented managed Cloud limitations.",
+      "remaining_gate": "Do not label Desktop/self-hosted MCP support as Cloud availability.",
+      "customer_auth": "Not applicable to hosted MCP.",
+      "package": "No hosted MCP package.",
+      "update_path": "No MCP update mechanism.",
+      "official_sources": [
+        "https://docs.anythingllm.com/cloud/limitations"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    },
+    {
+      "id": "catalog-official",
+      "name": "Official MCP Registry",
+      "group": "catalogs",
+      "distribution_class": "catalog_listed",
+      "public_intake": "Update SAME com.vpsnet/vpsnet with next approved immutable version; verify exact and latest records.",
+      "remaining_gate": "Authorized publisher and reviewed version; registry 0.6.7 trails published/source 0.6.9.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://modelcontextprotocol.io/registry/authentication",
+        "https://modelcontextprotocol.io/registry/remote-servers"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "confirmed_existing",
+        "details": {
+          "state": "confirmed_existing",
+          "version": "0.6.7",
+          "active": true,
+          "published_at": "2026-10-13T20:10:59.104184Z",
+          "observed_versions": [
+            "0.6.7",
+            "0.6.6",
+            "0.6.5",
+            "0.6.4",
+            "0.6.3",
+            "0.6.2"
+          ]
+        },
+        "urls": [
+          "https://registry.modelcontextprotocol.io/v0.1/servers/com.vpsnet%2Fvpsnet/versions/latest"
+        ]
+      },
+      "repository_artifact": "server.json"
+    },
+    {
+      "id": "catalog-github",
+      "name": "GitHub MCP Registry",
+      "group": "catalogs",
+      "distribution_class": "review_intake",
+      "public_intake": "Nominate the existing official registry record using prepared GitHub request.",
+      "remaining_gate": "Curator approval; current search found no VPSnet result.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://github.blog/ai-and-ml/generative-ai/how-to-find-install-and-manage-mcp-servers-with-the-github-mcp-registry/"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "no_matching_search_result",
+        "details": {
+          "state": "no_matching_search_result",
+          "search_api_status": 200,
+          "result_count": 0,
+          "positive_control_search_total": 177
+        },
+        "urls": [
+          "https://github.com/mcp?search=vpsnet",
+          "https://api.mcp.github.com/v0.1/servers?search=vpsnet"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/github-registry/request.md"
+    },
+    {
+      "id": "catalog-smithery",
+      "name": "Smithery",
+      "group": "catalogs",
+      "distribution_class": "catalog_listed",
+      "public_intake": "Verify ownership of existing jonas-eqlv/vpsnet before updating; avoid duplicate namespace.",
+      "remaining_gate": "Publisher control and proxy/OAuth routing remain unverified.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://smithery.ai/docs/build/publish",
+        "https://registry.smithery.ai/servers/jonas-eqlv/vpsnet"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "confirmed_existing",
+        "details": {
+          "state": "confirmed_existing",
+          "qualified_name": "jonas-eqlv/vpsnet",
+          "deployed": true,
+          "public_cached_tools": 215,
+          "ownership_verified": false
+        },
+        "urls": [
+          "https://smithery.ai/servers/jonas-eqlv/vpsnet",
+          "https://registry.smithery.ai/servers/jonas-eqlv/vpsnet"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/smithery/README.md"
+    },
+    {
+      "id": "catalog-glama",
+      "name": "Glama",
+      "group": "catalogs",
+      "distribution_class": "catalog_listed",
+      "public_intake": "Claim existing feed-import connector and configure isolated health-test profile.",
+      "remaining_gate": "Ownership and authenticated scanner profile; Unhealthy badge is not proof of runtime outage.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://glama.ai/mcp/faq",
+        "https://glama.ai/mcp/methodology"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "confirmed_existing",
+        "details": {
+          "state": "confirmed_existing",
+          "registry_name": "com.vpsnet/vpsnet",
+          "observed_badges": [
+            "OAuth",
+            "OAuth Ready",
+            "Unhealthy"
+          ],
+          "last_tested": "2026-10-14 08:32",
+          "runtime_outage_proven": false
+        },
+        "urls": [
+          "https://glama.ai/mcp/connectors/com.vpsnet/vpsnet",
+          "https://glama.ai/mcp/connectors/com.vpsnet/vpsnet/badges/score.svg"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/glama/listing.md"
+    },
+    {
+      "id": "catalog-docker",
+      "name": "Docker MCP Catalog",
+      "group": "catalogs",
+      "distribution_class": "review_intake",
+      "public_intake": "Submit remote catalog entry PR using current upstream contribution requirements.",
+      "remaining_gate": "Actual Docker OAuth test, upstream checks and review; no matching entry verified.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://github.com/docker/mcp-registry/blob/main/CONTRIBUTING.md",
+        "https://github.com/docker/mcp-registry/blob/main/servers/notion-remote/server.yaml"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "no_named_entry_verified",
+        "details": {
+          "state": "no_named_entry_verified",
+          "source_tree_complete": true,
+          "source_tree_paths": 928,
+          "vpsnet_paths": 0,
+          "expected_remote_entry_http": 404
+        },
+        "urls": [
+          "https://github.com/docker/mcp-registry/tree/main/servers"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/docker/README.md"
+    },
+    {
+      "id": "catalog-pulse",
+      "name": "PulseMCP",
+      "group": "catalogs",
+      "distribution_class": "unknown",
+      "public_intake": "Verify existing feed import and current submit route before filing a duplicate.",
+      "remaining_gate": "Public lookup/submit blocked 403; acceptance unknown.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://www.pulsemcp.com/api",
+        "https://www.pulsemcp.com/api/docs/v0.1"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "unverified_blocked_public_lookup",
+        "details": {
+          "state": "unverified_blocked_public_lookup",
+          "search_http": 403,
+          "submit_http": 403,
+          "accepted_submission_verified": false
+        },
+        "urls": [
+          "https://www.pulsemcp.com/servers?q=vpsnet",
+          "https://www.pulsemcp.com/submit"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/pulsemcp/listing.md"
+    },
+    {
+      "id": "catalog-mcpso",
+      "name": "MCP.so",
+      "group": "catalogs",
+      "distribution_class": "review_intake",
+      "public_intake": "Use reviewed current form/issue route after resolving intake requirements.",
+      "remaining_gate": "No matching search result; form/payment conflict must be resolved before any purchase.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://mcp.so/",
+        "https://mcp.so/submit?type=server"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "public_search_zero_results",
+        "details": {
+          "state": "public_search_zero_results",
+          "query": "vpsnet",
+          "accepted_submission_verified": false
+        },
+        "urls": [
+          "https://mcp.so/search?q=vpsnet",
+          "https://mcp.so/submit?type=server"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/mcp-so/issue.md"
+    },
+    {
+      "id": "catalog-mcpservers",
+      "name": "mcpservers.org",
+      "group": "catalogs",
+      "distribution_class": "catalog_listed",
+      "public_intake": "Existing indexed listing; verify ownership/edit route before submitting a duplicate.",
+      "remaining_gate": "Fresh provider-indexed evidence; direct fetch 403 limits confirmation.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://mcpservers.org/servers/bacarrdy/vpsnet-mcp",
+        "https://mcpservers.org/submit"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "confirmed_indexed_listing",
+        "details": {
+          "state": "confirmed_indexed_listing",
+          "verification": "Provider page returned by fresh web search; direct local GET403",
+          "accepted_new_submission_verified": false
+        },
+        "urls": [
+          "https://mcpservers.org/servers/bacarrdy/vpsnet-mcp"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/mcpservers-org/listing.md"
+    },
+    {
+      "id": "catalog-awesome-local",
+      "name": "punkpeye/awesome-mcp-servers",
+      "group": "catalogs",
+      "distribution_class": "review_intake",
+      "public_intake": "Submit prepared contribution PR.",
+      "remaining_gate": "Maintainer review; absent from checked README.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://github.com/punkpeye/awesome-mcp-servers/blob/main/CONTRIBUTING.md"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_in_current_readme",
+        "details": {
+          "state": "not_in_current_readme",
+          "full_readme_checked": true
+        },
+        "urls": [
+          "https://github.com/punkpeye/awesome-mcp-servers"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/community/awesome-mcp-servers.md"
+    },
+    {
+      "id": "catalog-awesome-remote",
+      "name": "punkpeye/awesome-remote-mcp-servers",
+      "group": "catalogs",
+      "distribution_class": "review_intake",
+      "public_intake": "Submit remote PR with actual handshake/badge evidence.",
+      "remaining_gate": "Maintainer/CI review; absent from checked README.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://github.com/punkpeye/awesome-remote-mcp-servers/blob/main/CONTRIBUTING.md",
+        "https://github.com/punkpeye/awesome-remote-mcp-servers/blob/main/.github/workflows/check-submission.yml"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_in_current_readme",
+        "details": {
+          "state": "not_in_current_readme",
+          "full_readme_checked": true,
+          "real_glama_badge_http": 200
+        },
+        "urls": [
+          "https://github.com/punkpeye/awesome-remote-mcp-servers"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/community/awesome-remote-mcp-servers.md"
+    },
+    {
+      "id": "catalog-jaw9c",
+      "name": "jaw9c/awesome-remote-mcp-servers",
+      "group": "catalogs",
+      "distribution_class": "review_intake",
+      "public_intake": "Submit contribution using current repository process.",
+      "remaining_gate": "Maintainer review; absent from checked README.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://github.com/jaw9c/awesome-remote-mcp-servers"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_in_current_readme",
+        "details": {
+          "state": "not_in_current_readme",
+          "full_readme_checked": true
+        },
+        "urls": [
+          "https://github.com/jaw9c/awesome-remote-mcp-servers"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/community/awesome-remote-mcp-servers.md"
+    },
+    {
+      "id": "catalog-cursor-community",
+      "name": "Cursor Directory community plugins",
+      "group": "catalogs",
+      "distribution_class": "unknown",
+      "public_intake": "Verify community portal before using prepared manual listing.",
+      "remaining_gate": "Lookup rate-limited 429; this is separate from official Cursor marketplace.",
+      "customer_auth": "Customer OAuth at VPSnet; publisher authentication is separate.",
+      "package": "Remote metadata / provider-specific listing.",
+      "update_path": "Track registry/catalog publication separately; poll exact public record after authorized updates.",
+      "official_sources": [
+        "https://cursor.directory/plugins/new"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "unverified_rate_limited",
+        "details": {
+          "state": "unverified_rate_limited",
+          "lookup_http": 429,
+          "official_cursor_marketplace": false
+        },
+        "urls": [
+          "https://cursor.directory/plugins/new",
+          "https://cursor.directory/plugins/vpsnet"
+        ]
+      },
+      "repository_artifact": "distribution/catalogs/community/cursor-directory.md"
+    },
+    {
+      "id": "copilot-studio-private",
+      "name": "Microsoft Copilot Studio private agents",
+      "group": "builders-automation",
+      "distribution_class": "private_connection",
+      "public_intake": "Add existing MCP server to an agent; this is separate from Microsoft 365 public package certification.",
+      "remaining_gate": "Licensed/admin environment, actual customer OAuth and scoped tool validation.",
+      "customer_auth": "OAuth dynamic discovery/DCR or manual registration; do not bundle customer secrets.",
+      "package": "Native agent MCP configuration; no portable ZIP submission.",
+      "update_path": "Manage connection and agent publication; verify tool schema refresh on actual client.",
+      "official_sources": [
+        "https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent"
+      ],
+      "checked_at": "2026-10-14",
+      "authenticated_vpsnet_test": "not_established_by_documentation_review",
+      "listing": {
+        "status": "not_verified"
+      }
+    }
+  ]
+}
