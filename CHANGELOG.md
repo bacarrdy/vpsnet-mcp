@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.14 MCP server
+
+- Describe the permissions, included access and billing effects of each advertised OAuth scope using the shared backend catalog.
+- Add the optional VPSnet `scope_descriptions` metadata extension, filtered to the active gateway profile; authorization enforcement is unchanged.
+
 ## 2.3.13 MCP server
 
 - Poll network and appliance operations using `in_progress` and `next_check_seconds`; treat waiting reasons as progress.
