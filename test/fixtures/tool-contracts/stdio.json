@@ -6091,7 +6091,7 @@
         "readOnlyHint": true,
         "title": "Get guest agent status"
       },
-      "description": "Check whether the QEMU guest agent is running inside a Cloud VPS (KVM/VDS). Useful before OS-level operations that depend on the agent. Requires services:read when called with an API key.",
+      "description": "Read guest-agent availability for Cloud VPS (KVM/VDS) or Firecracker. KVM probes its QEMU agent; Firecracker reads worker-reported health. This is separate from VM provisioning and application health. Unknown is advisory, not proof the server failed; unavailable gates only operations that need the agent. Delegated Linux tools do not provide Windows PowerShell or RDP verification. Requires services:read when called with an API key.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7233,7 +7233,7 @@
         "readOnlyHint": true,
         "title": "Get service"
       },
-      "description": "Get detailed info for a service by order number. stateProcess.waitingReason=public_ip_inventory means the paid CREATE awaits public IP inventory and resumes automatically; poll this same service without a new order, payment or manual retry. stateProcess.attention=true requires operator attention. The legacy stateProccess alias carries the same process data. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
+      "description": "Get detailed info and follow_up readiness guidance for the original service order. Payment, VM provisioning, guest-agent availability and application health are separate. Pending activation, finalizing or active stateProcess means keep polling this same order; about 10 seconds is an interval, not an ETA. Check at most 6 times before a progress update, then retain the order for the next check. stateProcess.waitingReason=public_ip_inventory resumes automatically; never reorder, pay again or manually restart. stateProcess.attention=true requires operator attention. The legacy stateProccess alias carries the same process data. Unknown guest-agent status alone does not prove the VM is down. Resource-usage rows with available=false contain compatibility placeholders, not measurements. Requires services:read when called with an API key.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7255,6 +7255,171 @@
         "type": "object"
       },
       "name": "get_service",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": true,
+        "properties": {
+          "follow_up": {
+            "additionalProperties": false,
+            "properties": {
+              "application_ready": {
+                "type": "null"
+              },
+              "background_notification": {
+                "const": false,
+                "type": "boolean"
+              },
+              "do_not_reorder": {
+                "const": true,
+                "type": "boolean"
+              },
+              "guest_agent_available": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "idempotency_key": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "max_checks_before_update": {
+                "const": 6,
+                "type": "number"
+              },
+              "message": {
+                "type": "string"
+              },
+              "next_check": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "arguments": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "orderNo": {
+                            "$ref": "#/properties/follow_up/properties/order_no/anyOf/0"
+                          }
+                        },
+                        "required": [
+                          "orderNo"
+                        ],
+                        "type": "object"
+                      },
+                      "tool": {
+                        "const": "get_service",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "tool",
+                      "arguments"
+                    ],
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "order_no": {
+                "anyOf": [
+                  {
+                    "pattern": "^[A-Za-z0-9-]{1,64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "permission_required": {
+                "anyOf": [
+                  {
+                    "const": "services:read",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "poll_after_seconds": {
+                "anyOf": [
+                  {
+                    "const": 10,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "provisioning_state": {
+                "enum": [
+                  "pending",
+                  "complete",
+                  "not_running",
+                  "needs_attention",
+                  "failed",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              "purchase_state": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      "accepted",
+                      "pending",
+                      "unknown"
+                    ],
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "server_running": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "purchase_state",
+              "provisioning_state",
+              "permission_required",
+              "order_no",
+              "idempotency_key",
+              "next_check",
+              "poll_after_seconds",
+              "max_checks_before_update",
+              "do_not_reorder",
+              "background_notification",
+              "server_running",
+              "guest_agent_available",
+              "application_ready",
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "follow_up"
+        ],
+        "type": "object"
+      },
       "title": "Get service"
     },
     "get_service_container_discovery": {
@@ -10362,7 +10527,7 @@
         "readOnlyHint": false,
         "title": "Order service"
       },
-      "description": "Order a new VPS. Requires sufficient account balance for balance payment. Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }. First call returns confirmationRequired and an exact gross EUR quote without charging. Show the amount and billing period, obtain explicit approval, then call again with the unchanged order configuration and idempotencyKey, returned quoteToken, expected_total_eur and acknowledge_charge=true. The API key must have paid scope/caps enabled. Never replace the key after an uncertain payment; inspect that original attempt in the VPSnet panel. Quotes are retained in this MCP process; after a restart inspect the original attempt in the panel rather than submitting another order. Payment acceptance is not server readiness. Poll get_service for the returned order number. stateProcess.waitingReason=public_ip_inventory resumes the same paid CREATE automatically when inventory returns; do not place or pay for another order. stateProcess.attention=true needs operator attention. Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907]. rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'. sshKey and rootPassword are mutually exclusive — provide one or the other. privateNetworkId (optional): the UUID of one of your private networks to attach the new server to at order time, the same choice the order form offers; the server checks the network in the quote and refuses the order with a reason when it cannot be attached. Omit it for an order without a private network.",
+      "description": "Order a new VPS. Requires sufficient account balance for balance payment. Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }. First call returns confirmationRequired and an exact gross EUR quote without charging. Show the amount and billing period, obtain explicit approval, then call again with the unchanged order configuration and idempotencyKey, returned quoteToken, expected_total_eur and acknowledge_charge=true. The API key must have paid scope/caps enabled. Never replace the key after an uncertain payment; inspect that original attempt in the VPSnet panel. Quotes are retained in this MCP process; after a restart inspect the original attempt in the panel rather than submitting another order. Payment acceptance is not server readiness. Poll get_service for the returned order number. stateProcess.waitingReason=public_ip_inventory resumes the same paid CREATE automatically when inventory returns; do not place or pay for another order. stateProcess.attention=true needs operator attention. Follow follow_up for the same service. Poll about every 10 seconds, never treating that interval as a boot ETA; after at most 6 checks report pending progress and retain the original key/order. Do not automatically restart or promise a completion callback. Running VM, usable guest access and application health are separate checks. Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907]. rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'. sshKey and rootPassword are mutually exclusive — provide one or the other. privateNetworkId (optional): the UUID of one of your private networks to attach the new server to at order time, the same choice the order form offers; the server checks the network in the quote and refuses the order with a reason when it cannot be attached. Omit it for an order without a private network.",
       "execution": {
         "taskSupport": "forbidden"
       },

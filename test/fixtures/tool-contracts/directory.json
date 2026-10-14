@@ -2300,6 +2300,10 @@
                 }
               ]
             },
+            "function_monthly_limit_eur": {
+              "$ref": "#/properties/function_daily_limit_eur",
+              "description": "Stored monthly Functions limit in EUR when supplied by the backend. Null or omitted means no explicit monthly cap is reported by this grant, not unlimited usage; account limits still apply. Read only: never infer a default or expand permissions."
+            },
             "id": {
               "minLength": 1,
               "type": "string"

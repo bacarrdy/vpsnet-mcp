@@ -409,7 +409,7 @@
           "readOnlyHint": false,
           "title": "Confirm service order"
         },
-        "description": "Purchase the exact previously quoted server from VPSnet balance after explicit customer approval of its final EUR total and billing period. Supply the unchanged quote configuration, token and key. Never automatically create a new key after an uncertain result: inspect get_purchase_result. A receipt is not a ready server. Poll get_purchase_result for the purchase outcome; get_service for the returned orderno additionally requires services:read. This connection receives access to its newly ordered server only within the permissions the customer granted.",
+        "description": "Purchase the exact previously quoted server from VPSnet balance after explicit customer approval of its final EUR total and billing period. Supply the unchanged quote configuration, token and key. Never automatically create a new key after an uncertain result: inspect get_purchase_result. A receipt is not a ready server. Poll get_purchase_result for the financial outcome; get_service for the returned orderno additionally requires services:read. Follow follow_up for provisioning checks, permission requirements and bounded progress updates. The suggested 10-second polling interval is not an ETA. This connection receives access to its newly ordered server only within the permissions the customer granted.",
         "execution": {
           "taskSupport": "forbidden"
         },
@@ -482,6 +482,171 @@
           "type": "object"
         },
         "name": "confirm_service_order",
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": true,
+          "properties": {
+            "follow_up": {
+              "additionalProperties": false,
+              "properties": {
+                "application_ready": {
+                  "type": "null"
+                },
+                "background_notification": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "do_not_reorder": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "guest_agent_available": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "idempotency_key": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "max_checks_before_update": {
+                  "const": 6,
+                  "type": "number"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_check": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "arguments": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "idempotencyKey": {
+                              "$ref": "#/properties/follow_up/properties/idempotency_key/anyOf/0"
+                            },
+                            "orderNo": {
+                              "$ref": "#/properties/follow_up/properties/order_no/anyOf/0"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "tool": {
+                          "enum": [
+                            "get_service",
+                            "get_purchase_result"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tool",
+                        "arguments"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "order_no": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z0-9-]{1,64}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "permission_required": {
+                  "anyOf": [
+                    {
+                      "const": "services:read",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "poll_after_seconds": {
+                  "anyOf": [
+                    {
+                      "const": 10,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provisioning_state": {
+                  "enum": [
+                    "pending",
+                    "complete",
+                    "not_running",
+                    "needs_attention",
+                    "failed",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                "purchase_state": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "accepted",
+                        "pending",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "server_running": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "purchase_state",
+                "provisioning_state",
+                "permission_required",
+                "order_no",
+                "idempotency_key",
+                "next_check",
+                "poll_after_seconds",
+                "max_checks_before_update",
+                "do_not_reorder",
+                "background_notification",
+                "server_running",
+                "guest_agent_available",
+                "application_ready",
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "securitySchemes": [
           {
             "scopes": [
@@ -616,7 +781,7 @@
           "readOnlyHint": true,
           "title": "Get purchase result"
         },
-        "description": "Inspect this connection’s existing purchase attempt by its original idempotency key. Pending or unknown is not a successful purchase. Do not submit a second order. A returned server orderno can be checked with get_service; a domain remains pending until its registrar status confirms registration.",
+        "description": "Inspect this connection’s existing financial purchase attempt by its original idempotency key. This replays a financial receipt, not live provisioning progress. Pending or unknown must not trigger a second order. Follow follow_up: a returned server orderno is checked with get_service; if services:read is missing, re-authorize this existing connection without ordering again. A domain remains pending until its registrar status confirms registration. Do not promise an idle client a completion callback.",
         "execution": {
           "taskSupport": "forbidden"
         },
@@ -636,6 +801,171 @@
           "type": "object"
         },
         "name": "get_purchase_result",
+        "outputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": true,
+          "properties": {
+            "follow_up": {
+              "additionalProperties": false,
+              "properties": {
+                "application_ready": {
+                  "type": "null"
+                },
+                "background_notification": {
+                  "const": false,
+                  "type": "boolean"
+                },
+                "do_not_reorder": {
+                  "const": true,
+                  "type": "boolean"
+                },
+                "guest_agent_available": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "idempotency_key": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "max_checks_before_update": {
+                  "const": 6,
+                  "type": "number"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "next_check": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "arguments": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "idempotencyKey": {
+                              "$ref": "#/properties/follow_up/properties/idempotency_key/anyOf/0"
+                            },
+                            "orderNo": {
+                              "$ref": "#/properties/follow_up/properties/order_no/anyOf/0"
+                            }
+                          },
+                          "type": "object"
+                        },
+                        "tool": {
+                          "enum": [
+                            "get_service",
+                            "get_purchase_result"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "tool",
+                        "arguments"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "order_no": {
+                  "anyOf": [
+                    {
+                      "pattern": "^[A-Za-z0-9-]{1,64}$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "permission_required": {
+                  "anyOf": [
+                    {
+                      "const": "services:read",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "poll_after_seconds": {
+                  "anyOf": [
+                    {
+                      "const": 10,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "provisioning_state": {
+                  "enum": [
+                    "pending",
+                    "complete",
+                    "not_running",
+                    "needs_attention",
+                    "failed",
+                    "unknown"
+                  ],
+                  "type": "string"
+                },
+                "purchase_state": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "accepted",
+                        "pending",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "server_running": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "purchase_state",
+                "provisioning_state",
+                "permission_required",
+                "order_no",
+                "idempotency_key",
+                "next_check",
+                "poll_after_seconds",
+                "max_checks_before_update",
+                "do_not_reorder",
+                "background_notification",
+                "server_running",
+                "guest_agent_available",
+                "application_ready",
+                "message"
+              ],
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "securitySchemes": [
           {
             "scopes": [
