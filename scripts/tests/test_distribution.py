@@ -11,6 +11,7 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from sync_gemini_skills import sync_skills
+from sync_standalone_skills import SKILLS, snapshot as standalone_snapshot, sync_skills as sync_standalone, validate_links
 spec = importlib.util.spec_from_file_location('package_distribution', ROOT / 'scripts/package-distribution.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -21,7 +22,7 @@ class DistributionTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for name in ('plugin', 'skills', '.claude-plugin', 'distribution/clients'):
+        for name in ('plugin', 'skills', '.claude-plugin', 'distribution/clients', 'distribution/standalone-skills'):
             shutil.copytree(ROOT / name, self.root / name)
         for name in ('gemini-extension.json', 'server.json'):
             shutil.copy2(ROOT / name, self.root / name)
@@ -39,12 +40,17 @@ class DistributionTest(unittest.TestCase):
         _, second = module.build(self.root, self.root / 'second-build')
         self.assertEqual(first['artifacts'], second['artifacts'])
         self.assertFalse(first['published'])
-        self.assertEqual(len(first['artifacts']), 5)
+        self.assertEqual(len(first['artifacts']), 9)
         for record in first['artifacts']:
             with ZipFile(folder / record['file']) as archive:
                 names = archive.namelist()
                 self.assertNotIn('private-notes.md', names)
                 self.assertNotIn('.env', names)
+                if record['format'] == 'agent-skill':
+                    self.assertEqual(set(names), set(SKILLS[record['skill']]))
+                    self.assertIn('SKILL.md', names)
+                    validate_links({name: archive.read(name) for name in names})
+                    continue
                 self.assertIn('skills/vpsnet-deploy/SKILL.md', names)
                 self.assertIn('LICENSE', names)
                 if record['format'] == 'agent-plugins':
@@ -70,6 +76,106 @@ class DistributionTest(unittest.TestCase):
         with ZipFile(folder / record['file']) as archive:
             for name in module.SKILL_FILES:
                 self.assertEqual((self.root / name).read_bytes(), archive.read(name))
+
+    def test_single_skill_imports_preserve_canonical_content_and_dependencies(self):
+        folder, manifest = module.build(self.root)
+        records = [record for record in manifest['artifacts'] if record['format'] == 'agent-skill']
+        self.assertEqual({record['skill'] for record in records}, set(SKILLS))
+        execution = (self.root / 'plugin/skills/vpsnet-operations/references/execution.md').read_bytes()
+        for record in records:
+            name = record['skill']
+            canonical = (self.root / f'plugin/skills/{name}/SKILL.md').read_bytes()
+            expected = canonical.replace(b'../vpsnet-operations/references/execution.md', b'references/execution.md')
+            with ZipFile(folder / record['file']) as archive:
+                self.assertEqual(archive.read('SKILL.md'), expected)
+                self.assertEqual(archive.read('references/execution.md'), execution)
+                for filename in archive.namelist():
+                    self.assertEqual(archive.read(filename), (self.root / f'distribution/standalone-skills/{name}/{filename}').read_bytes())
+                    self.assertEqual(archive.getinfo(filename).external_attr >> 16, 0o100644)
+            if name == 'vpsnet-operations':
+                with ZipFile(folder / record['file']) as archive:
+                    self.assertEqual(archive.read('references/use-cases.md'), (self.root / 'plugin/skills/vpsnet-operations/references/use-cases.md').read_bytes())
+
+    def test_single_skill_sources_ignore_unreviewed_extra_files(self):
+        (self.root / 'plugin/skills/vpsnet-functions/private.txt').write_text('DO_NOT_INCLUDE')
+        (self.root / 'plugin/skills/vpsnet-operations/references/unreviewed.md').write_text('DO_NOT_INCLUDE')
+        entries = standalone_snapshot(self.root)
+        self.assertEqual(set(entries['vpsnet-functions']), {'SKILL.md', 'references/execution.md'})
+        self.assertEqual(set(entries['vpsnet-operations']), {'SKILL.md', 'references/execution.md', 'references/use-cases.md'})
+
+    def test_single_skill_mirror_rejects_stale_and_extra_files(self):
+        path = self.root / 'distribution/standalone-skills/vpsnet-functions/references/execution.md'
+        path.write_text('Stale instructions')
+        with self.assertRaisesRegex(ValueError, 'Standalone skills mirror differs'):
+            module.build(self.root)
+        sync_standalone(self.root)
+        (self.root / 'distribution/standalone-skills/extra.env').write_text('DO_NOT_INCLUDE')
+        with self.assertRaisesRegex(ValueError, 'Standalone skills mirror differs'):
+            module.build(self.root)
+
+    def test_single_skill_mirror_rejects_symlink_files_and_directories(self):
+        path = self.root / 'distribution/standalone-skills/vpsnet-functions/references/execution.md'
+        path.unlink()
+        path.symlink_to(self.root / 'plugin/skills/vpsnet-operations/references/execution.md')
+        with self.assertRaisesRegex(ValueError, 'Symlink'):
+            module.build(self.root)
+        with self.assertRaisesRegex(ValueError, 'Symlink'):
+            sync_standalone(self.root)
+        path.unlink()
+        shutil.rmtree(self.root / 'distribution/standalone-skills')
+        (self.root / 'distribution/standalone-skills').symlink_to(self.root / 'skills', target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'Symlink'):
+            module.build(self.root)
+
+    def test_single_skill_source_symlinks_and_nonpublic_content_rejected(self):
+        path = self.root / 'plugin/skills/vpsnet-operations/references/execution.md'
+        path.unlink()
+        path.symlink_to(self.root / 'skills/vpsnet-operations/references/execution.md')
+        with self.assertRaisesRegex(ValueError, 'Symlink'):
+            standalone_snapshot(self.root)
+        path.unlink()
+        path.write_text('-----BEGIN PRIVATE KEY-----\nDO_NOT_PACKAGE')
+        with self.assertRaisesRegex(ValueError, 'Non-public content'):
+            standalone_snapshot(self.root)
+
+    def test_single_skill_unknown_reference_never_includes_extra_source(self):
+        path = self.root / 'plugin/skills/vpsnet-functions/SKILL.md'
+        path.write_text(path.read_text() + '\nRead [extra](references/unreviewed.md).\n')
+        (path.parent / 'references').mkdir()
+        (path.parent / 'references/unreviewed.md').write_text('Not reviewed for distribution')
+        with self.assertRaisesRegex(ValueError, 'Missing standalone skill reference'):
+            standalone_snapshot(self.root)
+
+    def test_single_skill_links_cannot_escape_or_depend_on_repository(self):
+        for target in ('../outside.md', '/outside.md', '%2e%2e/outside.md', 'file:///outside.md', '//outside.invalid/file', 'references\\outside.md', 'missing.md', '../vpsnet-operations/references/execution.md'):
+            with self.subTest(target=target), self.assertRaises(ValueError):
+                validate_links({'SKILL.md': f'Read [details]({target}).'.encode()})
+        for text in ('[guide][ref]\n\n[ref]: ../outside.md', '<a href="../outside.md">details</a>', '![image](../outside.png)'):
+            with self.subTest(text=text), self.assertRaises(ValueError):
+                validate_links({'SKILL.md': text.encode()})
+        validate_links({'SKILL.md': b'[local](references/execution.md#oauth-reconnect) [web](https://www.vpsnet.com/) [heading](#details)', 'references/execution.md': b'# OAuth reconnect'})
+
+    def test_single_skill_asset_names_follow_current_plugin_version(self):
+        for filename in ('plugin/plugin.json', 'plugin/.claude-plugin/plugin.json', 'plugin/.cursor-plugin/plugin.json', 'gemini-extension.json', 'distribution/clients/kimi-code/kimi.plugin.json', 'server.json'):
+            self.change(filename, lambda d: d.update(version='8.9.10'))
+        self.change('.claude-plugin/marketplace.json', lambda d: d['plugins'][0].update(version='8.9.10'))
+        _, manifest = module.build(self.root)
+        for record in manifest['artifacts']:
+            if record['format'] == 'agent-skill':
+                self.assertEqual(record['file'], record['skill'] + '-8.9.10.zip')
+                self.assertEqual(record['version'], '8.9.10')
+
+    def test_archive_output_cannot_follow_existing_symlink(self):
+        output = self.root / 'output'
+        output.mkdir()
+        outside = self.root / 'outside.txt'
+        outside.write_text('Untouched')
+        (output / 'example.zip').symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, 'Symlink in archive output'):
+            module.archive(output, 'example.zip', {'SKILL.md': b'Example'})
+        self.assertEqual(outside.read_text(), 'Untouched')
+        with self.assertRaisesRegex(ValueError, 'Invalid archive filename'):
+            module.archive(output, '../outside.zip', {'SKILL.md': b'Example'})
 
     def test_git_install_rejects_stale_or_extra_skills(self):
         path = self.root / 'skills/vpsnet-deploy/SKILL.md'

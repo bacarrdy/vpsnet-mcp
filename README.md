@@ -40,6 +40,8 @@ endpoint and task skills. The npm package supplies the local MCP server;
 installable plugin bundles also carry the AI application's manifest and skills.
 
 Build all client bundles with `python3 scripts/package-distribution.py`.
+The same build creates four [self-contained skill imports](docs/STANDALONE_SKILLS.md)
+for clients that import one skill folder or ZIP at a time.
 The output includes checksums and identifies each format. Public directory
 submission materials are in [the catalog kit](distribution/catalogs/README.md).
 

@@ -98,6 +98,9 @@ def validate(root):
     mirror = safe_path(root, 'scripts/sync_gemini_skills.py')
     if mirror.is_file():
         subprocess.run(['python3', str(mirror), '--check'], cwd=root, check=True)
+    standalone = safe_path(root, 'scripts/sync_standalone_skills.py')
+    if standalone.is_file():
+        subprocess.run(['python3', str(standalone), '--check'], cwd=root, check=True)
     validate_feed(decode(safe_path(root, 'distribution/releases/published.json').read_bytes()))
     return {'valid': True, **data, 'publication_verified_by_this_command': False}
 

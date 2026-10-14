@@ -12,6 +12,7 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 from validate_plugin import require, validate_package, validate_directory_text
 from sync_gemini_skills import SKILL_FILES, check_skills
+from sync_standalone_skills import check_skills as check_standalone_skills, snapshot as standalone_skills
 
 ENDPOINT = 'https://mcp.vpsnet.com/mcp'
 SHARED = ('LICENSE', 'assets/icon.png') + SKILL_FILES
@@ -73,7 +74,9 @@ def reference(entries, path):
 
 
 def archive(output, filename, entries):
+    require(PurePosixPath(filename).name == filename and '\\' not in filename, 'Invalid archive filename')
     path = output / filename
+    require(not any(parent.is_symlink() for parent in (path, *path.parents)), 'Symlink in archive output')
     with ZipFile(path, 'w', ZIP_DEFLATED) as zipped:
         for name, raw in sorted(entries.items()):
             require(not name.startswith('/') and '..' not in PurePosixPath(name).parts, 'Invalid archive path')
@@ -90,6 +93,7 @@ def archive(output, filename, entries):
 def build(root, output=None):
     version = validate_package(root / 'plugin')
     check_skills(root)
+    check_standalone_skills(root)
     registry = json_source(root, 'server.json')
     require(registry['version'] == version, 'Registry version differs')
     require(registry['remotes'] == [{'type': 'streamable-http', 'url': ENDPOINT}], 'Registry endpoint differs')
@@ -146,6 +150,11 @@ def build(root, output=None):
     entries['README.md'] = source(root, 'distribution/clients/kimi-code/README.md')
     reference(entries, kimi['skills'])
     records.append({**archive(output, f'vpsnet-kimi-code-{version}.zip', entries), 'format': 'kimi-code-plugin', 'submission': 'Kimi Work marketplace requires its Plugin Builder import and review'})
+
+    for skill, entries in standalone_skills(root).items():
+        records.append({**archive(output, f'{skill}-{version}.zip', entries),
+                        'format': 'agent-skill', 'skill': skill, 'version': version,
+                        'acceptance': 'Skill import and native MCP connection require separate client verification'})
 
     kiro = json_source(root, 'distribution/clients/kiro/kiro.mcp.json')
     server = remote_server(kiro)
