@@ -1,0 +1,204 @@
+{
+  "claude-code": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://code.claude.com/docs/en/plugins/cli-reference",
+      "https://code.claude.com/docs/en/discover-plugins"
+    ],
+    "steps": [
+      "Use claude plugin list --json to check the installed VPSnet plugin and its source.",
+      "For the VPSnet marketplace installation, run claude plugin update vpsnet@vpsnet in your own terminal.",
+      "Use /reload-plugins in the running session or start a new session. For another install source, use its native update control."
+    ]
+  },
+  "claude": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://claude.com/docs/plugins/overview"
+    ],
+    "steps": [
+      "Open Customize > Plugins. For an added marketplace, use Check for updates where available.",
+      "Uploaded or organization-managed plugins follow their owner's upload, sync and review process. A GitHub release alone does not prove the account's plugin updated."
+    ]
+  },
+  "cowork": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://claude.com/docs/plugins/overview",
+      "https://support.claude.com/en/articles/13837433-manage-plugins-for-your-organization"
+    ],
+    "steps": [
+      "Manage the account plugin in Customize > Plugins using the source's native update controls.",
+      "For an organization marketplace, ask its owner to upload or re-sync and complete any required review. The served version can remain pinned or await approval."
+    ]
+  },
+  "grok": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://docs.x.ai/grok/connectors"
+    ],
+    "steps": [
+      "Manage the custom remote connection at grok.com/connectors.",
+      "The official connector guide does not establish plugin ZIP updates or a tool-cache refresh command. A remote gateway deployment does not establish whether this conversation refreshed its tools."
+    ]
+  },
+  "codex": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://learn.chatgpt.com/docs/cli/reference",
+      "https://learn.chatgpt.com/docs/plugins"
+    ],
+    "steps": [
+      "Use codex plugin list --json to inspect installed and available plugin versions and the configured marketplace name.",
+      "For that configured marketplace, use codex plugin marketplace upgrade <marketplace-name> --json, then start a new session. Do not assume the active thread reloads plugins."
+    ]
+  },
+  "chatgpt": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://developers.openai.com/plugins/deploy/connect-chatgpt",
+      "https://developers.openai.com/plugins/deploy/submission"
+    ],
+    "steps": [
+      "For a custom MCP connection, open its plugin settings, use Refresh and start a new conversation.",
+      "Published package updates and server rescans are publisher actions, with their own review and publication state. A local ZIP or GitHub release does not prove a directory update."
+    ]
+  },
+  "gemini-cli": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://geminicli.com/docs/extensions/reference/",
+      "https://geminicli.com/docs/reference/commands/"
+    ],
+    "steps": [
+      "For a named installed extension, run gemini extensions update vpsnet in your terminal and restart the CLI.",
+      "/mcp reload re-discovers tools and /skills reload refreshes skills on host versions that support them; these do not install a new extension."
+    ]
+  },
+  "gemini-browser": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://support.google.com/gemini/answer/17209137"
+    ],
+    "steps": [
+      "Manage the custom Connected App in Gemini settings. This remote connection is not a Gemini CLI extension.",
+      "The reviewed guide does not establish a package-upgrade or tool-cache refresh command."
+    ]
+  },
+  "cursor": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://cursor.com/docs/reference/plugins",
+      "https://cursor.com/docs/plugins"
+    ],
+    "steps": [
+      "For a local plugin copy, replace it with the complete reviewed new package and reload the window or restart.",
+      "Public marketplace updates require provider review; team marketplace sync and local updates are separate. No universal public-store update command is established here."
+    ]
+  },
+  "kimi-code": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://www.kimi.com/code/docs/en/kimi-code-cli/customization/plugins.html"
+    ],
+    "steps": [
+      "For a copied local installation, reinstall the reviewed complete source with /plugins install ./vpsnet, then /reload or start a new session.",
+      "Use the plugin manager update action where available. Do not assume custom VPSnet plugins auto-update."
+    ]
+  },
+  "kimi-work": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://www.kimi.com/en/help/plugins-and-skills/create",
+      "https://www.kimi.com/en/help/plugins-and-skills/publish"
+    ],
+    "steps": [
+      "Use Plugin Builder in Kimi Work to convert the reviewed source update and inspect the resulting package.",
+      "Personal installation and public marketplace review are separate; no automatic source-update contract was established."
+    ]
+  },
+  "kiro": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://kiro.dev/docs/powers/installation/",
+      "https://kiro.dev/docs/mcp/configuration/"
+    ],
+    "steps": [
+      "For a repository-backed Power, use its Check for updates and Install updates controls.",
+      "Standalone MCP configuration is separate. Power OAuth scope compatibility needs client verification; installing a package does not grant additional scopes."
+    ]
+  },
+  "vscode": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://code.visualstudio.com/docs/agent-customization/agent-plugins",
+      "https://code.visualstudio.com/docs/agents/reference/mcp-configuration"
+    ],
+    "steps": [
+      "MCP: Reset Cached Tools refreshes discovery, not installed plugin files.",
+      "Use Extensions: Check for Extension Updates for the extension inventory. AgentHost /plugin update applies to its own plugin inventory; inspect which host and install source you use first."
+    ]
+  },
+  "devin": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://docs.devin.ai/cli/extensibility/plugins/overview",
+      "https://docs.devin.ai/cli/extensibility/mcp/configuration"
+    ],
+    "steps": [
+      "For a Devin CLI plugin installation, use devin plugins update vpsnet. A linked local source reloads on a new session.",
+      "Legacy Cascade and Devin Local are different hosts; do not assume a Devin CLI action updates a legacy Cascade configuration."
+    ]
+  },
+  "qwen": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://qwenlm.github.io/qwen-code-docs/en/users/extension/introduction/"
+    ],
+    "steps": [
+      "Use qwen extensions update <installed-name> for a native installed extension, then restart after terminal changes.",
+      "Pinned exact npm versions remain pinned. Marketplace source refresh is separate from updating installed extensions."
+    ]
+  },
+  "cline": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://docs.cline.bot/customization/plugins",
+      "https://docs.cline.bot/mcp/mcp-overview"
+    ],
+    "steps": [
+      "Inspect the actual Cline host and installed source; plugin support differs between CLI/SDK and IDE extensions.",
+      "No custom-plugin automatic upgrade or remote tool-refresh guarantee was established. Use the host-native manager and current official instructions."
+    ]
+  },
+  "mistral-work": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://docs.mistral.ai/vibe/work/connectors/mcp-connectors"
+    ],
+    "steps": [
+      "Use the existing Vibe Work connector controls. Its tool discovery is not dynamic; follow its documented reconnect procedure when tool definitions change.",
+      "Do not substitute Vibe Code CLI: direct OAuth MCP is not supported there by the reviewed documentation."
+    ]
+  },
+  "mistral-code": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://docs.mistral.ai/vibe/code/cli/mcp-servers"
+    ],
+    "steps": [
+      "The reviewed Vibe Code CLI documentation explicitly excludes OAuth MCP servers. A plugin update does not fix that limitation.",
+      "Use a supported OAuth client; never substitute customer passwords or manually supplied tokens."
+    ]
+  },
+  "perplexity": {
+    "reviewed_at": "2026-10-14",
+    "source_urls": [
+      "https://www.perplexity.ai/help-center/en/articles/13915507-adding-custom-remote-connectors"
+    ],
+    "steps": [
+      "Manage the existing custom remote connector in account settings. Native skill ZIP replacement is a separate operation.",
+      "The reviewed connector guide does not establish automatic tool-list refresh, custom plugin upgrades or release notifications."
+    ]
+  }
+}
