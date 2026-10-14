@@ -27,6 +27,11 @@ class UpdateStatusTest(unittest.TestCase):
         self.assertTrue(all(value['version'] is None and value['source'] == 'unknown' for value in result['observed'].values()))
         self.assertEqual(result['update_available'], {'plugin': None, 'local_mcp': None, 'server': None})
         self.assertEqual(result['compatibility']['status'], 'unknown')
+        self.assertTrue(result['distribution_status']['source_release_published'])
+        self.assertTrue(result['distribution_status']['npm_package_published'])
+        self.assertEqual(result['distribution_status']['remote_deployment_status'], 'unknown')
+        self.assertEqual(result['distribution_status']['official_registry']['status'], 'unknown')
+        self.assertEqual(result['distribution_status']['downstream_catalogs'], {})
 
     def test_components_compare_independently_without_forcing_compatibility(self):
         result = updates.status('claude-code', '0.6.8', '2.3.14', '2.3.13', feed())
@@ -138,6 +143,28 @@ class ReleaseTest(unittest.TestCase):
         path.unlink(); path.symlink_to(ROOT / release.MANIFESTS[0])
         with self.assertRaises(ValueError): release.validate_versions(self.root)
 
+    def test_parent_directory_symlink_cannot_mutate_outside_checkout(self):
+        directory = self.root / 'plugin/.claude-plugin'
+        outside = self.root.parent / (self.root.name + '-outside')
+        shutil.move(directory, outside)
+        self.addCleanup(shutil.rmtree, outside)
+        directory.symlink_to(outside, target_is_directory=True)
+        previous = (outside / 'plugin.json').read_bytes()
+        untouched = (self.root / 'plugin/plugin.json').read_bytes()
+        configuration = (self.root / 'release-config.json').read_bytes()
+        with self.assertRaisesRegex(ValueError, 'symlink'): release.prepare(self.root, 'plugin', '0.6.10')
+        self.assertEqual(previous, (outside / 'plugin.json').read_bytes())
+        self.assertEqual(untouched, (self.root / 'plugin/plugin.json').read_bytes())
+        self.assertEqual(configuration, (self.root / 'release-config.json').read_bytes())
+
+    def test_output_directory_symlink_is_refused(self):
+        outside = self.root.parent / (self.root.name + '-outputs')
+        outside.mkdir()
+        self.addCleanup(shutil.rmtree, outside)
+        (self.root / 'artifacts').symlink_to(outside, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'symlink'): release.build(self.root, 'plugin')
+        self.assertEqual(list(outside.iterdir()), [])
+
     def test_plugin_build_keeps_allowlist_and_never_publishes(self):
         (self.root / 'plugin/unlisted-secret.txt').write_text('MUST_NOT_PACKAGE')
         (self.root / '.env').write_text('MUST_NOT_PACKAGE')
@@ -178,6 +205,17 @@ class ReleaseTest(unittest.TestCase):
         with patch.object(release, 'download') as network:
             with self.assertRaisesRegex(ValueError, 'immutable'): release.record_published(self.root, 'plugin', receipt)
             network.assert_not_called()
+
+    def test_green_unrelated_workflow_cannot_record_publication(self):
+        previous = (self.root / 'distribution/releases/published.json').read_bytes()
+        entry = feed()['mcp']
+        receipt = {'sha256':entry['sha256'],'verified_at':entry['verified_at'],'version':entry['version'],
+                   'reviewed_source_commit':entry['source_commit'],'package':'vpsnet-mcp',
+                   'tarball_url':entry['url'],'exact_reviewed_artifact_match':True}
+        ci = {'head_sha':entry['source_commit'],'conclusion':'success','status':'completed','path':'.github/workflows/unrelated.yml'}
+        with patch.object(release, 'download', side_effect=[b'bytes', json.dumps(ci).encode()]), patch.object(release, 'verify_artifact'):
+            with self.assertRaisesRegex(ValueError, 'contract CI'): release.record_published(self.root, 'mcp', receipt, entry['ci_run'])
+        self.assertEqual(previous, (self.root / 'distribution/releases/published.json').read_bytes())
 
     def test_artifact_redirects_stay_on_github_assets_only(self):
         with self.assertRaises(ValueError):

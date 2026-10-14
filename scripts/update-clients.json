@@ -177,7 +177,7 @@
       "https://docs.mistral.ai/vibe/work/connectors/mcp-connectors"
     ],
     "steps": [
-      "Use the existing Vibe Work connector controls. Its tool discovery is not dynamic; follow its documented reconnect procedure when tool definitions change.",
+      "After tools change, open the existing Vibe Work connector and use Functions > Refresh tools. This host does not support dynamic tool discovery.",
       "Do not substitute Vibe Code CLI: direct OAuth MCP is not supported there by the reviewed documentation."
     ]
   },

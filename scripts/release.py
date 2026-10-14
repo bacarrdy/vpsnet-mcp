@@ -22,13 +22,23 @@ MANIFESTS = (
 )
 
 
+def safe_path(root, relative):
+    parts = Path(relative).parts
+    require(parts and not Path(relative).is_absolute() and '..' not in parts, 'Invalid release path')
+    path = root
+    for part in parts:
+        path = path / part
+        require(not path.is_symlink(), 'Release path contains a symlink')
+    return path
+
+
 def read(path):
     require(not path.is_symlink(), 'Release input cannot be a symlink')
     return json.loads(path.read_text())
 
 
 def config(root):
-    data = read(root / 'release-config.json')
+    data = read(safe_path(root, 'release-config.json'))
     require(set(data) == {'schema_version', 'plugin_version', 'mcp_version'} and type(data['schema_version']) is int and data['schema_version'] == 1, 'Invalid release config')
     version(data['plugin_version'])
     version(data['mcp_version'])
@@ -42,13 +52,14 @@ def manifest_version(data, name):
 def validate_versions(root):
     data = config(root)
     for name in MANIFESTS:
-        require(manifest_version(read(root / name), name) == data['plugin_version'], 'Plugin version differs: ' + name)
-    package, lock = read(root / 'package.json'), read(root / 'package-lock.json')
+        require(manifest_version(read(safe_path(root, name)), name) == data['plugin_version'], 'Plugin version differs: ' + name)
+    package, lock = read(safe_path(root, 'package.json')), read(safe_path(root, 'package-lock.json'))
     require(package['version'] == lock['version'] == lock['packages']['']['version'] == data['mcp_version'], 'MCP package/lock versions differ')
     return data
 
 
 def plan(root, component, target=None):
+    require(component in ('plugin', 'mcp'), 'Unknown release component')
     data = validate_versions(root)
     current = data['plugin_version' if component == 'plugin' else 'mcp_version']
     if target is not None:
@@ -65,7 +76,7 @@ def prepare(root, component, target):
     paths = result['files'][1:]
     replacements = {}
     for name in paths:
-        path = root / name
+        path = safe_path(root, name)
         raw = path.read_text()
         pattern = r'("version"\s*:\s*")' + re.escape(old) + r'(")'
         expected = 2 if name == 'package-lock.json' else 1
@@ -74,7 +85,7 @@ def prepare(root, component, target):
         replacements[path] = updated
     data = config(root)
     data['plugin_version' if component == 'plugin' else 'mcp_version'] = target
-    replacements[root / 'release-config.json'] = json.dumps(data, indent=2) + '\n'
+    replacements[safe_path(root, 'release-config.json')] = json.dumps(data, indent=2) + '\n'
     for path, raw in replacements.items():
         path.write_text(raw)
     validate_versions(root)
@@ -83,19 +94,22 @@ def prepare(root, component, target):
 
 def validate(root):
     data = validate_versions(root)
-    validate_package(root / 'plugin')
-    mirror = root / 'scripts/sync_gemini_skills.py'
+    validate_package(safe_path(root, 'plugin'))
+    mirror = safe_path(root, 'scripts/sync_gemini_skills.py')
     if mirror.is_file():
         subprocess.run(['python3', str(mirror), '--check'], cwd=root, check=True)
-    validate_feed(decode((root / 'distribution/releases/published.json').read_bytes()))
+    validate_feed(decode(safe_path(root, 'distribution/releases/published.json').read_bytes()))
     return {'valid': True, **data, 'publication_verified_by_this_command': False}
 
 
 def build(root, component):
     data = validate(root)
-    output = root / 'artifacts'
+    output = safe_path(root, 'artifacts')
     output.mkdir(exist_ok=True)
+    for path in output.rglob('*'):
+        require(not path.is_symlink(), 'Artifact output contains a symlink')
     if component == 'plugin':
+        safe_path(root, 'artifacts/distribution-' + data['plugin_version'])
         subprocess.run(['python3', 'scripts/package-distribution.py'], cwd=root, check=True)
         manifest = read(output / ('distribution-' + data['plugin_version']) / 'release-manifest.json')
         return {'component': component, 'built': True, 'published': False, 'artifacts': manifest['artifacts']}
@@ -155,7 +169,7 @@ def published_from_receipt(component, receipt, ci_run=None):
 
 
 def record_published(root, component, receipt, ci_run=None):
-    path = root / 'distribution/releases/published.json'
+    path = safe_path(root, 'distribution/releases/published.json')
     feed = decode(path.read_bytes())
     previous = validate_feed(feed)[component]
     entry = published_from_receipt(component, receipt, ci_run)

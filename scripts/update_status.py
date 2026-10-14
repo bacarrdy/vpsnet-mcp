@@ -111,5 +111,10 @@ def status(client, plugin_version=None, local_mcp_version=None, server_version=N
             'checked_at': datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'published': published, 'observed': observations, 'update_available': available,
             'compatibility': {'status': 'unknown', 'reason': 'No version-specific acceptance evidence is supplied by this checker.'},
+            'distribution_status': {'source_release_published': True if feed is not None else None,
+                                    'npm_package_published': True if feed is not None else None,
+                                    'remote_deployment_status': 'unknown',
+                                    'official_registry': {'status': 'unknown', 'version': None, 'checked_at': None},
+                                    'downstream_catalogs': {}},
             'instructions': instructions, 'server_update': 'The hosted gateway is maintained by VPSnet. Updating a local npm package does not update it.',
             'advisory': True, 'reason': reason}

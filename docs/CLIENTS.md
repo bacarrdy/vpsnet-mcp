@@ -15,7 +15,7 @@ additional permissions require a new authorization request and approval.
 
 | Application | Setup |
 | --- | --- |
-| ChatGPT / Codex | Add a remote OAuth connector or install the VPSnet plugin when listed in the directory. |
+| ChatGPT / Codex | [Native marketplace, remote OAuth and update instructions](../distribution/clients/openai/README.md). Directory installation depends on publication and account availability. |
 | Claude / Cowork / Claude Code | Add the remote OAuth connector, or use the repository's `plugin/` package and Claude marketplace. |
 | Gemini browser / mobile | Add a custom app in the web app's Connected Apps settings. Currently requires a personal Google Account, age 18+, US location, English and Keep Activity enabled; then usable on web and mobile. |
 | Grok | Add a Custom connector with the MCP address. |
@@ -45,6 +45,10 @@ with `/mcp reload`; VS Code provides **MCP: Reset Cached Tools**. A tool refresh
 does not update installed plugin skills or grant additional OAuth permissions.
 
 ## Releases
+
+See [updates and releases](UPDATES.md) for explicit read-only version checks and
+independent plugin/npm preparation. Live gateway metadata, installed skills,
+tool caches and provider catalog approval have separate update mechanisms.
 
 Plugin bundles contain manifests and skills. The `vpsnet-mcp` npm package
 contains the local MCP implementation. Publishing a GitHub commit does not

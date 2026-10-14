@@ -29,6 +29,13 @@ Compatibility remains unknown without version-specific acceptance evidence;
 a newer version alone is not an incompatibility. Gateway notices say that VPSnet
 maintains the server, rather than directing users to upgrade npm to change it.
 
+`distribution_status` separates `source_release_published` from
+`npm_package_published`. It leaves `remote_deployment_status`, official MCP
+registry version/check time and downstream catalog status unknown unless
+separate evidence is available. An unknown deployment status does not mean the
+gateway is undeployed. The version checker is not the release preparation CLI
+and does not perform publication or catalog synchronization.
+
 The checker reads only the fixed first-party published-release feed, accepts at
 most 64 KiB, uses a five-second socket timeout and refuses redirects. A socket
 timeout is not a strict total elapsed-time deadline. An unavailable or invalid

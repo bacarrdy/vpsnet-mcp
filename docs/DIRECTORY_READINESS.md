@@ -1,12 +1,12 @@
 # Directory submission readiness
 
-Checked against the official requirements on 2026-10-13. This is a release
-candidate, not a provider approval or a guarantee of proactive recommendations.
+Client guidance was reviewed on 2026-10-14. Package validation is separate from
+provider approval and does not guarantee proactive recommendations.
 The public plugin README, manifests and skill are in English.
 
 | Provider | Submission or connection format | Remaining external acceptance |
 | --- | --- | --- |
-| OpenAI | `vpsnet-plugin-0.6.5.zip`, uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
+| OpenAI | Versioned portable ZIP from the [verified published releases](../distribution/releases/published.json), uploaded at https://platform.openai.com/plugins | Publisher access, domain challenge, live OAuth, reviewer account, demo video, portal validation and review |
 | Claude | Public `bacarrdy/vpsnet-mcp` GitHub repository, `plugin` path, `main` branch; submit both connector and plugin bundle at https://claude.ai/directory/manage | GitHub publisher access, live OAuth, portal checks, reviewer account and review |
 | Gemini | Custom remote MCP in eligible Connected Apps accounts, or the original Gemini CLI | Real account and regional availability; no verified public self-service directory submission path |
 | Grok | Custom remote MCP at https://grok.com/connectors | Real account OAuth; no verified public self-service directory submission path |
@@ -19,6 +19,11 @@ Additional registration drafts and provider requirements are maintained in the
 [catalog kit](../distribution/catalogs/README.md). MiniMax requires provider
 App/Connector onboarding before an OAuth plugin can be submitted. A registry
 entry does not grant approval in another AI application's marketplace.
+
+See [updates and releases](UPDATES.md) for independent plugin/npm preparation,
+native client refresh controls and the distinction between published artifacts,
+live gateway metadata and catalog approval. Development source versions are
+recorded in `release-config.json`; they are not evidence of publication.
 
 ## Automated checks
 
