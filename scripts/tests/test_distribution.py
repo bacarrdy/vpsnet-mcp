@@ -11,6 +11,7 @@ from zipfile import ZipFile
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
 from sync_gemini_skills import sync_skills
+from sync_plugin_version import CANONICAL as VERSION_REFERENCE, check_version, sync_version
 from sync_standalone_skills import SKILLS, snapshot as standalone_snapshot, sync_skills as sync_standalone, validate_links
 spec = importlib.util.spec_from_file_location('package_distribution', ROOT / 'scripts/package-distribution.py')
 module = importlib.util.module_from_spec(spec)
@@ -24,7 +25,7 @@ class DistributionTest(unittest.TestCase):
         self.root = Path(self.temp.name)
         for name in ('plugin', 'skills', '.claude-plugin', 'distribution/clients', 'distribution/standalone-skills'):
             shutil.copytree(ROOT / name, self.root / name)
-        for name in ('gemini-extension.json', 'server.json'):
+        for name in ('gemini-extension.json', 'server.json', 'release-config.json'):
             shutil.copy2(ROOT / name, self.root / name)
 
     def change(self, path, mutation):
@@ -99,6 +100,7 @@ class DistributionTest(unittest.TestCase):
             name = record['skill']
             canonical = (self.root / f'plugin/skills/{name}/SKILL.md').read_bytes()
             expected = canonical.replace(b'../vpsnet-operations/references/execution.md', b'references/execution.md')
+            expected = expected.replace(b'../vpsnet-operations/references/plugin-version.json', b'references/plugin-version.json')
             with ZipFile(folder / record['file']) as archive:
                 self.assertEqual(archive.read('SKILL.md'), expected)
                 self.assertEqual(archive.read('references/execution.md'), execution)
@@ -113,8 +115,31 @@ class DistributionTest(unittest.TestCase):
         (self.root / 'plugin/skills/vpsnet-functions/private.txt').write_text('DO_NOT_INCLUDE')
         (self.root / 'plugin/skills/vpsnet-operations/references/unreviewed.md').write_text('DO_NOT_INCLUDE')
         entries = standalone_snapshot(self.root)
-        self.assertEqual(set(entries['vpsnet-functions']), {'SKILL.md', 'references/execution.md'})
-        self.assertEqual(set(entries['vpsnet-operations']), {'SKILL.md', 'references/execution.md', 'references/use-cases.md'})
+        self.assertEqual(set(entries['vpsnet-functions']), {'SKILL.md', 'references/execution.md', 'references/plugin-version.json'})
+        self.assertEqual(set(entries['vpsnet-operations']), {'SKILL.md', 'references/execution.md', 'references/use-cases.md', 'references/plugin-version.json'})
+
+    def test_all_archives_include_actual_installed_plugin_version(self):
+        folder, manifest = module.build(self.root)
+        expected = (self.root / VERSION_REFERENCE).read_bytes()
+        self.assertEqual(json.loads(expected), {'schema_version': 1, 'plugin_version': manifest['plugin_version']})
+        for record in manifest['artifacts']:
+            name = 'references/plugin-version.json' if record['format'] == 'agent-skill' else VERSION_REFERENCE.removeprefix('plugin/')
+            with ZipFile(folder / record['file']) as archive:
+                self.assertEqual(archive.read(name), expected)
+
+    def test_stale_or_symlinked_version_reference_rejected(self):
+        path = self.root / VERSION_REFERENCE
+        original = path.read_bytes()
+        path.write_text('{"schema_version":1,"plugin_version":"0.0.0"}')
+        with self.assertRaisesRegex(ValueError, 'Plugin version reference differs'):
+            module.build(self.root)
+        path.unlink()
+        other = self.root / 'outside-version.json'
+        other.write_bytes(original)
+        path.symlink_to(other)
+        with self.assertRaisesRegex(ValueError, 'Symlink'):
+            sync_version(self.root)
+        self.assertEqual(other.read_bytes(), original)
 
     def test_single_skill_mirror_rejects_stale_and_extra_files(self):
         path = self.root / 'distribution/standalone-skills/vpsnet-functions/references/execution.md'
@@ -172,6 +197,10 @@ class DistributionTest(unittest.TestCase):
         for filename in ('plugin/plugin.json', 'plugin/.claude-plugin/plugin.json', 'plugin/.cursor-plugin/plugin.json', 'gemini-extension.json', 'distribution/clients/kimi-code/kimi.plugin.json', 'server.json'):
             self.change(filename, lambda d: d.update(version='8.9.10'))
         self.change('.claude-plugin/marketplace.json', lambda d: d['plugins'][0].update(version='8.9.10'))
+        self.change('release-config.json', lambda d: d.update(plugin_version='8.9.10'))
+        sync_version(self.root)
+        sync_skills(self.root)
+        sync_standalone(self.root)
         _, manifest = module.build(self.root)
         for record in manifest['artifacts']:
             if record['format'] == 'agent-skill':

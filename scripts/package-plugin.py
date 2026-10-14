@@ -4,15 +4,19 @@ import json
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 from validate_plugin import validate_package
+from sync_plugin_version import REFERENCE, check_version
 
 root = Path(__file__).resolve().parent.parent
 package = root / 'plugin'
 version = validate_package(package)
+if check_version(root) != version:
+    raise ValueError('Bundled plugin version differs')
 registry = json.loads((root / 'server.json').read_text())
 marketplace = json.loads((root / '.claude-plugin/marketplace.json').read_text())
 if version != registry['version'] or version != marketplace['plugins'][0]['version']:
     raise ValueError('Registry or marketplace version differs')
 files = ['plugin.json', 'mcp.json', '.claude-plugin/plugin.json', '.mcp.json', 'skills/vpsnet-operations/SKILL.md', 'skills/vpsnet-operations/references/use-cases.md', 'skills/vpsnet-operations/references/execution.md', 'skills/vpsnet-deploy/SKILL.md', 'skills/vpsnet-troubleshoot/SKILL.md', 'skills/vpsnet-functions/SKILL.md', 'README.md', 'LICENSE', 'assets/icon.png']
+files.append(REFERENCE)
 for filename in files:
     source = package / filename
     if source.is_symlink() or not source.is_file():

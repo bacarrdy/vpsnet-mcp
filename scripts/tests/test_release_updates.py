@@ -5,6 +5,7 @@ import io
 import json
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import release
 import update_status as updates
+from sync_plugin_version import CANONICAL as VERSION_REFERENCE, check_version
 
 
 def feed():
@@ -133,15 +135,38 @@ class ReleaseTest(unittest.TestCase):
         new = json.loads((self.root / 'plugin/plugin.json').read_text())
         self.assertEqual(manifest['extensions'], new['extensions'])
         self.assertEqual(auth, (self.root / 'plugin/mcp.json').read_bytes())
+        self.assertEqual(check_version(self.root), self.next_plugin)
+        for name in release.plan(self.root, 'plugin')['generated_files']:
+            self.assertEqual(json.loads((self.root / name).read_text()), {'schema_version': 1, 'plugin_version': self.next_plugin})
+        self.assertTrue(release.validate(self.root)['valid'])
 
     def test_prepare_runtime_preserves_plugin_and_dependencies(self):
         plugin = [(self.root / p).read_bytes() for p in release.MANIFESTS]
+        installed_version = (self.root / VERSION_REFERENCE).read_bytes()
         previous = json.loads((self.root / 'package-lock.json').read_text())
         release.prepare(self.root, 'mcp', self.next_mcp)
         current = json.loads((self.root / 'package-lock.json').read_text())
         self.assertEqual(plugin, [(self.root / p).read_bytes() for p in release.MANIFESTS])
         self.assertEqual(previous['packages']['node_modules/zod'], current['packages']['node_modules/zod'])
         self.assertEqual(release.validate_versions(self.root)['mcp_version'], self.next_mcp)
+        self.assertEqual((self.root / VERSION_REFERENCE).read_bytes(), installed_version)
+
+    def test_stale_version_reference_blocks_validate_build_and_prepare(self):
+        path = self.root / VERSION_REFERENCE
+        path.write_text('{"schema_version":1,"plugin_version":"0.0.0"}')
+        config_before = (self.root / 'release-config.json').read_bytes()
+        manifests_before = [(self.root / p).read_bytes() for p in release.MANIFESTS]
+        for action in (lambda: release.validate(self.root), lambda: release.build(self.root, 'plugin'), lambda: release.prepare(self.root, 'plugin', self.next_plugin)):
+            with self.assertRaisesRegex(ValueError, 'Plugin version reference differs'):
+                action()
+        self.assertEqual(config_before, (self.root / 'release-config.json').read_bytes())
+        self.assertEqual(manifests_before, [(self.root / p).read_bytes() for p in release.MANIFESTS])
+
+    def test_stale_single_skill_version_reference_blocks_release(self):
+        path = self.root / 'distribution/standalone-skills/vpsnet-deploy/references/plugin-version.json'
+        path.write_text('{"schema_version":1,"plugin_version":"0.0.0"}')
+        with self.assertRaises(subprocess.CalledProcessError):
+            release.validate(self.root)
 
     def test_prepare_is_explicit_increasing_and_plan_is_read_only(self):
         before = (self.root / 'release-config.json').read_bytes()

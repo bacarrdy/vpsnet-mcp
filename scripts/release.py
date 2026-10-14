@@ -13,6 +13,9 @@ from zipfile import ZipFile
 
 from update_status import artifact_url, decode, require, validate_feed, version
 from validate_plugin import validate_package
+from sync_plugin_version import CANONICAL as VERSION_REFERENCE, REFERENCE, check_version, sync_version
+from sync_gemini_skills import check_skills as check_gemini, sync_skills as sync_gemini
+from sync_standalone_skills import SKILLS, check_skills as check_standalone, sync_skills as sync_standalone
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFESTS = (
@@ -65,13 +68,19 @@ def plan(root, component, target=None):
     if target is not None:
         require(version(target) > version(current), 'A prepared release must increase the selected component version')
     paths = list(MANIFESTS) if component == 'plugin' else ['package.json', 'package-lock.json']
+    generated = [VERSION_REFERENCE, REFERENCE, *[f'distribution/standalone-skills/{skill}/references/plugin-version.json' for skill in SKILLS]] if component == 'plugin' else []
     return {'component': component, 'current_version': current, 'target_version': target,
             'files': ['release-config.json', *paths], 'publishes': False, 'deploys': False,
+            'generated_files': generated,
             'other_component_unchanged': True}
 
 
 def prepare(root, component, target):
     result = plan(root, component, target)
+    if component == 'plugin':
+        check_version(root)
+        check_gemini(root)
+        check_standalone(root)
     old = result['current_version']
     paths = result['files'][1:]
     replacements = {}
@@ -89,11 +98,16 @@ def prepare(root, component, target):
     for path, raw in replacements.items():
         path.write_text(raw)
     validate_versions(root)
+    if component == 'plugin':
+        sync_version(root)
+        sync_gemini(root)
+        sync_standalone(root)
     return result
 
 
 def validate(root):
     data = validate_versions(root)
+    require(check_version(root) == data['plugin_version'], 'Installed plugin version reference differs')
     validate_package(safe_path(root, 'plugin'))
     mirror = safe_path(root, 'scripts/sync_gemini_skills.py')
     if mirror.is_file():

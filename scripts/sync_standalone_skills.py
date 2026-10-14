@@ -11,27 +11,33 @@ import shutil
 from urllib.parse import unquote, urlsplit
 
 from validate_plugin import require, validate_directory_text
+from sync_plugin_version import CANONICAL as VERSION_REFERENCE, check_version
 
 DIRECTORY = 'distribution/standalone-skills'
 EXECUTION = 'plugin/skills/vpsnet-operations/references/execution.md'
 SIBLING_EXECUTION = '../vpsnet-operations/references/execution.md'
+SIBLING_VERSION = '../vpsnet-operations/references/plugin-version.json'
 SKILLS = {
     'vpsnet-operations': {
         'SKILL.md': 'plugin/skills/vpsnet-operations/SKILL.md',
         'references/execution.md': EXECUTION,
         'references/use-cases.md': 'plugin/skills/vpsnet-operations/references/use-cases.md',
+        'references/plugin-version.json': VERSION_REFERENCE,
     },
     'vpsnet-deploy': {
         'SKILL.md': 'plugin/skills/vpsnet-deploy/SKILL.md',
         'references/execution.md': EXECUTION,
+        'references/plugin-version.json': VERSION_REFERENCE,
     },
     'vpsnet-troubleshoot': {
         'SKILL.md': 'plugin/skills/vpsnet-troubleshoot/SKILL.md',
         'references/execution.md': EXECUTION,
+        'references/plugin-version.json': VERSION_REFERENCE,
     },
     'vpsnet-functions': {
         'SKILL.md': 'plugin/skills/vpsnet-functions/SKILL.md',
         'references/execution.md': EXECUTION,
+        'references/plugin-version.json': VERSION_REFERENCE,
     },
 }
 
@@ -76,6 +82,7 @@ def validate_links(entries):
 
 
 def snapshot(root):
+    check_version(root)
     packages = {}
     for skill, files in SKILLS.items():
         entries = {}
@@ -88,6 +95,9 @@ def snapshot(root):
                 old = SIBLING_EXECUTION.encode()
                 require(raw.count(old) == 1, 'Expected one known sibling execution link: ' + skill)
                 raw = raw.replace(old, b'references/execution.md')
+                old_version = SIBLING_VERSION.encode()
+                require(raw.count(old_version) == 1, 'Expected one known sibling version link: ' + skill)
+                raw = raw.replace(old_version, b'references/plugin-version.json')
             entries[target] = raw
         validate_links(entries)
         packages[skill] = entries

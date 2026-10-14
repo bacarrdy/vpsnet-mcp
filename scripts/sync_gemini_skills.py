@@ -8,6 +8,7 @@ SKILL_FILES = (
     'skills/vpsnet-operations/SKILL.md',
     'skills/vpsnet-operations/references/use-cases.md',
     'skills/vpsnet-operations/references/execution.md',
+    'skills/vpsnet-operations/references/plugin-version.json',
     'skills/vpsnet-deploy/SKILL.md',
     'skills/vpsnet-troubleshoot/SKILL.md',
     'skills/vpsnet-functions/SKILL.md',

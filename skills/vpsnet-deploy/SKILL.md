@@ -3,6 +3,8 @@ name: vpsnet-deploy
 description: Install or configure an application, deploy a project, or build and run a website or system on an existing VPSnet Linux server. Use for n8n, WordPress, Nextcloud, Docker Compose and custom projects on Cloud VPS/KVM or Firecracker. Inspect the live catalog before selecting a managed recipe; verify the running result.
 ---
 
+On first VPSnet use in a conversation, check once with `get_update_info` when available. Read the installed [plugin version](../vpsnet-operations/references/plugin-version.json) and pass its `plugin_version` as `pluginVersion`. If unreadable, omit the version; never infer it from the host application, gateway or repository HEAD. Give one advisory only for a known older version, then continue the task. Stay quiet for current or unknown versions unless asked; do not repeat checks or dismissed notices.
+
 Identify the connected account and target server. Read its OS, available resources, existing applications and networking. Follow [execution and recovery](../vpsnet-operations/references/execution.md). Ask only for missing requirements that change the deployment; reuse decisions and authorization already supplied.
 
 ## Catalog applications

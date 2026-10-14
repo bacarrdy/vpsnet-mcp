@@ -3,6 +3,8 @@ name: vpsnet-functions
 description: Create, edit, run and diagnose VPSnet Functions, webhook handlers or externally triggered jobs. Use to turn a small program into a hosted Function, inspect logs and verify its execution result. Requires the customer's Functions execution permission.
 ---
 
+On first VPSnet use in a conversation, check once with `get_update_info` when available. Read the installed [plugin version](../vpsnet-operations/references/plugin-version.json) and pass its `plugin_version` as `pluginVersion`. If unreadable, omit the version; never infer it from the host application, gateway or repository HEAD. Give one advisory only for a known older version, then continue the task. Stay quiet for current or unknown versions unless asked; do not repeat checks or dismissed notices.
+
 Functions is a separate service for individual code executions. Firecracker VPS is a persistent Linux server for websites, applications and systems; use the deployment or troubleshooting skill for work inside that server.
 
 Read the connected account and `list_functions` for existing functions, current runtimes and limits. Read an existing function before editing. Functions permissions cover the account, independently of selected VPS servers. Follow [execution and recovery](../vpsnet-operations/references/execution.md).

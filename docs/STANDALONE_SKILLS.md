@@ -19,6 +19,7 @@ These exports derive from `plugin/skills/`; do not edit the generated copies.
 After changing canonical skills, regenerate and validate both mirrors:
 
 ```sh
+python3 scripts/sync_plugin_version.py
 python3 scripts/sync_gemini_skills.py
 python3 scripts/sync_standalone_skills.py
 python3 scripts/sync_standalone_skills.py --check
@@ -32,6 +33,13 @@ preserved. Local links must resolve inside each skill. Extra files and links do
 not cause additional files to be included. Stale generated copies and symlinks
 fail validation. ZIP entries have fixed timestamps and permissions, and their
 asset names and manifest versions follow the current plugin version.
+
+Each skill also carries `references/plugin-version.json`, generated from
+`release-config.json`. Its `plugin_version` identifies the installed skill
+release for the read-only first-use `get_update_info` check. Plugin release
+preparation regenerates this reference and both skill mirrors; validation and
+packaging reject stale copies. It does not identify the host application's
+version or the currently deployed gateway.
 
 The release build adds four single-skill ZIPs alongside the existing five
 client bundles. It does not update installed copies. For Bolt, a GitHub import

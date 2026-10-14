@@ -13,6 +13,7 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 from validate_plugin import require, validate_package, validate_directory_text
 from sync_gemini_skills import SKILL_FILES, check_skills
 from sync_standalone_skills import check_skills as check_standalone_skills, snapshot as standalone_skills
+from sync_plugin_version import check_version
 
 ENDPOINT = 'https://mcp.vpsnet.com/mcp'
 SHARED = ('LICENSE', 'assets/icon.png') + SKILL_FILES
@@ -92,6 +93,7 @@ def archive(output, filename, entries):
 
 def build(root, output=None):
     version = validate_package(root / 'plugin')
+    require(check_version(root) == version, 'Bundled plugin version differs')
     check_skills(root)
     check_standalone_skills(root)
     registry = json_source(root, 'server.json')
