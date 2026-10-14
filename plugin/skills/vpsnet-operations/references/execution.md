@@ -2,6 +2,30 @@
 
 Use the connected customer's selected services and granted permissions. A request to deploy or repair authorizes the necessary work within its stated scope; do not repeatedly ask for the same approval. Clarify the target or seek additional consent when a change expands access, spends beyond the agreed limit, replaces existing data or creates a new public exposure.
 
+## OAuth reconnect
+
+Let the OAuth client use a valid refresh token first. If refresh is rejected
+because it expired or was revoked, or credentials are missing, use the client's
+native sign-in or reconnect flow where supported. The client must discover and
+validate the issuer and MCP resource, use its registered callback, and start a
+fresh authorization-code flow with S256 PKCE and `state`. Do not promise that
+every web AI application can generate an authorization link in chat.
+
+A CLI loopback callback must reach its listener from the user's browser. For
+a remote CLI, use a correctly configured SSH loopback forward or a supported,
+registered HTTPS callback. A remote machine's `127.0.0.1` link does not reach
+that machine from the user's browser without forwarding. Do not hand out a
+stale link or another machine's callback. Never ask for passwords, authorization
+codes, API keys or tokens in chat, fabricate tokens, or bypass consent.
+
+Diagnose, Manage and Full access are limited to the scopes in the client's
+authorization request. Additional permissions require a new request and the
+customer's consent; services remain limited to their selection. Verify scopes
+and services with `get_connected_account` after reconnect, then inspect any
+original operation before resuming a mutation. See the public
+[reconnect workflow](https://github.com/bacarrdy/vpsnet-mcp/blob/main/docs/REMOTE_MCP.md#reconnect-after-losing-authorization)
+for the protocol references and callback explanation.
+
 ## Server access
 
 Inspect the service's OS, resources and network first. Open a VM session without inventing `sessionBinding`; retain the returned binding, session ID and service number. Auto prefers the guest-agent channel. Explicit `guest` works without a public IP, working SSH or guest network when the agent is available. Explicit `ssh` is an independent reachable SSH/SFTP path. Key deployment can be pending. Read `/etc/os-release` and the first diagnostic result before choosing Linux commands. The selected directory does not isolate root commands.

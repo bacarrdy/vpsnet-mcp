@@ -9,6 +9,10 @@ Start with: “Show my connected VPSnet servers and what is running. Ask before
 making changes.” Files, commands and metered Functions execution need their
 respective permissions. Disconnect in **AI connections** in the VPSnet panel.
 
+If authorization is lost, follow the [reconnect workflow](REMOTE_MCP.md#reconnect-after-losing-authorization).
+Consent presets can grant only the [scopes requested by the client](REMOTE_MCP.md#why-some-consent-choices-are-unavailable);
+additional permissions require a new authorization request and approval.
+
 | Application | Setup |
 | --- | --- |
 | ChatGPT / Codex | Add a remote OAuth connector or install the VPSnet plugin when listed in the directory. |

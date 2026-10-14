@@ -25,6 +25,8 @@ The remote profile also includes scoped DNS, domain and certificate management, 
 The remote connector uses `https://mcp.vpsnet.com/mcp` and customer consent through
 VPSnet. See [Remote AI connections](docs/REMOTE_MCP.md) for connection setup,
 permissions and supported operations.
+For expired or revoked authorization and unavailable consent choices, see
+[reconnecting and requested permissions](docs/REMOTE_MCP.md#reconnect-after-losing-authorization).
 
 The distributable [plugin README](plugin/README.md), manifests and skills are in English.
 See [directory readiness](docs/DIRECTORY_READINESS.md) for package validation and
