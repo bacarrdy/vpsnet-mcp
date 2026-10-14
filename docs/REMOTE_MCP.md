@@ -32,6 +32,16 @@ Missing permissions return an OAuth scope challenge before an action runs.
 Clients that cannot request incremental consent must reconnect with the needed
 permissions. Consent never silently expands an existing grant.
 
+`get_connected_account` reports the stored spending limits returned by the
+backend. When supplied, `function_monthly_limit_eur` is the grant's monthly
+Functions cap in EUR, alongside `function_daily_limit_eur`; it may be a number
+or decimal string. Legacy responses may omit it or return `null`, meaning no
+explicit monthly cap is reported by that grant, rather than unlimited usage.
+The account's applicable limits still apply. Reading this field does not set
+defaults, change an existing grant or authorize `functions:invoke`. Its presence
+reflects the connected backend response; client schema support alone does not
+prove that a backend change has been deployed.
+
 ### Scope descriptions and included access
 
 Authorization-server and protected-resource metadata retain the standard

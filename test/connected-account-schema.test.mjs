@@ -56,6 +56,9 @@ test('HTTP account inspection retains grant details and validates its own schema
   assert.equal(account._meta['openai/profile'], undefined);
   assert.equal(account.outputSchema.type, 'object');
   for (const required of ['id', 'name', 'scopes', 'services']) assert.ok(account.outputSchema.required.includes(required));
+  assert.ok(account.outputSchema.properties.function_monthly_limit_eur, 'monthly Functions cap is a typed field, not an unvalidated extension');
+  assert.ok(!account.outputSchema.required.includes('function_monthly_limit_eur'), 'legacy backends may omit the field');
+  assert.match(account.outputSchema.properties.function_monthly_limit_eur.description, /not unlimited|account limits still apply/);
   for (const tool of tools) assert.deepEqual(tool.securitySchemes, tool._meta.securitySchemes, tool.name);
   assert.deepEqual(account.securitySchemes, [{ type: 'oauth2', scopes: [] }]);
   assert.deepEqual(tools.find(tool => tool.name === 'run_vm_command').securitySchemes,
@@ -63,8 +66,9 @@ test('HTTP account inspection retains grant details and validates its own schema
 
   const base = { id: 'vpsnet:42', name: 'VPSnet account 42', scopes: ['services:read'], services: ['vp-a'] };
   for (payload of [
-    { ...base, function_daily_limit_eur: null, order_daily_limit_eur: null, order_monthly_limit_eur: null },
-    { ...base, function_daily_limit_eur: '12.50', order_daily_limit_eur: 10, order_monthly_limit_eur: '40.00' },
+    { ...base, function_daily_limit_eur: null, function_monthly_limit_eur: null, order_daily_limit_eur: null, order_monthly_limit_eur: null },
+    { ...base, function_daily_limit_eur: '12.50', function_monthly_limit_eur: '100.00', order_daily_limit_eur: 10, order_monthly_limit_eur: '40.00' },
+    { ...base, function_monthly_limit_eur: 100 },
     base,
   ]) {
     const response = await rpc(port, 'tools/call', { name: 'get_connected_account', arguments: {} });
@@ -72,11 +76,20 @@ test('HTTP account inspection retains grant details and validates its own schema
     assert.notEqual(response.body.result.isError, true, JSON.stringify(response.body));
     assert.deepEqual(response.body.result.structuredContent, payload);
     assert.deepEqual(JSON.parse(response.body.result.content[0].text), payload);
+    assert.deepEqual(response.body.result.structuredContent.scopes, ['services:read'], 'a reported spending limit grants no paid Functions scope');
+    assert.deepEqual(response.body.result.structuredContent.services, ['vp-a'], 'reading limits does not expand service selection');
+    if (!Object.hasOwn(payload, 'function_monthly_limit_eur')) {
+      assert.equal(Object.hasOwn(response.body.result.structuredContent, 'function_monthly_limit_eur'), false, 'do not backfill a legacy response with a default');
+    }
   }
   for (payload of [
     { ...base, scopes: 'services:read' },
     { ...base, services: 42 },
     { ...base, function_daily_limit_eur: { amount: 10 } },
+    { ...base, function_monthly_limit_eur: { amount: 100 } },
+    { ...base, function_monthly_limit_eur: -1 },
+    { ...base, function_monthly_limit_eur: '-1.00' },
+    { ...base, function_monthly_limit_eur: '1e2' },
     { ...base, id: '' },
   ]) {
     const response = await rpc(port, 'tools/call', { name: 'get_connected_account', arguments: {} });

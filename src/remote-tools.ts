@@ -92,6 +92,7 @@ export function registerRemoteTools(server: McpServer): void {
     outputSchema: z.object({
       id: z.string().min(1), name: z.string(), scopes: z.array(z.string()), services: z.array(z.string()),
       function_daily_limit_eur: spendingLimit, order_daily_limit_eur: spendingLimit, order_monthly_limit_eur: spendingLimit,
+      function_monthly_limit_eur: spendingLimit.describe('Stored monthly Functions limit in EUR when supplied by the backend. Null or omitted means no explicit monthly cap is reported by this grant, not unlimited usage; account limits still apply. Read only: never infer a default or expand permissions.'),
     }).passthrough(),
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async () => { const { data } = await apiRequest('GET', '/account/mcp/profile'); return { ...result(data), structuredContent: data as Record<string, unknown> }; });
