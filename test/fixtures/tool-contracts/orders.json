@@ -1,0 +1,832 @@
+{
+  "base": "directory",
+  "included": [
+    "add_domain_parent_ds",
+    "add_network_load_balancer_listener",
+    "add_network_load_balancer_member",
+    "apply_dns_template",
+    "attach_network_vpn_gateway",
+    "attach_private_network_port",
+    "attach_public_address_to_network",
+    "attach_public_address_to_server",
+    "attach_service_dns_record",
+    "bind_network_public_ip",
+    "browse_restore_files",
+    "cancel_application_action",
+    "cancel_automatic_ssl_subscription",
+    "cancel_certificate",
+    "cancel_free_certificate",
+    "cancel_vm_operation",
+    "change_certificate_validation",
+    "change_hostname",
+    "change_rdns",
+    "change_title",
+    "clear_rdns",
+    "clone_network_security_group",
+    "configure_application_access",
+    "configure_application_resource_thresholds",
+    "configure_network_public_forwarding",
+    "confirm_application_compose_adoption",
+    "confirm_domain_register",
+    "confirm_service_order",
+    "create_application_recipe",
+    "create_application_recipe_revision",
+    "create_dns_zone",
+    "create_domain_contact",
+    "create_domain_glue_record",
+    "create_free_certificate",
+    "create_function",
+    "create_network_security_group",
+    "create_network_vpn_peer",
+    "create_private_network",
+    "create_ssh_key",
+    "create_vm_file",
+    "delete_dns_record",
+    "delete_dns_zone",
+    "delete_domain_contact",
+    "delete_domain_glue_record",
+    "delete_domain_parent_ds",
+    "delete_firecracker_snapshot",
+    "delete_function",
+    "delete_network_load_balancer",
+    "delete_network_public_binding",
+    "delete_network_security_group",
+    "delete_network_vpn_gateway",
+    "delete_private_network",
+    "delete_snapshot",
+    "delete_ssh_key",
+    "deploy_ssh_key",
+    "detach_network_public_address",
+    "detach_network_vpn_gateway",
+    "detach_private_network_port",
+    "discover_service_containers",
+    "download_certificate",
+    "download_free_certificate",
+    "enter_service_rescue",
+    "exit_service_rescue",
+    "export_application_recipe",
+    "export_dns_zone",
+    "flush_iptables",
+    "get_application_compose_adoption",
+    "get_application_data_restore",
+    "get_application_events",
+    "get_application_health",
+    "get_application_inspection",
+    "get_application_installation",
+    "get_application_logs",
+    "get_application_recipe_validation",
+    "get_automatic_ssl_subscription",
+    "get_backup_history",
+    "get_backup_status",
+    "get_certificate",
+    "get_certificate_validation",
+    "get_connected_account",
+    "get_dns_service_status",
+    "get_dns_zone",
+    "get_dns_zone_diagnostics",
+    "get_dns_zone_history",
+    "get_dnssec",
+    "get_domain",
+    "get_domain_parent_ds",
+    "get_event",
+    "get_faq",
+    "get_firecracker_backup_history",
+    "get_firecracker_backup_status",
+    "get_free_certificate",
+    "get_free_certificate_eligibility",
+    "get_free_certificate_instruction",
+    "get_function",
+    "get_function_invocation",
+    "get_guest_agent_status",
+    "get_guest_nameservers",
+    "get_hostname",
+    "get_network_appliance_capabilities",
+    "get_network_appliance_operation",
+    "get_network_load_balancer",
+    "get_network_public_address",
+    "get_network_public_binding",
+    "get_network_routed_egress",
+    "get_network_security_policy",
+    "get_network_vpn_egress_options",
+    "get_network_vpn_gateway",
+    "get_network_vpn_summary",
+    "get_networking_capabilities",
+    "get_networking_features",
+    "get_networking_operation",
+    "get_networking_overview",
+    "get_networking_topology",
+    "get_order_options",
+    "get_order_plans",
+    "get_os_options",
+    "get_private_network",
+    "get_purchase_result",
+    "get_rdns",
+    "get_registrar_lock",
+    "get_restore_file_browse",
+    "get_security_group_capabilities",
+    "get_service",
+    "get_service_container_discovery",
+    "get_service_graphs",
+    "get_service_history",
+    "get_service_rescue",
+    "get_ssh_key",
+    "get_system_status",
+    "get_title",
+    "get_update_info",
+    "get_vm_operation",
+    "import_dns_zone",
+    "inspect_vm",
+    "install_application",
+    "install_application_recipe",
+    "invoke_function",
+    "list_application_catalog",
+    "list_application_recipe_revisions",
+    "list_application_recipes",
+    "list_application_registry_credentials",
+    "list_automatic_ssl_actions",
+    "list_automatic_ssl_subscriptions",
+    "list_certificate_actions",
+    "list_certificates",
+    "list_ddns_tokens",
+    "list_dns_templates",
+    "list_dns_zones",
+    "list_domain_contacts",
+    "list_domain_glue_records",
+    "list_domains",
+    "list_firecracker_snapshots",
+    "list_free_certificates",
+    "list_function_history",
+    "list_function_invocations",
+    "list_functions",
+    "list_network_appliances",
+    "list_network_attachment_candidates",
+    "list_network_load_balancers",
+    "list_network_public_addresses",
+    "list_network_security_groups",
+    "list_network_vpn_gateways",
+    "list_networking_operations",
+    "list_private_network_ports",
+    "list_private_networks",
+    "list_restore_file_points",
+    "list_restore_points",
+    "list_service_applications",
+    "list_service_dns_options",
+    "list_service_private_ports",
+    "list_services",
+    "list_snapshots",
+    "list_ssh_keys",
+    "move_network_public_ip",
+    "open_vm_session",
+    "preflight_free_certificate",
+    "prepare_application_compose_adoption",
+    "quote_domain_register",
+    "quote_service_order",
+    "read_vm_file",
+    "reapply_dns_zone",
+    "recheck_certificate_validation",
+    "recheck_free_certificate",
+    "reconcile_application",
+    "refresh_automatic_ssl_subscription",
+    "refresh_certificate",
+    "reinstall_os",
+    "reissue_certificate",
+    "reissue_dns_zone_verification",
+    "remove_automatic_ssl_domain",
+    "remove_network_load_balancer_listener",
+    "remove_network_load_balancer_member",
+    "renew_free_certificate",
+    "repair_application",
+    "replace_automatic_ssl_domain",
+    "resend_certificate_validation",
+    "reset_hostname",
+    "restart_application",
+    "restart_service",
+    "resume_service",
+    "retire_network_security_policy",
+    "retry_network_security_policy",
+    "retry_private_network",
+    "retry_private_network_port",
+    "revoke_ddns_token",
+    "revoke_free_certificate",
+    "revoke_network_vpn_peer",
+    "rollback_application",
+    "rollback_firecracker_snapshot",
+    "rollback_snapshot",
+    "run_vm_command",
+    "set_dnssec",
+    "set_domain_nameservers",
+    "set_guest_nameservers",
+    "set_network_default_security_policy",
+    "set_network_routed_egress",
+    "set_network_vpn_peer_egress",
+    "set_network_vpn_peer_grants",
+    "set_private_network_dns",
+    "set_private_network_names",
+    "set_private_port_security_groups",
+    "set_vpn_server_access",
+    "start_application",
+    "start_service",
+    "stop_application",
+    "stop_service",
+    "suspend_service",
+    "take_network_vpn_peer_config",
+    "toggle_extra_settings",
+    "toggle_ipv6",
+    "uninstall_application",
+    "update_application",
+    "update_dns_record",
+    "update_domain_contact",
+    "update_function",
+    "update_network_security_group",
+    "upsert_dns_record",
+    "validate_application_recipe",
+    "verify_dns_zone",
+    "wait_for_event",
+    "write_vm_file"
+  ],
+  "overrides": {
+    "confirm_domain_register": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:domains"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true,
+          "readOnlyHint": false,
+          "title": "Confirm domain register"
+        },
+        "description": "Confirm a quoted domain registration and pay from the VPSNet account. Domain payments are non-refundable once confirmed and the domain action is queued only after payment succeeds. Requires the same idempotencyKey and quoteToken from quote_domain_register.",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "acknowledge_charge": {
+              "const": true,
+              "type": "boolean"
+            },
+            "acknowledge_non_refundable": {
+              "const": true,
+              "description": "The customer explicitly accepted the domain registration’s non-refundable terms.",
+              "type": "boolean"
+            },
+            "admin_contact_id": {
+              "description": "Admin contact ID used in quote",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "billing_contact_id": {
+              "description": "Billing contact ID used in quote",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "domain": {
+              "description": "Domain to register, exactly as quoted",
+              "type": "string"
+            },
+            "expected_total_eur": {
+              "description": "Exact final total_amount_eur including VAT from the quote, shown to and approved by the customer.",
+              "minimum": 0,
+              "type": "number"
+            },
+            "idempotencyKey": {
+              "description": "Stable 16–128 character key for this exact purchase; reuse it for quote, confirmation and get_purchase_result.",
+              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+              "type": "string"
+            },
+            "nameservers": {
+              "description": "Nameserver hostnames used in quote",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "payment": {
+              "additionalProperties": false,
+              "default": {
+                "cancelUrl": "",
+                "payment": 1,
+                "successUrl": ""
+              },
+              "properties": {
+                "cancelUrl": {
+                  "const": "",
+                  "type": "string"
+                },
+                "payment": {
+                  "const": 1,
+                  "type": "number"
+                },
+                "successUrl": {
+                  "const": "",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "payment",
+                "successUrl",
+                "cancelUrl"
+              ],
+              "type": "object"
+            },
+            "quoteToken": {
+              "description": "quoteToken returned by quote_domain_register",
+              "minLength": 32,
+              "type": "string"
+            },
+            "registrant_contact_id": {
+              "description": "Registrant contact ID used in quote",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "tech_contact_id": {
+              "description": "Technical contact ID used in quote",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "whois_privacy": {
+              "description": "Hide public WHOIS contact details where supported. Defaults to the TLD setting.",
+              "type": "boolean"
+            },
+            "years": {
+              "description": "Registration period in years, exactly as quoted",
+              "type": "number"
+            }
+          },
+          "required": [
+            "domain",
+            "idempotencyKey",
+            "quoteToken",
+            "expected_total_eur",
+            "acknowledge_charge",
+            "acknowledge_non_refundable"
+          ],
+          "type": "object"
+        },
+        "name": "confirm_domain_register",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:domains"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Confirm domain register"
+      }
+    },
+    "confirm_service_order": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:servers"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Confirm service order"
+        },
+        "description": "Purchase the exact previously quoted server from VPSnet balance after explicit customer approval of its final EUR total and billing period. Supply the unchanged quote configuration, token and key. Never automatically create a new key after an uncertain result: inspect get_purchase_result. A receipt is not a ready server. Poll get_purchase_result for the purchase outcome; get_service for the returned orderno additionally requires services:read. This connection receives access to its newly ordered server only within the permissions the customer granted.",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "acknowledge_charge": {
+              "const": true,
+              "description": "The customer explicitly approved this exact balance charge.",
+              "type": "boolean"
+            },
+            "expected_total_eur": {
+              "description": "Exact final amount_eur from the quote, shown to and approved by the customer.",
+              "minimum": 0,
+              "type": "number"
+            },
+            "idempotencyKey": {
+              "description": "Stable key for this exact purchase; reuse it for the quote, confirmation and status.",
+              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+              "type": "string"
+            },
+            "os": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "period": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "plan": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "privateNetworkId": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "quoteToken": {
+              "maxLength": 256,
+              "minLength": 32,
+              "type": "string"
+            },
+            "resources": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "rootPassword": {
+              "description": "Only when the selected OS requires a password; prefer an existing SSH key for Linux.",
+              "maxLength": 40,
+              "minLength": 6,
+              "type": "string"
+            },
+            "sshKey": {
+              "description": "Existing public SSH key ID; mutually exclusive with rootPassword.",
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan",
+            "idempotencyKey",
+            "quoteToken",
+            "expected_total_eur",
+            "acknowledge_charge"
+          ],
+          "type": "object"
+        },
+        "name": "confirm_service_order",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:servers"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Confirm service order"
+      }
+    },
+    "get_order_options": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Get order options"
+        },
+        "description": "Get configurable options (OS, resources, periods) for a plan",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "plan": {
+              "description": "Plan ID from get_order_plans",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan"
+          ],
+          "type": "object"
+        },
+        "name": "get_order_options",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:read"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Get order options"
+      }
+    },
+    "get_order_plans": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Get order plans"
+        },
+        "description": "Get available plans for one explicitly selected service product. Product facts are unordered: 'firecracker' is VPS using Firecracker microVMs for Linux; 'vds' is Cloud VPS (KVM) with High Availability, replicated Ceph NVMe storage, and Linux/Windows/BSD support; 'vps' is Container VPS for Linux; 'ds' is a dedicated single-tenant server. Select from the user's requirements and constraints rather than list position. Firecracker Functions is a separate usage-billed product and is not an orderable service type here.",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "enum": [
+                "vps",
+                "vds",
+                "firecracker"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        "name": "get_order_plans",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:read"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Get order plans"
+      }
+    },
+    "get_purchase_result": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "readOnlyHint": true,
+          "title": "Get purchase result"
+        },
+        "description": "Inspect this connection’s existing purchase attempt by its original idempotency key. Pending or unknown is not a successful purchase. Do not submit a second order. A returned server orderno can be checked with get_service; a domain remains pending until its registrar status confirms registration.",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "idempotencyKey": {
+              "description": "Stable key for this exact purchase; reuse it for the quote, confirmation and status.",
+              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "idempotencyKey"
+          ],
+          "type": "object"
+        },
+        "name": "get_purchase_result",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:read"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Get purchase result"
+      }
+    },
+    "quote_domain_register": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:domains"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Quote domain register"
+        },
+        "description": "Create a VPSNet-priced domain registration quote. Returns quoteToken; does not submit the domain action. Requires domains:read plus paid domains:order scope/caps for API keys.",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "admin_contact_id": {
+              "description": "Admin contact ID",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "billing_contact_id": {
+              "description": "Billing contact ID",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "domain": {
+              "description": "Domain to register, e.g. example.lt",
+              "type": "string"
+            },
+            "idempotencyKey": {
+              "description": "Stable 16–128 character key for this exact purchase; reuse it for quote, confirmation and get_purchase_result.",
+              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+              "type": "string"
+            },
+            "nameservers": {
+              "description": "2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "registrant_contact_id": {
+              "description": "Registrant contact ID; defaults to account default contact",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "tech_contact_id": {
+              "description": "Technical contact ID",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991,
+              "type": "integer"
+            },
+            "whois_privacy": {
+              "description": "Hide public WHOIS contact details where supported. Defaults to the TLD setting.",
+              "type": "boolean"
+            },
+            "years": {
+              "description": "Registration period in years",
+              "type": "number"
+            }
+          },
+          "required": [
+            "domain",
+            "idempotencyKey"
+          ],
+          "type": "object"
+        },
+        "name": "quote_domain_register",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:domains"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Quote domain register"
+      }
+    },
+    "quote_service_order": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "orders:servers"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "annotations": {
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "readOnlyHint": false,
+          "title": "Quote service order"
+        },
+        "description": "Quote one permanent Firecracker VPS, Cloud VPS (KVM) or Container VPS using the selected current plan, OS, resources and period. No payment is made. Show the final amount_eur and billing period, then obtain explicit approval before confirm_service_order. Functions is a separate usage-billed product.",
+        "execution": {
+          "taskSupport": "forbidden"
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "idempotencyKey": {
+              "description": "Stable key for this exact purchase; reuse it for the quote, confirmation and status.",
+              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+              "type": "string"
+            },
+            "os": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "period": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "plan": {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            "privateNetworkId": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "resources": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "rootPassword": {
+              "description": "Only when the selected OS requires a password; prefer an existing SSH key for Linux.",
+              "maxLength": 40,
+              "minLength": 6,
+              "type": "string"
+            },
+            "sshKey": {
+              "description": "Existing public SSH key ID; mutually exclusive with rootPassword.",
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "plan",
+            "idempotencyKey"
+          ],
+          "type": "object"
+        },
+        "name": "quote_service_order",
+        "securitySchemes": [
+          {
+            "scopes": [
+              "orders:servers"
+            ],
+            "type": "oauth2"
+          }
+        ],
+        "title": "Quote service order"
+      }
+    }
+  },
+  "profile": "orders",
+  "schema_version": 1
+}
