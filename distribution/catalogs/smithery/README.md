@@ -8,7 +8,7 @@ The current documented CLI alternative is:
 
 ```sh
 smithery auth login
-smithery mcp publish 'https://mcp.vpsnet.com/mcp' -n @vpsnet/vpsnet
+smithery mcp publish 'https://mcp.vpsnet.com/mcp' -n @vpsnet/vpsnet --config-schema "$(cat distribution/catalogs/smithery/config-schema.json)"
 ```
 
 `@vpsnet/vpsnet` is a proposed namespace/name, not a claimed account. Confirm
@@ -17,6 +17,12 @@ handled through the hosted authorization flow; do not add an API-key config
 schema. Smithery's current URL requirements are Streamable HTTP and OAuth when
 authentication is needed, with automatic client registration via client-ID
 metadata documents.
+
+[The explicit empty configuration schema](config-schema.json) describes this
+hosted OAuth connection: no session configuration or API-key field is required.
+Smithery accepts it as publishing metadata through `--config-schema`; it is not
+an MCP endpoint or a reason to bypass OAuth. Run the command from the repository
+root only after publisher ownership and the exact submission are approved.
 
 Smithery Gateway proxies requests to VPSnet. Complete the OAuth scan using an
 isolated account and a limited grant, then verify the gateway path before

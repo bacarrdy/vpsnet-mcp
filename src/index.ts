@@ -2,6 +2,7 @@
 import { installToolInputSchemas } from "./tool-schema.js";
 import { registerOrderTools } from "./remote-orders.js";
 import { registerRemoteTools } from "./remote-tools.js";
+import { registerReadOnlyContext } from "./read-only-context.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -7084,6 +7085,7 @@ server.registerTool(
 
 if (options.remoteScopes) registerRemoteTools(server);
 if (options.remoteProfile === "orders") registerOrderTools(server);
+registerReadOnlyContext(server);
 return server;
 }
 
