@@ -97,12 +97,13 @@ plugin and npm versions. Their versions remain independent. Commands run from
 the repository root and perform no publication or deployment:
 
 ```sh
-python3 scripts/release.py plan --component plugin --version 0.6.10
-python3 scripts/release.py prepare --component plugin --version 0.6.10
+python3 scripts/release.py plan --component plugin
+python3 scripts/release.py prepare --component plugin --version NEXT_PLUGIN_VERSION
 python3 scripts/release.py validate
 python3 scripts/release.py build --component plugin
 ```
 
+Replace `NEXT_PLUGIN_VERSION` with the reviewed next stable version.
 `prepare` requires an explicit increasing stable version and updates all seven
 connector manifests together. It preserves review cases, commerce metadata,
 OAuth configuration and npm versions. Use `--component mcp --version VERSION`
