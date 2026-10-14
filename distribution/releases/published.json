@@ -10,12 +10,12 @@
     "ci_conclusion": "success"
   },
   "mcp": {
-    "version": "2.3.14",
-    "source_commit": "610a1d92d10f0fdd7411feee6aa6278088b13dfe",
-    "verified_at": "2026-10-14T09:29:54.225782+00:00",
-    "url": "https://registry.npmjs.org/vpsnet-mcp/-/vpsnet-mcp-2.3.14.tgz",
-    "sha256": "66f8e939d0b1ab7529344f9197242b1e4b4ecf0081ae57e548e7ac561bbb2842",
-    "ci_run": 38540733155,
+    "version": "2.3.15",
+    "source_commit": "74ba6b9ab9548d617011e24aadf0176b70bf2b45",
+    "verified_at": "2026-10-14T11:01:16.031949Z",
+    "url": "https://registry.npmjs.org/vpsnet-mcp/-/vpsnet-mcp-2.3.15.tgz",
+    "sha256": "cde02ca2543a5ffffb8e59ebfdec3a81a87bbf24158f9294cc91fa7a7b661940",
+    "ci_run": 38551387553,
     "ci_conclusion": "success"
   }
 }
