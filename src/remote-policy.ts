@@ -169,6 +169,118 @@ function defaultToolTitle(name: string): string {
   ).join(' ');
 }
 
+// Explicit legacy stdio classifications, reviewed against handlers and backend effects.
+// This only fills missing metadata; remote policy supplies every hint and remains unchanged.
+// POST calculate_plan_change only computes a price; POST quotes persist an intent.
+const legacyReadOnlyTools = new Set([
+  'get_account',
+  'get_profile',
+  'list_services',
+  'get_service',
+  'get_service_graphs',
+  'get_event',
+  'wait_for_event',
+  'get_service_history',
+  'get_rdns',
+  'get_title',
+  'get_os_options',
+  'get_plan_options',
+  'get_plan_resources',
+  'calculate_plan_change',
+  'get_period_options',
+  'get_order_plans',
+  'get_order_options',
+  'get_backup_status',
+  'get_backup_history',
+  'list_ssh_keys',
+  'get_ssh_key',
+  'list_api_keys',
+  'get_api_key',
+  'get_api_key_activity',
+  'get_api_key_inference_usage',
+  'list_domains',
+  'get_domain',
+  'list_domain_tlds',
+  'list_domain_glue_records',
+  'get_domain_parent_ds',
+  'check_domain_availability',
+  'get_domain_ordering_status',
+  'list_domain_contacts',
+  'get_registrar_lock',
+  'list_service_dns_options',
+  'list_firecracker_snapshots',
+  'get_restore_status',
+  'list_restore_points',
+  'get_guest_agent_status',
+  'list_function_invocations',
+  'get_function_invocation',
+  'list_dns_zones',
+  'get_dns_zone',
+  'get_dns_zone_diagnostics',
+  'export_dns_zone',
+  'list_dns_templates',
+  'get_dnssec',
+  'get_dns_service_status',
+  'get_dns_zone_history',
+  'list_ddns_tokens',
+  'list_invoices',
+  'get_invoice',
+  'list_payments',
+  'get_login_history',
+  'get_management_history',
+  'get_usage_statements',
+  'get_pricing',
+  'get_system_status',
+  'get_faq',
+]);
+const legacyWriteDestructive = new Map<string, boolean>([
+  // GET also advances a pending rollback, including disk/application reconciliation.
+  ['list_snapshots', true],
+  // GET may create/repair the billing anchor and replace a Function's association.
+  ['list_functions', false],
+  ['get_function', false],
+  // GET reserves/reconciles a platform hostname and queues DNS/PTR/guest work.
+  ['get_hostname', true],
+  ['start_service', false],
+  ['stop_service', true],
+  ['restart_service', true],
+  ['console_service', false],
+  ['suspend_service', true],
+  ['resume_service', false],
+  ['change_hostname', true],
+  ['reset_hostname', true],
+  ['change_root_password', true],
+  ['flush_iptables', true],
+  ['change_title', true],
+  ['toggle_ipv6', true],
+  ['toggle_extra_settings', true],
+  ['deploy_ssh_key', true],
+  ['change_plan', true],
+  ['set_auto_renew', true],
+  ['renew_service', true],
+  ['order_service', true],
+  ['create_backup', true],
+  ['create_ssh_key', false],
+  ['delete_ssh_key', true],
+  ['create_domain_contact', true],
+  ['update_domain_contact', true],
+  ['delete_domain_contact', true],
+  ['quote_domain_register', false],
+  ['quote_domain_transfer', false],
+  ['quote_domain_renew', false],
+  ['quote_domain_restore', false],
+  ['set_domain_auto_renew', true],
+  ['create_snapshot', true],
+  ['rollback_snapshot', true],
+  ['delete_snapshot', true],
+  ['create_firecracker_snapshot', false],
+  ['rollback_firecracker_snapshot', true],
+  ['delete_firecracker_snapshot', true],
+  ['reissue_dns_zone_verification', true],
+  ['create_ddns_token', false],
+  ['revoke_ddns_token', true],
+]);
+
 /** Give every transport a discoverable title while retaining authored annotations. */
 export function installToolTitles(server: McpServer): void {
   const original = server.registerTool.bind(server) as unknown as Register;
@@ -177,9 +289,20 @@ export function installToolTitles(server: McpServer): void {
     const authored = [annotations.title, config.title].find(
       title => typeof title === 'string' && title.trim().length > 0,
     );
+    const title = authored ?? defaultToolTitle(name);
+    const legacyHints = legacyReadOnlyTools.has(name)
+      ? { readOnlyHint: true, destructiveHint: false }
+      : legacyWriteDestructive.has(name)
+        ? { readOnlyHint: false, destructiveHint: legacyWriteDestructive.get(name) }
+        : {};
+    const completed = { ...annotations };
+    for (const [key, value] of Object.entries({ ...legacyHints, openWorldHint: externalTools.has(name) })) {
+      if (completed[key] === undefined) completed[key] = value;
+    }
     return original(name, {
       ...config,
-      annotations: { ...annotations, title: authored ?? defaultToolTitle(name) },
+      title: config.title || title,
+      annotations: { ...completed, title },
     }, handler);
   };
   server.registerTool = register as unknown as typeof server.registerTool;
