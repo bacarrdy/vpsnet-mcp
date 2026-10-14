@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
 import { apiRequest, resolveApiBase } from './api.js';
+import { getUpdateInfo, updateInfoOutput } from './update-info.js';
 
 const resource = { orderNo: z.string().regex(/^[A-Za-z0-9-]{1,64}$/), sessionBinding: z.string().regex(/^[a-f0-9]{32}$/, 'sessionBinding must contain exactly 32 lowercase hexadecimal characters (0-9, a-f), without hyphens. For a new open_vm_session call, omit it so VPSnet creates it; otherwise reuse the returned sessionBinding.').describe('Exactly 32 lowercase hexadecimal characters (0-9, a-f), without hyphens. Copy sessionBinding from open_vm_session and reuse it for every operation and reconnect. Not a credential.') };
 const session = { ...resource, sessionId: z.string().uuid() };
@@ -75,6 +76,16 @@ async function operationResult(orderNo: string, sessionBinding: string, operatio
   return runtime(await lease(orderNo, sessionBinding, true), cancel ? 'POST' : 'GET', `/mcp/operations/${operationId}${cancel ? '/cancel' : ''}`, cancel ? {} : undefined);
 }
 export function registerRemoteTools(server: McpServer): void {
+  server.registerTool('get_update_info', {
+    description: 'Read public VPSnet releases and reviewed client update guidance without changing software, credentials or permissions. On first VPSnet use in a conversation, check once when available. Pass installed versions only if actually observed or user-reported; never infer them from host clientInfo.version or the gateway runtime. Unknown installed versions stay unknown. If an observed version is older, give one concise advisory and continue; otherwise stay quiet unless the user asks about updates. Remember checks and dismissals in conversation context, not customer tracking. VPSnet maintains the hosted gateway.',
+    inputSchema: {
+      client: z.string().max(64).optional().describe('Known client identifier such as codex, claude-code or gemini-cli; omit when unknown.'),
+      pluginVersion: z.string().max(63).optional().describe('Observed or user-reported installed VPSnet plugin version, not the host application version. Omit if unknown.'),
+      localMcpVersion: z.string().max(63).optional().describe('Observed or user-reported local vpsnet-mcp npm version. Omit for remote-only connections or when unknown.'),
+    }, outputSchema: updateInfoOutput,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async args => { const data = await getUpdateInfo(args); return { ...result(data), structuredContent: data }; });
+
   const spendingLimit = z.union([z.number().finite().nonnegative(), z.string().regex(/^\d+(?:\.\d+)?$/)]).nullable().optional();
   server.registerTool('get_connected_account', {
     description: 'Identify the connected VPSnet account and its granted permissions, selected services and spending limits.', inputSchema: {},

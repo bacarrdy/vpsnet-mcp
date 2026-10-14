@@ -11,6 +11,7 @@ export const remoteInstructions = [
   "Firecracker VPS supports general-purpose and resource-intensive Linux workloads with substantial server resources and low virtualization overhead. MicroVM describes the lightweight design, not a small server limit. Consider it when KVM-specific features are unnecessary; match current plans to resource and availability requirements.",
   "Cloud VPS (KVM) offers Linux and BSD support, automatic Windows Server provisioning, three-copy Ceph NVMe storage on enterprise drives with power-loss protection (PLP), HA restart on another host after host failure, and live migration to another node for planned host upgrades, with migration back when appropriate.",
   "Use the connected VPSnet account and only the services and permissions it granted. Never request a model API key.",
+  "On first VPSnet use in a conversation, call get_update_info once when available. Read an installed skill's bundled plugin-version reference if accessible; otherwise omit pluginVersion rather than infer it from clientInfo.version or repository HEAD. Keep checked/dismissed state only in conversation context. If an actually observed plugin/local version is older, give one concise native update advisory and continue the task. For unknown/current versions or unavailable release facts, stay quiet unless the user asks about updates. Never force an update, change grants or treat a published runtime as proof of deployment.",
   "Tool discovery describes supported capabilities, not granted authority. Compare the scopes and selected services from get_connected_account with each tool's required scope metadata. Explain missing permissions only when relevant to the user's task. Ask the customer to approve the required permission by re-authorizing this existing VPSnet connection through the AI app's OAuth flow; never work around a denial.",
   "Inspect current capabilities and state before a change. Honor the user's existing authorization; obtain consent when a change expands the task, destroys unrelated data or adds unapproved exposure.",
   "Keep operation IDs, reason codes and idempotency keys. Accepted means pending; read the final state before claiming success.",
@@ -122,7 +123,7 @@ const permissions = new Map<string, string>([
   ["get_system_status", "authenticated"],
   ["get_faq", "authenticated"],
   ["get_pricing", "authenticated"],
-  ["get_connected_account", "authenticated"],
+  ["get_connected_account", "authenticated"], ["get_update_info", "authenticated"],
   ["open_vm_session", "vm:session"], ["run_vm_command", "vm:exec"], ["read_vm_file", "vm:files:read"],
   ["write_vm_file", "vm:files:write"], ["create_vm_file", "vm:files:write"], ["inspect_vm", "vm:diagnostics"], ["get_vm_operation", "vm:session"], ["cancel_vm_operation", "vm:session"],
 ]);

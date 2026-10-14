@@ -6,6 +6,7 @@
 - Add native OpenAI marketplace setup and explicit refresh/update guidance across clients.
 - Include canonical skills in Gemini Git installs and four self-contained single-skill exports.
 - Add independent release preparation, explicit read-only update checks and a verified published-artifact feed.
+- Offer one advisory update check on first use in clients that load the tool and skill instructions, using the installed skill's bundled version reference.
 - Document dated distribution routes and review requirements separately from live deployments and catalog approval.
 
 ## 0.6.9 connector

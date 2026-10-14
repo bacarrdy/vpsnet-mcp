@@ -38,6 +38,8 @@
     "build/scope-catalog.js",
     "build/remote-auth-error.js",
     "build/remote-tools.js",
+    "build/update-info.js",
+    "scripts/update-clients.json",
     "build/remote-orders.js"
   ],
   "repository": "github:bacarrdy/vpsnet-mcp",

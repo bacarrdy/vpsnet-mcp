@@ -100,6 +100,10 @@ def build(root, output=None):
     marketplace = json_source(root, '.claude-plugin/marketplace.json')
     require(marketplace['plugins'][0]['version'] == version, 'Claude marketplace version differs')
     output = output or root / 'artifacts' / ('distribution-' + version)
+    require(not any(path.is_symlink() for path in (output, *output.parents)), 'Symlink in distribution output path')
+    if output.exists():
+        # Check all destinations before the first archive or sidecar is written.
+        require(not any(path.is_symlink() for path in output.rglob('*')), 'Symlink in distribution output')
     output.mkdir(parents=True, exist_ok=True)
     shared = {name: source(root, 'plugin/' + name) for name in SHARED}
     records = []

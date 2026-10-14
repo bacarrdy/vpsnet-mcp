@@ -116,6 +116,7 @@ their authority. Windows and BSD support covers service management.
 | Tool | Result |
 | --- | --- |
 | `get_connected_account` | Connected account and granted scopes/services |
+| `get_update_info` | Public release facts and native update guidance; unknown installed versions stay unknown |
 | `open_vm_session` | Authorized guest or SSH session and connection details |
 | `inspect_vm` | OS, running services, process names, ports and containers |
 | `run_vm_command` | Durable operation ID |

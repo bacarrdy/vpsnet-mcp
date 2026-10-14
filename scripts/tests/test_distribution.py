@@ -33,6 +33,19 @@ class DistributionTest(unittest.TestCase):
         mutation(data)
         file.write_text(json.dumps(data))
 
+    def test_sidecar_symlinks_refused_before_any_archive_or_write(self):
+        for name in ('kiro.mcp.json', 'server.json', 'release-manifest.json'):
+            with self.subTest(name=name):
+                output = self.root / ('output-' + name)
+                output.mkdir()
+                outside = self.root / ('sentinel-' + name)
+                outside.write_bytes(b'UNCHANGED OUTSIDE OUTPUT')
+                (output / name).symlink_to(outside)
+                with self.assertRaisesRegex(ValueError, 'Symlink in distribution output'):
+                    module.build(self.root, output)
+                self.assertEqual(outside.read_bytes(), b'UNCHANGED OUTSIDE OUTPUT')
+                self.assertEqual([p.name for p in output.iterdir()], [name])
+
     def test_complete_reproducible_packages_exclude_unlisted_files(self):
         (self.root / '.env').write_text('EXAMPLE_NOT_A_CREDENTIAL=never-package-this')
         (self.root / 'plugin/private-notes.md').write_text('Never package arbitrary extra files')

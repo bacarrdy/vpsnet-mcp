@@ -44,6 +44,29 @@ changes credentials, reconnects or requests scopes. Release-body prose is not
 accepted. Client instructions are reviewed local data, not remotely supplied
 commands. No schedule, startup hook or repeated notice is installed.
 
+## First-use advisory in supported clients
+
+The remote `get_update_info` tool returns the same public facts and reviewed
+instructions through an authenticated, read-only call, without additional
+account scopes or customer API requests. Its fixed-feed fetch refuses redirects,
+uses a five-second abort signal including response-body reads, and enforces the
+64 KiB streamed limit. Only public lookup results are cached for five minutes;
+no customer identity, token or installed version is cached.
+
+Server and skill instructions ask the agent to check once on first VPSnet use in
+a conversation when this tool is available. Skills read their actually installed
+generated version reference; a newer source checkout or host application version
+does not substitute for it. The agent keeps checked/dismissed state in conversation
+context and shows one concise native update suggestion only for an observed older
+version. Unknown/current versions and lookup failures stay quiet unless the user
+asks about updates. Work continues; updates and broader grants are never forced.
+
+This is an advisory behavior in clients that load the instructions and tool,
+not a universal startup hook or server push. A client can withhold a new tool
+until its discovery cache or reviewed metadata is refreshed. The server's actual
+runtime version is labeled separately; published releases do not prove another
+gateway or provider catalog has been updated.
+
 ## Native client controls
 
 For ChatGPT and Codex, see the [OpenAI client guide](../distribution/clients/openai/README.md).
