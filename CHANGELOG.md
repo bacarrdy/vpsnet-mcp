@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — proposed 0.6.11 connector / 2.3.16 MCP server
+## 0.6.11 connector / 2.3.16 MCP server — 2026-10-14
 
 - Add static MCP guidance resources, a canonical catalog of 28 nonlegacy OAuth scopes, and four user-invoked diagnostic prompts without expanding account access.
 - Include an explicit empty Smithery URL-publishing configuration schema; OAuth remains required and catalog approval is a separate step.

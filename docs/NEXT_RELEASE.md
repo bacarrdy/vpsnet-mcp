@@ -1,8 +1,10 @@
-# Proposed connector 0.6.11 / MCP server 2.3.16
+# Prepared connector 0.6.11 / MCP server 2.3.16
 
-This is an unreleased source candidate based on `396431a` (connector 0.6.10 /
-MCP 2.3.15). Version files still identify that existing release until the release
-owner prepares the next version. No publication, remote deployment, catalog
+Prepared on 2026-10-14 from frozen combined source `ed5fc9b`, based on `396431a`
+(connector 0.6.10 / MCP 2.3.15). Version files now identify the local candidate
+0.6.11 / 2.3.16; the publication feed remains at the last verified 0.6.10 /
+2.3.15. Final combined independent review is required before publication.
+No publication, remote deployment, catalog
 propagation, authenticated OpenAI rescan or Smithery scan is implied by these
 source changes or local test results.
 
@@ -85,8 +87,9 @@ backend change. A stored null or omitted field does not mean unlimited usage;
 account policy still applies. This MCP change does not activate backend financial
 policy, migrate grants or expand any connection's service selection.
 
-The release owner must freeze the combined reviewed source before preparing
-versions and artifacts. Source/tag/artifact publication, hosted deployment,
+The combined source was frozen before this local version preparation. The release
+owner must approve the final combined review before publication.
+Source/tag/artifact publication, hosted deployment,
 official registry publication, downstream catalog propagation and client OAuth
 verification are distinct states. Local package validation does not complete
 those external stages.
