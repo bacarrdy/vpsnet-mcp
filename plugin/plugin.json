@@ -103,7 +103,7 @@
         "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Add native client update guidance, Gemini Git skills, self-contained skill imports and explicit read-only version checks. Connected-account output schemas and OAuth security declarations are clarified; existing permissions, consent and purchase restrictions are unchanged."
+        "release_notes": "Add native client updates, Gemini Git skills, self-contained skill imports and an advisory first-use update check using the installed skill version. Connected-account output schemas and OAuth security declarations are clarified; existing permissions, consent and purchase restrictions are unchanged."
       }
     }
   }
