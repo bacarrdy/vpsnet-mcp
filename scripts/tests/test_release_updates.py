@@ -18,7 +18,14 @@ import update_status as updates
 
 
 def feed():
-    return json.loads((ROOT / 'distribution/releases/published.json').read_text())
+    # Explicit offline baseline: advancing the real published feed is not a test failure.
+    result = {'schema_version': 1}
+    for component, number in [('plugin', '0.6.9'), ('mcp', '2.3.14')]:
+        result[component] = {'version': number, 'source_commit': 'a' * 40,
+                             'verified_at': '2026-10-14T09:36:21+00:00',
+                             'url': updates.artifact_url(component, number), 'sha256': 'b' * 64,
+                             'ci_run': 1, 'ci_conclusion': 'success'}
+    return result
 
 
 class UpdateStatusTest(unittest.TestCase):
@@ -107,14 +114,21 @@ class ReleaseTest(unittest.TestCase):
             shutil.copy2(ROOT / name, self.root / name)
         # The integrated Gemini checker requires the canonical root mirror.
         if (ROOT / 'skills').exists(): shutil.copytree(ROOT / 'skills', self.root / 'skills')
+        (self.root / 'distribution/releases/published.json').write_text(json.dumps(feed()))
+        current = release.config(self.root)
+        self.plugin_version, self.mcp_version = current['plugin_version'], current['mcp_version']
+        def increment(number):
+            major, minor, patch_number = map(int, number.split('.'))
+            return f'{major}.{minor}.{patch_number + 1}'
+        self.next_plugin, self.next_mcp = increment(self.plugin_version), increment(self.mcp_version)
 
     def test_prepare_plugin_preserves_runtime_and_auth_review_content(self):
         runtime = [(self.root / p).read_bytes() for p in ('package.json', 'package-lock.json')]
         manifest = json.loads((self.root / 'plugin/plugin.json').read_text())
         auth = (self.root / 'plugin/mcp.json').read_bytes()
-        release.prepare(self.root, 'plugin', '0.6.10')
+        release.prepare(self.root, 'plugin', self.next_plugin)
         data = release.validate_versions(self.root)
-        self.assertEqual(data['plugin_version'], '0.6.10')
+        self.assertEqual(data['plugin_version'], self.next_plugin)
         self.assertEqual(runtime, [(self.root / p).read_bytes() for p in ('package.json', 'package-lock.json')])
         new = json.loads((self.root / 'plugin/plugin.json').read_text())
         self.assertEqual(manifest['extensions'], new['extensions'])
@@ -123,23 +137,23 @@ class ReleaseTest(unittest.TestCase):
     def test_prepare_runtime_preserves_plugin_and_dependencies(self):
         plugin = [(self.root / p).read_bytes() for p in release.MANIFESTS]
         previous = json.loads((self.root / 'package-lock.json').read_text())
-        release.prepare(self.root, 'mcp', '2.3.15')
+        release.prepare(self.root, 'mcp', self.next_mcp)
         current = json.loads((self.root / 'package-lock.json').read_text())
         self.assertEqual(plugin, [(self.root / p).read_bytes() for p in release.MANIFESTS])
         self.assertEqual(previous['packages']['node_modules/zod'], current['packages']['node_modules/zod'])
-        self.assertEqual(release.validate_versions(self.root)['mcp_version'], '2.3.15')
+        self.assertEqual(release.validate_versions(self.root)['mcp_version'], self.next_mcp)
 
     def test_prepare_is_explicit_increasing_and_plan_is_read_only(self):
         before = (self.root / 'release-config.json').read_bytes()
-        self.assertFalse(release.plan(self.root, 'plugin', '0.6.10')['publishes'])
+        self.assertFalse(release.plan(self.root, 'plugin', self.next_plugin)['publishes'])
         self.assertEqual(before, (self.root / 'release-config.json').read_bytes())
-        for target in ['0.6.9', '0.6.8', '0.6.10-beta']:
+        for target in [self.plugin_version, '0.0.0', self.next_plugin + '-beta']:
             with self.assertRaises(ValueError): release.prepare(self.root, 'plugin', target)
 
     def test_manifest_drift_and_symlink_are_refused_before_prepare(self):
         path = self.root / release.MANIFESTS[0]
-        path.write_text(path.read_text().replace('0.6.9', '0.6.8'))
-        with self.assertRaises(ValueError): release.prepare(self.root, 'plugin', '0.6.10')
+        path.write_text(path.read_text().replace(self.plugin_version, '0.0.0'))
+        with self.assertRaises(ValueError): release.prepare(self.root, 'plugin', self.next_plugin)
         path.unlink(); path.symlink_to(ROOT / release.MANIFESTS[0])
         with self.assertRaises(ValueError): release.validate_versions(self.root)
 
@@ -152,7 +166,7 @@ class ReleaseTest(unittest.TestCase):
         previous = (outside / 'plugin.json').read_bytes()
         untouched = (self.root / 'plugin/plugin.json').read_bytes()
         configuration = (self.root / 'release-config.json').read_bytes()
-        with self.assertRaisesRegex(ValueError, 'symlink'): release.prepare(self.root, 'plugin', '0.6.10')
+        with self.assertRaisesRegex(ValueError, 'symlink'): release.prepare(self.root, 'plugin', self.next_plugin)
         self.assertEqual(previous, (outside / 'plugin.json').read_bytes())
         self.assertEqual(untouched, (self.root / 'plugin/plugin.json').read_bytes())
         self.assertEqual(configuration, (self.root / 'release-config.json').read_bytes())
@@ -172,7 +186,7 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(result['published'])
         self.assertEqual(len(result['artifacts']), 9)
         for entry in result['artifacts']:
-            path = self.root / 'artifacts/distribution-0.6.9' / entry['file']
+            path = self.root / ('artifacts/distribution-' + self.plugin_version) / entry['file']
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), entry['sha256'])
             with ZipFile(path) as archive:
                 self.assertFalse(any('unlisted-secret' in p or p.endswith('.env') for p in archive.namelist()))

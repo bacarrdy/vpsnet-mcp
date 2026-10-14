@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",
@@ -103,7 +103,7 @@
         "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Clarify requested-scope consent, included read access, sensitive operation effects and Functions usage charges in packaged guidance. The connector uses live scope metadata; existing access permissions and purchase restrictions are unchanged."
+        "release_notes": "Add native client update guidance, Gemini Git skills, self-contained skill imports and explicit read-only version checks. Connected-account output schemas and OAuth security declarations are clarified; existing permissions, consent and purchase restrictions are unchanged."
       }
     }
   }

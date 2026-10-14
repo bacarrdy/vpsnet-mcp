@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.10 connector / 2.3.15 MCP server
+
+- Declare the connected-account result schema and expose matching OAuth security metadata without changing granted permissions.
+- Add native OpenAI marketplace setup and explicit refresh/update guidance across clients.
+- Include canonical skills in Gemini Git installs and four self-contained single-skill exports.
+- Add independent release preparation, explicit read-only update checks and a verified published-artifact feed.
+- Document dated distribution routes and review requirements separately from live deployments and catalog approval.
+
 ## 0.6.9 connector
 
 - Include requested-scope consent and permission-effect guidance in packaged skills and the plugin README.

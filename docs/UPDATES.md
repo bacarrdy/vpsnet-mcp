@@ -90,7 +90,8 @@ diff and write accurate changelog/release notes separately.
 `validate` checks source version consistency, public package boundaries, the
 published-feed schema and the Gemini skill mirror when present. It does not
 claim that source changes are published or accepted by providers. `build` uses
-the existing explicit distribution allowlist for all five ZIP formats. For npm,
+the existing explicit distribution allowlist for five client bundles and four
+self-contained single-skill ZIPs. For npm,
 install dependencies using `npm ci --ignore-scripts`, then the wrapper builds
 and packs with lifecycle scripts disabled. Built artifacts are marked unpublished.
 Never upload a modified bundle under an already published version.
