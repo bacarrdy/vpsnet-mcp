@@ -88,7 +88,7 @@ const policy = `${project}/networks/{network_id}/security-policy`;
 const address = `${N}/public-addresses/{address_id}`;
 const binding = `${N}/public-bindings/{binding_id}`;
 const scope = "Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.";
-const writes = "Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Preserve reason_code and poll the returned operation/resource. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.";
+const writes = "Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.";
 const paid = "Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.";
 function tool(name: string, method: string, path: string, description: string, fields: Fields = {}, options: Options = {}): NetworkingTool {
   const pathFields = [...path.matchAll(/\{([^}]+)\}/g)].map(match => match[1]);
@@ -116,7 +116,7 @@ export const networkingTools: NetworkingTool[] = [
   tool("get_networking_overview", "GET", `${N}/overview`, "Read owned networks, quota and operation snapshot. operations_has_more signals a bounded backend feed."),
   tool("get_networking_topology", "GET", `${N}/topology`, "Read the account topology with network-scoped identities. Optional metrics=current requests measured traffic.", { metrics: z.literal("current").optional() }, { query: ["metrics"] }),
   tool("list_networking_operations", "GET", `${N}/operations`, "Read recent network operations and operations_has_more. This endpoint has no pagination parameter."),
-  tool("get_networking_operation", "GET", `${N}/operations/{operation_id}`, "Read an accepted network or port operation only. A successful network_graph_created operation permits checking network.port_intent_ready for the first attachment; it does not prove guest connectivity. Security-policy, appliance and public-binding operation IDs belong to different stores. Poll security policies with get_network_security_policy, appliances with get_network_appliance_operation, public bindings with get_network_public_binding, and DNS changes through get_private_network.settings.dns_change."),
+  tool("get_networking_operation", "GET", `${N}/operations/{operation_id}`, "Read an accepted network or port operation only. Poll on in_progress (true until succeeded, failed or cancelled) and wait next_check_seconds between reads; reason_kind says what reason_code is: waiting (progress, including queued, pending and control-plane-not-yet-answered reasons - not an error), failure or outcome. A port reserve (the operation an attach returns) names its activation_operation_id once the activation that finishes the attachment exists; the completed history line names both ids. A successful network_graph_created operation permits checking network.port_intent_ready for the first attachment; it does not prove guest connectivity. Security-policy, appliance and public-binding operation IDs belong to different stores. Poll security policies with get_network_security_policy, appliances with get_network_appliance_operation, public bindings with get_network_public_binding, and DNS changes through get_private_network.settings.dns_change."),
   tool("list_private_networks", "GET", `${N}/networks`, "List owned private networks, including deletion awaiting verified cleanup. An empty list is a starting state for creating an approved network, not evidence that existing servers cannot use private networking."),
   tool("get_private_network", "GET", networks, "Read one owned network including DHCP reservations, DNS change progress, generation and project_id."),
   tool("create_private_network", "POST", `${N}/networks`, "Create an approved private network for existing services when no suitable owned network exists. A false new-order private_network.available or order_availability result alone does not block this route; honor this endpoint's own quota and feature refusal. Every subnet is unique on the whole platform and comes from 100.64.0.0/10. Omit subnet and the platform allocates a free block of subnet_prefix_length (28..24, default 26 = 64 addresses; capabilities.private_network.subnet_sizes lists each size with its server count and suggested block); or name an aligned /28 through /24 inside 100.64.0.0/10 that no network holds (409 subnet_in_use), never both. Creation is asynchronous: poll its operation and get_private_network until network.port_intent_ready is true, then check attachment candidates. A successful network_graph_created operation and provisioning_status=configured describe the graph stage; the first guest has not yet qualified connectivity. Never wait for applied_generation to equal generation before the first attachment. Creation does not itself attach a server or buy a public address.", { name, subnet: z.object({ cidr: z.string().regex(/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])(?:\.\d{1,3}){2}\/(?:2[4-8])$/) }).strict().optional(), subnet_prefix_length: z.union([z.literal(24), z.literal(25), z.literal(26), z.literal(27), z.literal(28)]).optional().describe("Size of the allocated subnet when subnet is omitted; default 26"), settings: settings.optional(), default_policy: z.enum(["accept", "deny"]).optional() }, { idempotent: true }),
@@ -127,7 +127,7 @@ export const networkingTools: NetworkingTool[] = [
   tool("list_private_network_ports", "GET", `${networks}/ports`, "Read owned network ports, their fixed DHCP addresses, generations and attachment states. Reserved is not connected."),
   tool("list_service_private_ports", "GET", `${N}/services/{service_id}/ports`, "Read private ports and order attachment recovery state for one owned service order number."),
   tool("list_network_attachment_candidates", "GET", `${networks}/attachment-candidates`, "For a network with port_intent_ready=true, check each existing service's attachment eligibility and attachment_mode; service_id selects one owned service. Follow next_cursor using after while candidates_has_more is true. Use this per-service result and its reason_code for existing-VM attachment, not new-server order_availability. Do not attach a service the backend marks ineligible.", { after: z.string().optional(), service_id: serviceId.optional() }, { query: ["after", "service_id"] }),
-  tool("attach_private_network_port", "POST", `${networks}/ports`, "Attach an eligible existing owned service to a private network with port_intent_ready=true; omit ipv4 for automatic allocation or pass a fixed usable address. Check list_network_attachment_candidates for this network and service first, including pagination and attachment_mode. Set restart=true only after the user approves a required restart. An accepted attach is pending: poll its operation and verify the final port and service attachment state. Honor this endpoint's own refusal and reason_code.", { service_id: serviceId, ipv4: ipv4.optional(), restart }, { idempotent: true }),
+  tool("attach_private_network_port", "POST", `${networks}/ports`, "Attach an eligible existing owned service to a private network with port_intent_ready=true; omit ipv4 for automatic allocation or pass a fixed usable address. Check list_network_attachment_candidates for this network and service first, including pagination and attachment_mode. Set restart=true only after the user approves a required restart. An accepted attach is pending: it returns the port's reserve operation (queued with private_port_apply_pending; reserve, activate and detach take 13-81 s through the host) - poll it with get_networking_operation on in_progress, read its activation_operation_id once the activation that finishes the attachment exists, and verify the final port and service attachment state. Honor this endpoint's own refusal and reason_code.", { service_id: serviceId, ipv4: ipv4.optional(), restart }, { idempotent: true }),
   tool("detach_private_network_port", "DELETE", `${networks}/ports/{port_id}`, "Detach the owned server port. Use the PORT generation and confirm any required restart.", { expected_generation: generation, restart }, { idempotent: true, destructive: true }),
   tool("retry_private_network_port", "POST", `${networks}/ports/{port_id}/retry`, "Retry the failed current port operation with the PORT generation and any required restart approval. Inspect the failed operation: a detach retry can remove the server's private connectivity.", { expected_generation: generation, restart }, { idempotent: true, destructive: true }),
   tool("get_network_vpn_summary", "GET", `${networks}/vpn`, "Read the network's VPN summary, including truthful absence. Native site-to-site is not supported by this tool set."),
@@ -147,7 +147,7 @@ export const networkingTools: NetworkingTool[] = [
   tool("get_network_appliance_capabilities", "GET", `${A}/capabilities`, "Read available load balancer providers/tiers, public qualification, VPN capabilities and quota. Tier availability and prices are returned by the backend, never hardcoded."),
   tool("list_network_appliances", "GET", A, "Read owned load balancers and VPN gateways with one stream cursor."),
   tool("get_network_appliance_billing", "GET", `${A}/billing`, "Read current customer-visible recurring appliance lines and currency."),
-  tool("get_network_appliance_operation", "GET", `${A}/operations/{operation_id}`, "Poll an accepted appliance operation. Creation succeeds only when its actual resource state and health confirm readiness."),
+  tool("get_network_appliance_operation", "GET", `${A}/operations/{operation_id}`, "Poll an accepted appliance operation on in_progress (true until succeeded, failed or cancelled), waiting next_check_seconds between reads (a load balancer or VPN change settles in a few seconds). A fresh change is queued with appliance_dispatch_pending and then waiting_dependency while the control plane answers; reason_kind waiting marks every such reason as progress, not an error. Creation succeeds only when its actual resource state and health confirm readiness."),
   tool("list_network_load_balancers", "GET", `${A}/load-balancers`, "List private and public load balancers and customer-safe health/qualification state."),
   tool("get_network_load_balancer", "GET", lb, "Read one owned load balancer, listeners, members, generation and health. A pending or unqualified public endpoint is not ready."),
   tool("estimate_network_load_balancer", "POST", `${A}/load-balancers/quote`, "Read a technical load balancer estimate for this exact configuration. This does not issue a paid purchase token; buy through quote_network_product and order_network_product. Legacy POST /appliances/load-balancers refuses unpaid creation.", loadBalancerSpec, { readOnly: true }),
@@ -219,6 +219,28 @@ export function networkingRequest(definition: NetworkingTool, args: Record<strin
 
 type FollowUpRead = { tool: string; arguments: Record<string, string> };
 
+/**
+ * One line a client can act on without knowing the reason vocabulary (PROD QA 2026-10-14: an AI client read the
+ * waiting reason of a fresh operation as an error and stopped). Reads the operation of a receipt or of an
+ * operation read; null when the result carries no operation with a progress label.
+ */
+export function networkingProgressHint(data: unknown): string | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const value = data as Record<string, any>;
+  const operation = value.operation && typeof value.operation === "object" ? value.operation
+    : typeof value.in_progress === "boolean" ? value : null;
+  if (!operation || typeof operation.in_progress !== "boolean") return null;
+  const reason = typeof operation.reason_code === "string" && operation.reason_code !== "" ? operation.reason_code : "none";
+  if (operation.in_progress) {
+    const wait = Number.isInteger(operation.next_check_seconds) ? `${operation.next_check_seconds} s` : "a few seconds";
+    return `Operation ${operation.id ?? ""} in progress (state=${operation.state}, reason_code=${reason}, reason_kind=${operation.reason_kind ?? "waiting"}): this is progress, not an error. Poll the follow-up read again in ${wait}; do not repeat the change.`;
+  }
+  if (operation.reason_kind === "failure") {
+    return `Operation ${operation.id ?? ""} failed (state=${operation.state}, reason_code=${reason}). Do not retry automatically; report the reason_code.`;
+  }
+  return `Operation ${operation.id ?? ""} finished (state=${operation.state}, reason_code=${reason}).`;
+}
+
 /** Read-only recovery targets. IDs are copied from validated inputs or owned API results, never guessed. */
 export function networkingFollowUpReads(definition: NetworkingTool, args: Record<string, unknown>, data: unknown): FollowUpRead[] {
   if (!data || typeof data !== "object" || Array.isArray(data)) return [];
@@ -286,8 +308,10 @@ export function registerNetworkingTools(server: McpServer): void {
       const request = networkingRequest(definition, args);
       const result = await apiRequest(request.method, request.path, request.body, request.headers, { readOnly: request.readOnly });
       const reads = result.status < 400 ? networkingFollowUpReads(definition, args, result.data) : [];
+      const progress = result.status < 400 ? networkingProgressHint(result.data) : null;
       return { content: [
         { type: "text" as const, text: formatJson(result.data) },
+        ...(progress ? [{ type: "text" as const, text: progress }] : []),
         ...(reads.length ? [{ type: "text" as const, text: `Follow-up reads (do not repeat the change): ${JSON.stringify(reads)}` }] : []),
       ], ...(result.status >= 400 ? { isError: true } : {}) };
     });

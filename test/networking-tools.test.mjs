@@ -424,3 +424,50 @@ test("refusals and unready networks do not advertise first-attachment reads", as
   assert.deepEqual(followUpReads(refusal), []);
   assert.equal(requests.length, 2);
 });
+
+test("operation reads and receipts carry a progress hint a client can act on without knowing the reason vocabulary", async t => {
+  const { client, call } = await harness(t, request => {
+    if (request.method === "POST" && request.path === `/account/networking/networks/${NETWORK}/ports`) {
+      return { status: 202, body: { port: { id: RESOURCE }, operation: { id: RESOURCE, kind: "network_port_reserve", state: "queued", reason_code: "private_port_apply_pending", in_progress: true, reason_kind: "waiting", next_check_seconds: 10, activation_operation_id: null } } };
+    }
+    if (request.path === `/account/networking/operations/${RESOURCE}`) {
+      return { status: 200, body: { operation: { id: RESOURCE, kind: "network_port_reserve", state: "waiting_dependency", reason_code: "private_port_control_plane_unavailable", in_progress: true, reason_kind: "waiting", next_check_seconds: 10, activation_operation_id: NETWORK } } };
+    }
+    if (request.path === `/account/networking/operations/${NETWORK}`) {
+      return { status: 200, body: { operation: { id: NETWORK, kind: "network_port_activate", state: "succeeded", reason_code: "private_port_guest_lease_verified", in_progress: false, reason_kind: "outcome", next_check_seconds: null } } };
+    }
+    if (request.path === `/account/networking/appliances/operations/${RESOURCE}`) {
+      return { status: 200, body: { operation: { id: RESOURCE, kind: "load_balancer_update", state: "failed", reason_code: "appliance_reconcile_failed", in_progress: false, reason_kind: "failure", next_check_seconds: null } } };
+    }
+    return { status: 200, body: { accepted: true } };
+  });
+  const hintOf = result => result.content.find(item => item.type === "text" && item.text.startsWith("Operation "))?.text;
+
+  // The attach receipt: queued, labelled as progress, with the poll interval - not an error.
+  const attach = await call("attach_private_network_port", { network_id: NETWORK, service_id: "VP89184", idempotencyKey: "attach-progress-0001" });
+  assert.notEqual(attach.isError, true);
+  assert.match(hintOf(attach), /in progress \(state=queued, reason_code=private_port_apply_pending, reason_kind=waiting\): this is progress, not an error\. Poll the follow-up read again in 10 s/);
+  assert.deepEqual(followUpReads(attach), [
+    { tool: "get_networking_operation", arguments: { operation_id: RESOURCE } },
+    { tool: "list_private_network_ports", arguments: { network_id: NETWORK } },
+  ]);
+  // A "control plane unavailable" reason while in progress is still progress.
+  const waiting = await call("get_networking_operation", { operation_id: RESOURCE });
+  assert.match(hintOf(waiting), /in progress .*private_port_control_plane_unavailable.*not an error/);
+  assert.equal(payload(waiting).operation.activation_operation_id, NETWORK, "the reserve names its activation");
+  // Terminal outcomes say so, and only reason_kind failure is a failure.
+  assert.match(hintOf(await call("get_networking_operation", { operation_id: NETWORK })), /finished \(state=succeeded, reason_code=private_port_guest_lease_verified\)/);
+  const failed = await call("get_network_appliance_operation", { operation_id: RESOURCE });
+  assert.match(hintOf(failed), /failed \(state=failed, reason_code=appliance_reconcile_failed\)\. Do not retry automatically/);
+  // A result without an operation carries no hint.
+  assert.equal(hintOf(await call("get_networking_features")), undefined);
+
+  const tools = new Map((await client.listTools()).tools.map(tool => [tool.name, tool]));
+  for (const name of ["get_networking_operation", "get_network_appliance_operation", "attach_private_network_port"]) {
+    assert.match(tools.get(name).description, /in_progress/, name);
+    assert.match(tools.get(name).description, /next_check_seconds/, name);
+  }
+  assert.match(tools.get("get_networking_operation").description, /activation_operation_id/);
+  assert.match(tools.get("attach_private_network_port").description, /activation_operation_id/);
+  assert.match(tools.get("create_private_network").description, /in_progress flag[\s\S]*reason_kind waiting[\s\S]*never an error/, "every write carries the polling rule");
+});
