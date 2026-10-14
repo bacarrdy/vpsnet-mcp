@@ -1,0 +1,10 @@
+{
+  "type": "external",
+  "upstreamUrl": "https://mcp.vpsnet.com/mcp",
+  "configSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+  }
+}

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
+import Ajv2020 from 'ajv/dist/2020.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -99,4 +100,22 @@ test('Smithery hosted connection declares an empty, closed configuration schema'
   assert.equal(schema.additionalProperties, false);
   assert.equal(schema.required, undefined);
   assert.doesNotMatch(JSON.stringify(schema), /apiKey|password|token/);
+  const validate = new Ajv2020({ strict: true }).compile(schema);
+  assert.equal(validate({}), true);
+  for (const value of [null, [], '', 0, true, { apiKey: 'example' }, { token: 'example' }, { unknown: true }]) {
+    assert.equal(validate(value), false, `Unexpected accepted session configuration: ${JSON.stringify(value)}`);
+  }
+});
+
+test('Smithery external release includes the configuration schema at the publication boundary', () => {
+  const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
+  const payload = read('../distribution/catalogs/smithery/release-payload.json');
+  const schema = read('../distribution/catalogs/smithery/config-schema.json');
+  const metadata = read('../distribution/catalogs/metadata.json');
+  assert.deepEqual(Object.keys(payload).sort(), ['configSchema', 'type', 'upstreamUrl']);
+  assert.equal(payload.type, 'external');
+  assert.equal(payload.upstreamUrl, metadata.remote.url);
+  assert.equal(payload.upstreamUrl, 'https://mcp.vpsnet.com/mcp');
+  assert.deepEqual(payload.configSchema, schema);
+  assert.equal(metadata.remote.authentication, 'oauth2');
 });
