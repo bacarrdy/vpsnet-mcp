@@ -75,9 +75,14 @@ async function operationResult(orderNo: string, sessionBinding: string, operatio
   return runtime(await lease(orderNo, sessionBinding, true), cancel ? 'POST' : 'GET', `/mcp/operations/${operationId}${cancel ? '/cancel' : ''}`, cancel ? {} : undefined);
 }
 export function registerRemoteTools(server: McpServer): void {
+  const spendingLimit = z.union([z.number().finite().nonnegative(), z.string().regex(/^\d+(?:\.\d+)?$/)]).nullable().optional();
   server.registerTool('get_connected_account', {
-    description: 'Identify the connected VPSnet account and its granted permissions and services.', inputSchema: {},
-    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }, _meta: { 'openai/profile': true },
+    description: 'Identify the connected VPSnet account and its granted permissions, selected services and spending limits.', inputSchema: {},
+    outputSchema: z.object({
+      id: z.string().min(1), name: z.string(), scopes: z.array(z.string()), services: z.array(z.string()),
+      function_daily_limit_eur: spendingLimit, order_daily_limit_eur: spendingLimit, order_monthly_limit_eur: spendingLimit,
+    }).passthrough(),
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
   }, async () => { const { data } = await apiRequest('GET', '/account/mcp/profile'); return { ...result(data), structuredContent: data as Record<string, unknown> }; });
 
   server.registerTool('open_vm_session', {

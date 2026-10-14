@@ -1,0 +1,20 @@
+{
+  "name": "vpsnet",
+  "interface": {
+    "displayName": "VPSnet"
+  },
+  "plugins": [
+    {
+      "name": "vpsnet",
+      "source": {
+        "source": "local",
+        "path": "./plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

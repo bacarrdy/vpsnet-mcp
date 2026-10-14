@@ -240,7 +240,14 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     if (schema !== ListToolsRequestSchema) return setRequestHandler(schema, handler);
     return setRequestHandler(schema, async (...args: any[]) => {
       const response = await handler(...args);
-      return { ...response, tools: response.tools.filter((tool: { name: string }) => !legacyAggregateTools.has(tool.name)) };
+      return { ...response, tools: response.tools
+        .filter((tool: { name: string }) => !legacyAggregateTools.has(tool.name))
+        // SDK registerTool preserves _meta but drops unknown top-level config
+        // fields. Add the canonical declaration to the emitted descriptor,
+        // using exactly the same scopes as its compatibility mirror.
+        .map((tool: { name: string; _meta?: Record<string, unknown> }) => ({
+          ...tool, securitySchemes: tool._meta?.securitySchemes,
+        })) };
     });
   }) as typeof server.server.setRequestHandler;
   const original = server.registerTool.bind(server) as unknown as Register;

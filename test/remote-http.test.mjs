@@ -56,6 +56,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     for (const hint of ['readOnlyHint', 'destructiveHint', 'openWorldHint']) assert.equal(typeof tool.annotations[hint], 'boolean', `${tool.name}.${hint}`);
     if (tool.annotations.readOnlyHint) assert.equal(tool.annotations.destructiveHint, false, tool.name);
     assert.equal(tool._meta.securitySchemes[0].type, 'oauth2');
+    assert.deepEqual(tool.securitySchemes, tool._meta.securitySchemes);
   }
   assert.equal(list.body.result.tools.find(t => t.name === 'open_vm_session').annotations.destructiveHint, true, 'SSH session bootstrap may deploy a delegated key');
   assert.equal(list.body.result.tools.find(t => t.name === 'list_services').annotations.readOnlyHint, true);
