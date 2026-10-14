@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.13 MCP server
+
+- Poll network and appliance operations using `in_progress` and `next_check_seconds`; treat waiting reasons as progress.
+- Include explicit progress hints in networking tool results and preserve port activation follow-up identifiers.
+
 ## 0.6.8 connector
 
 - Explain OAuth reconnect after expired or revoked authorization, including local and remote CLI callbacks.
