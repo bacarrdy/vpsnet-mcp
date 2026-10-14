@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — proposed 0.6.11 connector / 2.3.16 MCP server
+
+- Add static MCP guidance resources, a canonical catalog of 28 nonlegacy OAuth scopes, and four user-invoked diagnostic prompts without expanding account access.
+- Include an explicit empty Smithery URL-publishing configuration schema; OAuth remains required and catalog approval is a separate step.
+- Add structured continuation guidance to service and server-purchase results: retain the original order/key, distinguish financial outcome from provisioning, and report pending progress after bounded polling without another purchase or a promised callback.
+- Separate running-VM evidence from guest-agent availability and application health, including Firecracker, KVM and Windows cases; polling intervals are not completion estimates.
+- Accept a reported monthly Functions limit in connected-account results, including legacy null/omitted values, without inventing a default or changing grants. Backend activation remains a separate release.
+
 ## 0.6.10 connector / 2.3.15 MCP server
 
 - Declare the connected-account result schema and expose matching OAuth security metadata without changing granted permissions.
