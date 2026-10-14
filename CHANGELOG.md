@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.8 connector
+
+- Explain OAuth reconnect after expired or revoked authorization, including local and remote CLI callbacks.
+- Clarify that consent presets can grant only requested permissions and additional scopes need a new authorization request.
+- Include the reconnect guidance in shared client skills.
+
 ## 2.3.12 MCP server
 
 - Provide human-readable annotation titles for every tool across hosted and local connections.
