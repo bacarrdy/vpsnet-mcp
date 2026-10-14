@@ -10,6 +10,7 @@ from zipfile import ZipFile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts'))
+from sync_gemini_skills import sync_skills
 spec = importlib.util.spec_from_file_location('package_distribution', ROOT / 'scripts/package-distribution.py')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
@@ -20,7 +21,7 @@ class DistributionTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for name in ('plugin', '.claude-plugin', 'distribution/clients'):
+        for name in ('plugin', 'skills', '.claude-plugin', 'distribution/clients'):
             shutil.copytree(ROOT / name, self.root / name)
         for name in ('gemini-extension.json', 'server.json'):
             shutil.copy2(ROOT / name, self.root / name)
@@ -61,6 +62,29 @@ class DistributionTest(unittest.TestCase):
     def test_mismatched_native_version(self):
         self.change('gemini-extension.json', lambda d: d.update(version='99.0.0'))
         with self.assertRaisesRegex(ValueError, 'version differs'):
+            module.build(self.root)
+
+    def test_git_install_skills_match_canonical_release_skills(self):
+        folder, manifest = module.build(self.root)
+        record = next(item for item in manifest['artifacts'] if item['format'] == 'gemini-cli-extension')
+        with ZipFile(folder / record['file']) as archive:
+            for name in module.SKILL_FILES:
+                self.assertEqual((self.root / name).read_bytes(), archive.read(name))
+
+    def test_git_install_rejects_stale_or_extra_skills(self):
+        path = self.root / 'skills/vpsnet-deploy/SKILL.md'
+        path.write_text(path.read_text() + '\nStale generated content.\n')
+        with self.assertRaisesRegex(ValueError, 'Gemini skills mirror differs'):
+            module.build(self.root)
+        sync_skills(self.root)
+        (self.root / 'skills/extra.md').write_text('Not selected for publication')
+        with self.assertRaisesRegex(ValueError, 'Gemini skills mirror differs'):
+            module.build(self.root)
+
+    def test_git_install_rejects_symlinked_mirror(self):
+        shutil.rmtree(self.root / 'skills')
+        (self.root / 'skills').symlink_to(self.root / 'plugin/skills', target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'must not be a symlink'):
             module.build(self.root)
 
     def test_native_nested_credentials(self):

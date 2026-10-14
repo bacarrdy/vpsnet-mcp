@@ -337,7 +337,10 @@ Choose your environment:
 - [VS Code with GitHub Copilot](#vs-code-with-github-copilot) — Copilot agent mode
 - [Cline](#cline) / [Cursor](#cursor) / [Windsurf](#windsurf) / [Roo Code](#roo-code) / [Codex](#codex) — Other clients
 
-The standard config works across most MCP clients:
+The following local stdio example uses the `mcpServers` configuration format
+supported by several MCP clients. Use your client's native schema; VS Code's
+`.vscode/mcp.json` uses `servers` instead. For customer OAuth and the hosted
+connector, use [AI client setup](docs/CLIENTS.md).
 
 ```json
 {
@@ -495,7 +498,8 @@ Go to **Cursor Settings** > **MCP** > **Add new MCP Server**. Use command type w
 <details>
 <summary>Roo Code</summary>
 
-Open Roo Code MCP settings and add to `roo_mcp_settings.json`:
+Open Roo Code MCP settings and choose **Edit Global MCP** (currently
+`mcp_settings.json`), or **Edit Project MCP** for `.roo/mcp.json`:
 
 ```json
 {
@@ -516,24 +520,74 @@ Open Roo Code MCP settings and add to `roo_mcp_settings.json`:
 </details>
 
 <details>
-<summary>VS Code with GitHub Copilot</summary>
+<summary id="vs-code-with-github-copilot">VS Code with GitHub Copilot</summary>
 
-Install using the VS Code CLI:
+For the hosted customer OAuth connection, run **MCP: Add Server** and enter
+`https://mcp.vpsnet.com/mcp`, or merge this native VS Code entry into
+`.vscode/mcp.json`, preserving other servers:
+
+```json
+{
+  "servers": {
+    "vpsnet": {
+      "type": "http",
+      "url": "https://mcp.vpsnet.com/mcp"
+    }
+  }
+}
+```
+
+Complete the browser sign-in and consent flow when requested. Copilot's portable
+workspace `.mcp.json` and user `~/.copilot/mcp-config.json` use a top-level
+`mcpServers` object instead. These formats are distinct from the Claude Code
+extension's configuration.
+
+For the separate local stdio package with your own VPSnet API key, install using
+the VS Code CLI:
 
 ```bash
 code --add-mcp '{"name":"vpsnet","command":"npx","args":["-y","vpsnet-mcp"],"env":{"VPSNET_API_KEY":"your_api_key_here"}}'
 ```
 
-Or add to your VS Code MCP config manually using the standard config above.
+For manual native VS Code configuration, place that local server's `command`,
+`args` and private `env` under `servers.vpsnet`, rather than copying the generic
+`mcpServers` wrapper. VS Code's **MCP: Reset Cached Tools** refreshes a stale
+tool catalog. See [official MCP configuration](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).
 
 > This is for **GitHub Copilot** agent mode in VS Code. For the **Claude Code** extension, see the [Claude Code for VS Code Extension](#claude-code-for-vs-code-extension) section.
 
 </details>
 
 <details>
-<summary>Windsurf</summary>
+<summary id="windsurf">Windsurf / Devin Desktop</summary>
 
-Follow the [Windsurf MCP documentation](https://docs.windsurf.com/windsurf/mcp). Use the standard config above.
+Current official Windsurf documentation redirects to Devin Desktop. Choose the
+agent you are using: legacy Cascade and the current Devin Local agent have
+different MCP setup paths.
+
+For Devin Local, add and authenticate the hosted connector with the Devin CLI:
+
+```sh
+devin mcp add vpsnet https://mcp.vpsnet.com/mcp
+devin mcp login vpsnet --scopes services:read
+```
+
+This requests a read baseline. Request the documented scopes required for other
+tasks through a new authorization flow before approving them. If authorization
+is lost, use the Desktop **Authenticate** action, or `devin mcp logout vpsnet`
+followed by the login command. Current CLI versions use dedicated
+`.devin/mcp_config.json`, `.devin/mcp_config.local.json` or user
+`~/.config/devin/mcp_config.json` files.
+
+For legacy Cascade, open the panel's **Actions → Open MCP config file** and merge
+a server under `mcpServers` with `serverUrl: "https://mcp.vpsnet.com/mcp"`.
+Complete its OAuth flow. Cascade has a 100-tool total limit, so inspect the
+enabled tools. The local stdio example above is a separate API-key connection.
+
+Follow the official [Devin Local MCP guide](https://docs.devin.ai/cli/extensibility/mcp/configuration)
+or [legacy Cascade guide](https://docs.devin.ai/desktop/cascade/mcp) for your
+surface. Client authentication and VPSnet compatibility still need verification
+on the actual client version.
 
 </details>
 

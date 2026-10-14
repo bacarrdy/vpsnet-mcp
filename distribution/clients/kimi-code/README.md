@@ -17,9 +17,13 @@ Start with: “Show my connected VPSnet servers and their state. Do not change a
 
 Linux files and commands need separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. This package manages existing services; it does not conduct purchases or direct customers into checkout. Disconnect through VPSnet's AI connections page to revoke access.
 
+## Updates
+
+Kimi copies a local installation into its managed plugin directory. Editing the original extracted folder does not update the installed plugin. Extract the new complete package, run `/plugins install ./vpsnet` again, then `/reload` or `/new`. The plugin manager also offers an update when one is available from its source; no automatic update behavior is assumed for this custom package.
+
 ## Kimi marketplace
 
-Kimi Work's Plugin Builder can convert existing plugin files or project links into a personal plugin. Upload the complete package, then check the generated plugin's OAuth connection and capabilities. Conversion is a separate step; source format compatibility alone does not prove that a generated plugin works.
+Kimi Work's Plugin Builder, in its latest desktop app, can convert existing plugin files or project links into a personal plugin. Provide the complete package or repository link, then check the generated plugin's OAuth connection and capabilities. Conversion is a separate step; source format compatibility alone does not prove that a generated plugin works. To update an imported Work plugin, ask Plugin Builder to re-convert the updated source.
 
 After testing a personal plugin, its details page provides a publication application entry. Follow Kimi's official publication guide and provide the publisher's real information through that workflow. Availability varies by Kimi surface and region. This native package is prepared for Kimi Code; it is not evidence of marketplace approval, automatic recommendations or a completed customer OAuth test.
 

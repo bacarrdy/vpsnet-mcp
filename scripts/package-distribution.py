@@ -11,17 +11,10 @@ from pathlib import Path, PurePosixPath
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 from validate_plugin import require, validate_package, validate_directory_text
+from sync_gemini_skills import SKILL_FILES, check_skills
 
 ENDPOINT = 'https://mcp.vpsnet.com/mcp'
-SHARED = (
-    'LICENSE', 'assets/icon.png',
-    'skills/vpsnet-operations/SKILL.md',
-    'skills/vpsnet-operations/references/use-cases.md',
-    'skills/vpsnet-operations/references/execution.md',
-    'skills/vpsnet-deploy/SKILL.md',
-    'skills/vpsnet-troubleshoot/SKILL.md',
-    'skills/vpsnet-functions/SKILL.md',
-)
+SHARED = ('LICENSE', 'assets/icon.png') + SKILL_FILES
 PORTABLE = SHARED + ('plugin.json', 'mcp.json', '.claude-plugin/plugin.json', '.mcp.json', 'README.md')
 
 
@@ -96,6 +89,7 @@ def archive(output, filename, entries):
 
 def build(root, output=None):
     version = validate_package(root / 'plugin')
+    check_skills(root)
     registry = json_source(root, 'server.json')
     require(registry['version'] == version, 'Registry version differs')
     require(registry['remotes'] == [{'type': 'streamable-http', 'url': ENDPOINT}], 'Registry endpoint differs')

@@ -10,9 +10,13 @@ Start with: “Show my connected VPSnet servers and their state. Do not change a
 
 ## Explicit read scope for a standalone connection
 
-For the documented native Kiro configuration, merge the server entry from `kiro.mcp.json` into `.kiro/settings/mcp.json` in your workspace or `~/.kiro/settings/mcp.json` for your user. Preserve other server entries. The supplied `oauth.oauthScopes` requests `services:read` and leaves OAuth discovery and dynamic registration enabled. Additional operations still require the customer's separately selected permissions. This is a standalone MCP connection, not an override of a Power's automatically namespaced server; use one connection method to avoid duplicate OAuth connections.
+For the documented native Kiro configuration, merge the server entry from `kiro.mcp.json` into `.kiro/settings/mcp.json` in your workspace or `~/.kiro/settings/mcp.json` for your user. Preserve other server entries. The supplied `oauth.oauthScopes` requests only `services:read` and leaves OAuth discovery and dynamic registration enabled. For other operations, include their required scopes in a new authorization request before the customer can approve them. This is a standalone MCP connection, not an override of a Power's automatically namespaced server; use one connection method to avoid duplicate OAuth connections.
 
 The native OAuth fields belong to Kiro's MCP configuration, not the portable Agent Plugins schema. The Power package should retain its portable format and undergo its own OAuth check before registry submission.
+
+## Updates
+
+For a Power installed from a remote repository, open **Powers → VPSnet → Check for updates**, then **Install updates** when available. For a locally imported Power, use the client's import controls with the new complete package and verify the installed version. Package updates do not broaden an existing OAuth grant. Use the MCP panel's **Re-authenticate** action if authorization is lost.
 
 ## Registry submission
 

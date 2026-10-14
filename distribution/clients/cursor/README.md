@@ -12,6 +12,10 @@ Start with: “Show my connected VPSnet servers and their state. Do not change a
 
 Linux files and commands require separate permission. Functions execution requires separate consent to metered usage and a daily account usage ceiling. Disconnect through VPSnet's AI connections page to revoke access. This package manages existing services; it does not conduct purchases or direct customers into checkout.
 
+## Updates
+
+For a local installation, replace the extracted package with the new complete package and reload Cursor. An installed marketplace plugin with the same name takes precedence over the local copy. Public marketplace updates undergo Cursor review; team marketplace refresh settings are a separate distribution mechanism. A package update does not change the customer's OAuth permissions.
+
 ## Official marketplace
 
 Cursor accepts both Agent Plugins and Cursor Plugins from public Git repositories and reviews listings manually. Submit the complete, locally tested plugin through the official publisher page. The repository's existing `plugin/` directory supplies the portable Agent Plugins bundle; the native `.cursor-plugin/plugin.json` lives in the same complete `plugin/` directory and is indexed by the repository root `.cursor-plugin/marketplace.json`. The native archive uses this README and the bundled shared skills and logo. Preparing either format does not establish an accepted listing or a completed customer OAuth test.

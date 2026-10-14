@@ -16,11 +16,15 @@ A release archive contains the complete extension, including the shared VPSnet s
 gemini extensions install ./vpsnet
 ```
 
-Repository installation loads the remote connector and its context. Gemini discovers bundled skills from `skills/` at the extension root; the release package supplies that directory. Restart Gemini CLI after installing.
+Repository and release installation load the remote connector, context and shared skills. Gemini discovers bundled skills from `skills/` at the extension root. Restart Gemini CLI after installing.
 
 In Gemini CLI, use `/mcp auth vpsnet` when authentication is requested. The browser opens the VPSnet sign-in and consent flow. Select services and permissions, then return to Gemini CLI. OAuth discovery and registration use server metadata; the extension contains no credentials or static bearer token. A local browser and loopback callback are required.
 
 Start with: “Show my connected VPSnet servers and their state. Do not change anything.”
+
+## Updates
+
+For a repository installation, run `gemini extensions update vpsnet` in your terminal, then restart Gemini CLI. Automatic updates are optional through `--auto-update` at installation. For a local archive installation, extract the new complete package and reinstall its local directory. Use `/mcp reload` to rediscover changed remote tools; this does not replace installed skills.
 
 ## Access
 
@@ -28,7 +32,7 @@ Linux files and commands require separate permission. Functions execution requir
 
 ## Extension gallery
 
-The gallery discovers public GitHub repositories with the `gemini-cli-extension` topic and a root `gemini-extension.json`. Listing requires publication of the repository changes, that topic and successful provider validation. Preparing this package does not establish gallery acceptance or a completed customer OAuth test.
+The gallery automatically discovers public GitHub repositories with the `gemini-cli-extension` topic and a root `gemini-extension.json`. Publish the complete repository changes and add that topic for discovery. Preparing this package does not establish gallery indexing or a completed customer OAuth test.
 
 [Support](https://www.vpsnet.com/en/help/contacts) · [Privacy](https://www.vpsnet.com/en/information/privacy-policy) · [Terms](https://www.vpsnet.com/en/information/term-of-service)
 
