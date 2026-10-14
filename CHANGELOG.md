@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.9 connector
+
+- Include requested-scope consent and permission-effect guidance in packaged skills and the plugin README.
+- Clarify that Functions execution uses the VPSnet balance, separately from the AI subscription, and that live metadata never grants access.
+
 ## 2.3.14 MCP server
 
 - Describe the permissions, included access and billing effects of each advertised OAuth scope using the shared backend catalog.

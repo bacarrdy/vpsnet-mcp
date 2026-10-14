@@ -26,6 +26,25 @@ original operation before resuming a mutation. See the public
 [reconnect workflow](https://github.com/bacarrdy/vpsnet-mcp/blob/main/docs/REMOTE_MCP.md#reconnect-after-losing-authorization)
 for the protocol references and callback explanation.
 
+## Permission disclosure
+
+Explain the permissions needed for the user's task before requesting additional
+consent. Manage scopes include the corresponding read access; `vm:exec` includes
+diagnostics, and file write permission includes file reading. These implications
+do not add unrequested scope choices to the consent screen. Snapshot restore
+permission also permits snapshot deletion. Root file access may expose secrets,
+and commands can change the selected server; explain these effects when relevant.
+
+Use the live connection's granted scopes and selected services. The optional
+VPSnet `scope_descriptions` metadata map describes only advertised profile
+scopes; it is not a standard OAuth requirement, an execution grant or evidence
+that every application displays it. This directory package manages existing
+services and does not authorize purchases. Request only permissions needed for
+the task. For account Functions execution, disclose charges to the VPSnet balance,
+which the AI subscription does not cover, and follow the Functions skill's
+separate execution consent, daily ceiling and per-call billing acknowledgment.
+See [scope descriptions and included access](https://github.com/bacarrdy/vpsnet-mcp/blob/main/docs/REMOTE_MCP.md#scope-descriptions-and-included-access).
+
 ## Server access
 
 Inspect the service's OS, resources and network first. Open a VM session without inventing `sessionBinding`; retain the returned binding, session ID and service number. Auto prefers the guest-agent channel. Explicit `guest` works without a public IP, working SSH or guest network when the agent is available. Explicit `ssh` is an independent reachable SSH/SFTP path. Key deployment can be pending. Read `/etc/os-release` and the first diagnostic result before choosing Linux commands. The selected directory does not isolate root commands.

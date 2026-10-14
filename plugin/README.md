@@ -66,6 +66,12 @@ availability requirements and current plans; “microVM” does not mean a small
 
 ## Access and control
 
+- Consent choices are limited to the scopes requested by the AI application.
+  Diagnose, Manage and Full access cannot add an unrequested permission;
+  additional access requires a new authorization request and your approval.
+- Manage permissions include their corresponding read access. File writes and
+  commands have separate permissions; snapshot restore permission also allows
+  snapshot deletion. Review the descriptions and effects before approving.
 - Server and application access is limited to the services selected at consent.
 - Network, Functions, DNS, domain, certificate and public SSH-key permissions cover those resources across your account.
 - Linux file access and commands require separate permission. Commands run with
@@ -74,12 +80,19 @@ availability requirements and current plans; “microVM” does not mean a small
   PowerShell or RDP control.
 - Functions execution requires separate consent to metered usage and a daily
   spending ceiling. The ceiling counts all account Functions usage, including
-  pending runs, and does not grant permission to buy resources or credits.
+  pending runs. Charges use your VPSnet balance; your AI subscription does not
+  cover them. This does not grant permission to buy resources or credits.
 - Disconnect an app in the VPSnet customer panel's **AI connections** page to
   revoke further access. Operation records remain available for review.
 - Purchases, payments, billing changes and infrastructure administration are
   outside this connector. An accepted operation is still pending until its final
   result is read.
+
+Permissions are advertised by the live VPSnet endpoint; this bundle does not
+pin an MCP server version. The optional VPSnet `scope_descriptions`
+metadata extension describes only the advertised profile's scopes and does not
+grant access. Read the [scope descriptions and included access](https://github.com/bacarrdy/vpsnet-mcp/blob/main/docs/REMOTE_MCP.md#scope-descriptions-and-included-access)
+for details. AI applications control their own metadata refresh and review process.
 
 ## Data and support
 

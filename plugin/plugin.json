@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",
@@ -103,7 +103,7 @@
         "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Corrected backup browsing metadata to reflect creation of an asynchronous job. Access permissions and backup contents are unchanged. Includes the review video walkthrough and the private-network, application, DNS, certificate, backup and Function improvements from 0.6.6."
+        "release_notes": "Clarify requested-scope consent, included read access, sensitive operation effects and Functions usage charges in packaged guidance. The connector uses live scope metadata; existing access permissions and purchase restrictions are unchanged."
       }
     }
   }
