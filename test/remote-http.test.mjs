@@ -37,6 +37,10 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   assert.equal((await call(port, 'GET')).status, 401);
   const metadata = await call(port, 'GET', '/.well-known/oauth-protected-resource/mcp');
   assert.equal(metadata.body.resource, resource); assert.deepEqual(metadata.body.authorization_servers, [issuer]);
+  assert.deepEqual(Object.keys(metadata.body.scope_descriptions), metadata.body.scopes_supported);
+  assert.match(metadata.body.scope_descriptions['functions:invoke'], /VPSnet balance/);
+  assert.equal(metadata.body.scope_descriptions['orders:servers'], undefined);
+  assert.equal(metadata.body.scope_descriptions['vm:files'], undefined);
   assert.match((await call(port)).headers['www-authenticate'], /resource_metadata/);
   assert.equal((await call(port, 'POST', '/mcp', tokens.a, {}, { host: 'attacker.example' })).status, 421);
   assert.equal((await call(port, 'POST', '/mcp', tokens.a, {}, { origin: 'https://attacker.example' })).status, 403);
@@ -413,6 +417,9 @@ test('one connection supports approved purchases while catalog clients retain th
   const port=remote.address().port;
   const metadata=await call(port,'GET','/.well-known/oauth-protected-resource/mcp');
   assert.equal(metadata.body.resource,resource);assert.ok(metadata.body.scopes_supported.includes('orders:servers'));
+  assert.deepEqual(Object.keys(metadata.body.scope_descriptions), metadata.body.scopes_supported);
+  assert.match(metadata.body.scope_descriptions['orders:servers'], /VPSnet balance/);
+  assert.match(metadata.body.scope_descriptions['orders:domains'], /non-refundable/);
   assert.equal((await call(port,'POST','/mcp/orders',tokens.b,{jsonrpc:'2.0',id:1,method:'tools/list'})).status,404);
   const catalog=(await call(port,'POST','/mcp',tokens.a,{jsonrpc:'2.0',id:1,method:'tools/list'})).body.result.tools;
   assert.ok(!catalog.some(t=>t.name==='confirm_service_order'));

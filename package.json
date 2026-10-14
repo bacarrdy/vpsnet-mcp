@@ -35,6 +35,7 @@
     "build/http-server.js",
     "build/request-context.js",
     "build/remote-policy.js",
+    "build/scope-catalog.js",
     "build/remote-auth-error.js",
     "build/remote-tools.js",
     "build/remote-orders.js"

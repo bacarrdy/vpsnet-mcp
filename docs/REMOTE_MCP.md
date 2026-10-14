@@ -17,14 +17,39 @@ permissions apply to the customer's account, as shown during consent.
 Existing ownership checks and service locks still apply. Customers can revoke
 connections from the AI connections page in their VPSnet account.
 
-The remote profile manages existing services. Billing, ordering, renewal,
-API-key management, service transfer, model invocation and infrastructure
-administration are excluded. The local stdio client retains its existing API-key
+The default directory profile manages existing services and excludes purchases,
+renewals, payment settings, API-key management, service transfer, model invocation
+and infrastructure administration. A separately enabled orders profile can expose
+`orders:read`, `orders:servers` and `orders:domains` to approved clients; see
+[orders permissions and approval](ORDERS.md). Metadata advertises these three extra scopes only when the gateway’s orders
+option is enabled; each client still needs live policy approval and a matching
+grant to discover purchase tools. Functions execution uses the existing account’s
+VPSnet balance and requires separate `functions:invoke` consent and acceptance
+of usage charges. The local stdio client retains its existing API-key
 configuration and separate tool profile.
 
 Missing permissions return an OAuth scope challenge before an action runs.
 Clients that cannot request incremental consent must reconnect with the needed
 permissions. Consent never silently expands an existing grant.
+
+### Scope descriptions and included access
+
+Authorization-server and protected-resource metadata retain the standard
+`scopes_supported` list and add the VPSnet-specific `scope_descriptions` map.
+Clients may ignore this extension; the VPSnet consent page displays the catalog’s
+localized descriptions, including billing and destructive effects. The authoritative
+catalog is backend `app/Services/Mcp/scope-catalog.json`; the gateway vendors it
+with `scripts/sync-scope-catalog.py --backend-catalog <path>` (add `--check` to
+verify parity). Descriptions never grant permissions.
+
+Manage scopes include the corresponding read scope. `functions:invoke` includes
+`functions:read`; `services:rescue` includes `services:read`; `orders:servers` and
+`orders:domains` include `orders:read`; `vm:exec` includes `vm:diagnostics`;
+`vm:files:write` includes `vm:files:read`; and `dns:write` and `dnssec:manage`
+include `dns:read`. `services:restore` authorizes both restoring and deleting
+snapshots. The accepted legacy `vm:files` alias includes file read and write,
+but is not advertised for new connections. VM permissions also allow the
+session and operation-status access needed to carry out their permitted work.
 
 ### Why some consent choices are unavailable
 

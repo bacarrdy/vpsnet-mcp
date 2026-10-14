@@ -4,6 +4,7 @@ import { createVpsnetServer } from "./index.js";
 import { resolveApiBase } from "./api.js";
 import { requireRequestAuthorization, withAuthorization, type AuthorizationContext } from "./request-context.js";
 
+import { scopeDescriptions } from "./scope-catalog.js";
 import { supportedScopes, orderScopes } from "./remote-policy.js";
 export interface RemoteOptions { resource: string; issuer: string; allowedOrigins?: readonly string[]; ordersEnabled?: boolean; }
 
@@ -64,7 +65,7 @@ export function createRemoteServer(options: RemoteOptions) {
       res.writeHead(204); res.end(); return;
     }
     if (req.method === 'GET' && [ '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp' ].includes(req.url ?? '')) {
-      return json(res, 200, { resource: resource.href, authorization_servers: [issuer], scopes_supported: allowedScopes, bearer_methods_supported: ['header'], resource_name: 'VPSnet' });
+      return json(res, 200, { resource: resource.href, authorization_servers: [issuer], scopes_supported: allowedScopes, scope_descriptions: scopeDescriptions(allowedScopes), bearer_methods_supported: ['header'], resource_name: 'VPSnet' });
     }
     if (req.url !== '/mcp') return json(res, 404, { error: 'not_found' });
     try {
