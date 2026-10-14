@@ -349,6 +349,17 @@ const deduplicatedTools = new Set([
 // not imply a read-only MCP call.
 const queuedReadTools = new Set(['browse_restore_files', 'inspect_vm', 'read_vm_file', 'get_application_health', 'get_application_logs', 'discover_service_containers']);
 
+// Intentional hosted metadata correction: these endpoints can change existing state
+// even though their permission is read-scoped (or default-contact creation is additive
+// only when is_default is false). No permission or handler changes accompany these hints.
+const hostedReconciliationEffects = new Map<string, boolean>([
+  ['list_snapshots', true],
+  ['get_hostname', true],
+  ['list_functions', false],
+  ['get_function', false],
+  ['create_domain_contact', true],
+]);
+
 // Keep cached aggregate calls valid, but advertise the individually scoped
 // actions to new directory clients. The SDK uses one handler for tools/list;
 // filtering its result leaves the normal tools/call dispatcher intact.
@@ -393,6 +404,10 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     if (name.startsWith('quote_')) { annotations.readOnlyHint = false; annotations.destructiveHint = false; }
     if (name === 'confirm_domain_register' || name === 'confirm_service_order') annotations.destructiveHint = true;
     if (readOnly) { annotations.readOnlyHint = true; annotations.destructiveHint = false; }
+    if (hostedReconciliationEffects.has(name)) {
+      annotations.readOnlyHint = false;
+      annotations.destructiveHint = hostedReconciliationEffects.get(name)!;
+    }
     if (deduplicatedTools.has(name)) annotations.idempotentHint = true;
     const objectSchema = config.inputSchema instanceof z.ZodObject ? config.inputSchema : undefined;
     const inputSchema = { ...(objectSchema ? objectSchema.shape : config.inputSchema as Record<string, z.ZodTypeAny>) };

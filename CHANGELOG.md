@@ -7,6 +7,7 @@
 - Add structured continuation guidance to service and server-purchase results: retain the original order/key, distinguish financial outcome from provisioning, and report pending progress after bounded polling without another purchase or a promised callback.
 - Separate running-VM evidence from guest-agent availability and application health, including Firecracker, KVM and Windows cases; polling intervals are not completion estimates.
 - Accept a reported monthly Functions limit in connected-account results, including legacy null/omitted values, without inventing a default or changing grants. Backend activation remains a separate release.
+- Correct hosted impact hints for snapshot/hostname reconciliation, Functions billing-anchor repair and default-contact replacement. No names, schemas, scopes or handlers change. After deployment, request a publisher rescan where supported and inspect live versus held metadata; this source change does not establish a new approval or client refresh.
 - Complete legacy stdio tool titles and missing impact hints with reviewed explicit classifications. Persisted quote/session jobs and side-effecting reads are labelled as writes; pure plan-price calculation remains read-only. Existing authored annotations and hosted directory/orders descriptors are preserved. Tool names, schemas, handlers and permissions are unchanged.
 
 ## 0.6.10 connector / 2.3.15 MCP server

@@ -108,3 +108,23 @@ test('legacy stdio fills impact hints from actual operation effects', async () =
     assert.equal(tools.get(name).annotations.destructiveHint,destructive,name);
   }
 });
+
+// Intentionally reviewed hosted corrections; read scopes do not promise a pure read.
+test('hosted reconciliation and default-contact replacement expose their actual impact', async () => {
+  const expected = {
+    list_snapshots: [false,true,'services:read'],
+    get_hostname: [false,true,'services:read'],
+    list_functions: [false,false,'functions:read'],
+    get_function: [false,false,'functions:read'],
+    create_domain_contact: [false,true,'domains:manage'],
+  };
+  for (const remoteProfile of ['directory','orders']) {
+    const tools = new Map((await discover({remoteScopes:['services:read','orders:read','orders:servers','orders:domains'],remoteProfile})).map(tool=>[tool.name,tool]));
+    for (const [name,[readOnly,destructive,scope]] of Object.entries(expected)) {
+      const tool=tools.get(name);
+      assert.equal(tool.annotations.readOnlyHint,readOnly,`${remoteProfile}: ${name}`);
+      assert.equal(tool.annotations.destructiveHint,destructive,`${remoteProfile}: ${name}`);
+      assert.deepEqual(tool._meta.securitySchemes,[{type:'oauth2',scopes:[scope]}],`${remoteProfile}: scope unchanged`);
+    }
+  }
+});
