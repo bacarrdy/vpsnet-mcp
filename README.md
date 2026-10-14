@@ -671,7 +671,7 @@ everything else.
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
 | `list_services` | List all active VPS services | `services:read` | free |
-| `get_service` | Get detailed info for a service | `services:read` | free |
+| `get_service` | Read service details and the next readiness check; keep provisioning, guest access and application health separate | `services:read` | free |
 | `get_service_graphs` | Get one graph series: metric (cpu, ram, ssd, net, io, …) and period (5m … 1y) | `services:read` | free |
 | `get_event` | Read an async action's state by its `event` id or `noty` UUID | `services:read` or `account:read` | free |
 | `wait_for_event` | Poll an async action until completed or error (or a timeout) | `services:read` or `account:read` | free |
@@ -1005,7 +1005,7 @@ enabled.
 ### Guest Agent
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
-| `get_guest_agent_status` | Check QEMU guest-agent availability on a Cloud VPS | `services:read` | free |
+| `get_guest_agent_status` | Read guest-agent availability on Cloud VPS or Firecracker; this does not establish application readiness | `services:read` | free |
 
 ### History
 | Tool | Description | Scope | Paid |

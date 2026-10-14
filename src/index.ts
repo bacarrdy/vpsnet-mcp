@@ -3,6 +3,7 @@ import { installToolInputSchemas } from "./tool-schema.js";
 import { registerOrderTools } from "./remote-orders.js";
 import { registerRemoteTools } from "./remote-tools.js";
 import { registerReadOnlyContext } from "./read-only-context.js";
+import { purchaseReadiness, serviceReadiness, serviceResultOutput } from "./service-readiness.js";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -162,7 +163,7 @@ const server = new McpServer(
       "Resources is an array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword rules: 6-40 chars, alphanumeric only, MUST contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other (or neither for auto-generated password).",
-      "After placing an order, wait 10-30 seconds before attempting SSH — the VPS needs time to boot and start SSH daemon.",
+      "A paid receipt is not a running server. Read get_service for the original order and follow follow_up: pending activation, finalization and capacity waits require polling the same order. About 10 seconds is a suggested polling interval, never a boot ETA. Check at most 6 times before a progress update; if still pending, retain the key and order number for a later check. Do not reorder, repay, restart or promise a background callback. A running VM, guest access and a healthy application are separate outcomes; KVM and Windows setup may take longer and must be observed.",
       "deploy_ssh_key is also async — wait 15-30 seconds after deploying a key before attempting SSH to any VPS (not just new ones).",
       "",
       "## Deployment capabilities (unordered)",
@@ -537,17 +538,19 @@ server.registerTool(
   "get_service",
   {
     description:
-      "Get detailed info for a service by order number. stateProcess.waitingReason=public_ip_inventory means the paid CREATE awaits public IP inventory and resumes automatically; poll this same service without a new order, payment or manual retry. stateProcess.attention=true requires operator attention. The legacy stateProccess alias carries the same process data. Resource-usage rows include available; false means the numeric zero is a compatibility placeholder, not a measurement. Requires services:read when called with an API key.",
+      "Get detailed info and follow_up readiness guidance for the original service order. Payment, VM provisioning, guest-agent availability and application health are separate. Pending activation, finalizing or active stateProcess means keep polling this same order; about 10 seconds is an interval, not an ETA. Check at most 6 times before a progress update, then retain the order for the next check. stateProcess.waitingReason=public_ip_inventory resumes automatically; never reorder, pay again or manually restart. stateProcess.attention=true requires operator attention. The legacy stateProccess alias carries the same process data. Unknown guest-agent status alone does not prove the VM is down. Resource-usage rows with available=false contain compatibility placeholders, not measurements. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
+    outputSchema: serviceResultOutput,
   },
   async ({ orderNo }) => {
-    const { data } = await apiRequest(
+    const { status, data } = await apiRequest(
       "GET",
       `/account/services/${encodeURIComponent(orderNo)}`
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    const output = serviceReadiness(data, status, orderNo, options.remoteScopes !== undefined);
+    return { content: [{ type: "text", text: formatJson(output) }], structuredContent: output };
   }
 );
 
@@ -3169,6 +3172,7 @@ server.registerTool(
       "Payment object for balance: { payment: 1, successUrl: '', cancelUrl: '' }.",
       "First call returns confirmationRequired and an exact gross EUR quote without charging. Show the amount and billing period, obtain explicit approval, then call again with the unchanged order configuration and idempotencyKey, returned quoteToken, expected_total_eur and acknowledge_charge=true. The API key must have paid scope/caps enabled. Never replace the key after an uncertain payment; inspect that original attempt in the VPSnet panel. Quotes are retained in this MCP process; after a restart inspect the original attempt in the panel rather than submitting another order.",
       "Payment acceptance is not server readiness. Poll get_service for the returned order number. stateProcess.waitingReason=public_ip_inventory resumes the same paid CREATE automatically when inventory returns; do not place or pay for another order. stateProcess.attention=true needs operator attention.",
+      "Follow follow_up for the same service. Poll about every 10 seconds, never treating that interval as a boot ETA; after at most 6 checks report pending progress and retain the original key/order. Do not automatically restart or promise a completion callback. Running VM, usable guest access and application health are separate checks.",
       "Resources: array of numeric resource value IDs from get_order_options, e.g. [901, 907].",
       "rootPassword: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. Example: 'MyPass123'.",
       "sshKey and rootPassword are mutually exclusive — provide one or the other.",
@@ -3257,7 +3261,8 @@ server.registerTool(
               confirmationRequired: true, idempotencyKey,
               message: "The original quote is no longer valid. The API refused confirmation before charging. Inspect this original attempt in the VPSnet panel and obtain approval of any changed price or configuration; do not retry an uncertain purchase with a new key." }) }] };
           }
-          return { ...(status >= 400 ? { isError: true } : {}), content: [{ type: "text" as const, text: formatJson(data) }] as [{ type: "text"; text: string }] };
+          const output = purchaseReadiness(data, status, idempotencyKey, true, false);
+          return { ...(status >= 400 ? { isError: true } : {}), content: [{ type: "text" as const, text: formatJson(output) }] as [{ type: "text"; text: string }], structuredContent: output };
         } catch {
           return refusal("purchaseOutcomeUnknown", "The confirmation outcome is unknown. Inspect this original attempt in the VPSnet panel. Do not submit another order or use a new key.");
         }
@@ -5912,7 +5917,7 @@ server.registerTool(
   "get_guest_agent_status",
   {
     description:
-      "Check whether the QEMU guest agent is running inside a Cloud VPS (KVM/VDS). Useful before OS-level operations that depend on the agent. Requires services:read when called with an API key.",
+      "Read guest-agent availability for Cloud VPS (KVM/VDS) or Firecracker. KVM probes its QEMU agent; Firecracker reads worker-reported health. This is separate from VM provisioning and application health. Unknown is advisory, not proof the server failed; unavailable gates only operations that need the agent. Delegated Linux tools do not provide Windows PowerShell or RDP verification. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -7084,7 +7089,7 @@ server.registerTool(
 );
 
 if (options.remoteScopes) registerRemoteTools(server);
-if (options.remoteProfile === "orders") registerOrderTools(server);
+if (options.remoteProfile === "orders") registerOrderTools(server, options.remoteScopes);
 registerReadOnlyContext(server);
 return server;
 }

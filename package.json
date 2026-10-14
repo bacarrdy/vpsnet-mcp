@@ -26,6 +26,7 @@
     "build/file-restore-contract.js",
     "build/index.js",
     "build/service-rescue-contract.js",
+    "build/service-readiness.js",
     "build/temp-vm-contract.js",
     "build/api-path.js",
     "build/tool-result.js",

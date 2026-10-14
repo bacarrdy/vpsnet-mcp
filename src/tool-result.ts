@@ -12,7 +12,19 @@ function failurePayload(value: unknown): boolean {
     || (typeof error === "string" && error.trim().length > 0)
     || (error !== null && typeof error === "object" && Object.keys(error).length > 0);
 
-  return payload.success === false
+  // A validated asynchronous purchase receipt says success=false while its
+  // financial outcome is pending. Keep that resumable read distinct from a
+  // failed payment. Explicit errors and HTTP failures still take precedence.
+  const follow = payload.follow_up as Record<string, unknown> | undefined;
+  const next = follow?.next_check as { tool?: unknown; arguments?: { idempotencyKey?: unknown } } | undefined;
+  const purchasePending = payload.state === 'pending'
+    && typeof payload.idempotencyKey === 'string'
+    && follow?.purchase_state === 'pending'
+    && follow.idempotency_key === payload.idempotencyKey
+    && next?.tool === 'get_purchase_result'
+    && next.arguments?.idempotencyKey === payload.idempotencyKey;
+
+  return (payload.success === false && !purchasePending)
     || hasError
     || (typeof payload.http_status === "number" && payload.http_status >= 400)
     || payload.state === "error";

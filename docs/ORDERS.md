@@ -13,6 +13,46 @@ Connect once at `https://mcp.vpsnet.com/mcp`. Where the AI application supports 
 
 After a lost response, use `get_purchase_result` with the original key. An identical confirmation returns the saved receipt without another charge. A pending or unknown result must not be resubmitted with a new key. Disabling purchase permissions stops new purchases on the existing connection; revoking the connection stops all subsequent access.
 
+## Wait for the same server
+
+`confirm_service_order` and `get_purchase_result` return the financial receipt,
+not current provisioning progress. `success: true` and `hasPayment: false` in a
+settled balance receipt do not prove that the VM has finished creation. Keep its
+`orderno` and original idempotency key. The additional `follow_up` object points
+to the next tool; the original receipt fields remain unchanged.
+
+| Observed result | What the AI should do |
+| --- | --- |
+| Financial result pending or unknown | Call `get_purchase_result` with the original key. Never confirm, pay or order again merely because the result is slow or a request timed out. |
+| Financial success with `orderno` | Call `get_service` for that same order. Its `follow_up.purchase_state` stays separate from `follow_up.provisioning_state`. |
+| `services:read` missing | Ask the customer to approve it by re-authorizing the existing connection, then inspect the same order. Creating the server does not grant a new scope or access to another connection. |
+| `extra.pendingActivation`, `finalizing` or `stateProcess` active | Keep checking the same service. A percentage is a milestone, not an elapsed-time estimate; even 100% alone does not prove readiness. |
+| Capacity, stock or `public_ip_inventory` wait | Preserve the original order. The platform resumes supported waits; do not reorder or restart it. |
+| `stateProcess.attention`, `extra.operatorWaiting` or activation refresh disabled | Report operator attention and the original order number. Stop blind polling and automatic retries. |
+| `state=create_failed` | Report the observed failure and `extra.createFailure` reason. Do not replace the order automatically. |
+| `state=running`, pending activation and finalization clear, process cleared | The VM reports running. Guest-agent availability and application readiness still need their own evidence. |
+| Stopped, suspended, incomplete or malformed response | Preserve that observation; do not infer readiness or restart automatically. |
+
+The `follow_up` polling recommendation is about **10 seconds between checks**,
+with **at most six checks before a progress update**. It is not a creation ETA.
+If still pending, report the latest state and keep the key and order number for
+the next check. A bounded wait expiring means pending, not failed. No background
+completion notification is scheduled by this response.
+
+Firecracker, KVM and Windows follow the same observed-state contract. KVM can
+still be finalizing after activation; Windows also has guest configuration and
+RDP setup. Do not assume a fixed boot time, claim Windows license activation,
+or use Linux command tools as proof of Windows access. `get_guest_agent_status`
+reports a separate capability; unknown agent status alone does not prove the
+VM failed. Verify the requested application's installation and health or actual
+endpoint before saying that application is ready.
+
+`wait_for_event` accepts an actual event ID or `noty` UUID returned by an action.
+An order number or payment ID is not that event ID. The remote MCP endpoint uses
+stateless requests; panel notifications and email are not unsolicited callbacks
+to an idle AI client. Only promise later notification when the client has a real,
+separately configured background task that continues these checks.
+
 ## Operator setup
 
 The backend and gateway use the same `/mcp` resource. Enable `MCP_OAUTH_ORDERS_ENABLED=true` on the customer backend and `VPSNET_MCP_ORDERS_ENABLED=true` on the gateway after deploying the consent and receipt migrations. Both default to disabled. No additional proxy path is needed.
