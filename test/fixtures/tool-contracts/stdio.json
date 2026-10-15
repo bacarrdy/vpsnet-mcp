@@ -11891,7 +11891,7 @@
         "readOnlyHint": false,
         "title": "Reinstall OS"
       },
-      "description": "Reinstall OS on a VPS or qualified dedicated server. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Dedicated servers erase every disk and have no snapshot rollback; get_os_options reports dedicated=true and confirmRequired=true. Pass confirmReinstall=true only after the user explicitly approves reinstalling that exact dedicated server and losing all disk data. Dedicated reinstall supports an optional sshKey from list_ssh_keys (otherwise the prior install key is reused), never rootPassword, and returns a reinstall job ID. VPS reinstall returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. OAuth requires services:reinstall; API keys require full access.",
+      "description": "Reinstall OS on a VPS or qualified dedicated server. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Dedicated servers erase every disk and have no snapshot rollback; get_os_options reports dedicated=true and confirmRequired=true. Pass confirmReinstall=true only after the user explicitly approves reinstalling that exact dedicated server and losing all disk data. Use an account public sshKey ID from list_ssh_keys or an optional rootPassword, never both. If neither is supplied, a dedicated server reuses its installed key when available; otherwise VPSnet generates a password. Password rules: 6-40 chars, alphanumeric, uppercase + lowercase + digit. Dedicated reinstall returns a reinstall job ID. VPS reinstall returns a noty UUID for acceptance; follow get_service_history for completion. Acceptance is not completion. OAuth requires services:reinstall; API keys require full access.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -11919,11 +11919,11 @@
             "type": "number"
           },
           "rootPassword": {
-            "description": "New root password (auto-generated if omitted). 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit",
+            "description": "New root password for VPS or dedicated reinstall; mutually exclusive with sshKey. Omit to reuse a dedicated server's installed key when available, otherwise the backend generates a password. 6-40 chars, alphanumeric, uppercase + lowercase + digit.",
             "type": "string"
           },
           "sshKey": {
-            "description": "Dedicated only: account SSH key ID from list_ssh_keys; omitted reuses the installed key.",
+            "description": "Account public SSH key ID from list_ssh_keys. Mutually exclusive with rootPassword. Dedicated: omitted reuses the installed key when one exists.",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"

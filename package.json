@@ -25,6 +25,7 @@
     "build/custom-project-contract.js",
     "build/file-restore-contract.js",
     "build/index.js",
+    "build/service-reinstall-contract.js",
     "build/service-rescue-contract.js",
     "build/service-readiness.js",
     "build/temp-vm-contract.js",
