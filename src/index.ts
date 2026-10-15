@@ -9,6 +9,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
+import { reinstallDescription } from "./service-reinstall-contract.js";
 import { installRemotePolicy, installToolTitles, remoteInstructions, orderInstructions } from "./remote-policy.js";
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -2878,12 +2879,11 @@ server.registerTool(
 server.registerTool(
   "reinstall_os",
   {
-    description:
-      "Reinstall OS on a VPS or qualified dedicated server. WARNING: destroys existing data; confirm with the user before reinstalling. Cloud VPS and Firecracker VPS: reinstall also deletes existing snapshots, so they cannot provide rollback after reinstall. Read get_os_options.snapshotDeletion first; when snapshots exist, set confirmSnapshotDelete to true only after the user explicitly confirms their deletion. A pending snapshot action blocks reinstall until it finishes. Container VPS has no snapshots. Dedicated servers erase every disk and have no snapshot rollback; get_os_options reports dedicated=true and confirmRequired=true. Pass confirmReinstall=true only after the user explicitly approves reinstalling that exact dedicated server and losing all disk data. Dedicated reinstall supports an optional sshKey from list_ssh_keys (otherwise the prior install key is reused), never rootPassword, and returns a reinstall job ID. VPS reinstall returns a noty UUID for acceptance; follow get_service_history for completion. Password rules: 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit. OAuth requires services:reinstall; API keys require full access.",
+    description: reinstallDescription(false),
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       confirmReinstall: z.boolean().optional().describe("Dedicated only: true only after explicit user approval to reinstall this exact server and erase all its disks; never inferred or defaulted."),
-      sshKey: positiveIdSchema.optional().describe("Dedicated only: account SSH key ID from list_ssh_keys; omitted reuses the installed key."),
+      sshKey: positiveIdSchema.optional().describe("Account public SSH key ID from list_ssh_keys. Mutually exclusive with rootPassword. Dedicated: omitted reuses the installed key when one exists."),
       osVersion: z
         .number()
         .describe("OS version ID from get_os_options"),
@@ -2891,7 +2891,7 @@ server.registerTool(
         .string()
         .optional()
         .describe(
-          "New root password (auto-generated if omitted). 6-40 chars, alphanumeric, must contain uppercase + lowercase + digit"
+          "New root password for VPS or dedicated reinstall; mutually exclusive with sshKey. Omit to reuse a dedicated server's installed key when available, otherwise the backend generates a password. 6-40 chars, alphanumeric, uppercase + lowercase + digit."
         ),
       confirmSnapshotDelete: z
         .boolean()
@@ -2907,6 +2907,7 @@ server.registerTool(
     },
   },
   async ({ orderNo, osVersion, rootPassword, confirmSnapshotDelete, confirmReinstall, sshKey }) => {
+    if (rootPassword !== undefined && sshKey !== undefined) throw new Error("Choose an account sshKey or rootPassword, not both.");
     const options = await apiRequest("GET", svc(orderNo, "change-os"));
     const capability = options.data as { success?: unknown; dedicated?: unknown } | null;
     if (options.status >= 400 || capability?.success !== true) {
@@ -2915,12 +2916,11 @@ server.registerTool(
     const body: Record<string, unknown> = { osVersion };
     if (capability.dedicated === true) {
       if (confirmReinstall !== true) throw new Error("Dedicated reinstall requires explicit user approval of all-disk data loss and confirmReinstall=true.");
-      if (rootPassword !== undefined) throw new Error("Dedicated reinstall does not support rootPassword; use an account sshKey or reuse the installed key.");
       body.confirmReinstall = true;
-      if (sshKey !== undefined) body.sshKey = sshKey;
-    } else if (confirmReinstall !== undefined || sshKey !== undefined) {
-      throw new Error("confirmReinstall and sshKey are dedicated-only reinstall fields; inspect get_os_options for this service.");
+    } else if (confirmReinstall !== undefined) {
+      throw new Error("confirmReinstall is a dedicated-only reinstall field; inspect get_os_options for this service.");
     }
+    if (sshKey !== undefined) body.sshKey = sshKey;
     if (rootPassword) body.rootPassword = rootPassword;
     if (confirmSnapshotDelete === true) body.confirmSnapshotDelete = true;
     const { data } = await apiRequest(
