@@ -78,9 +78,9 @@
             },
             {
               "description": "Create and test a Function with explicit spending consent",
-              "prompt": "Create a small function that returns hello-vpsnet. Explain its usage charges and get my Functions execution permission with a daily ceiling before testing it once. Show the final output.",
+              "prompt": "Create a small function that returns hello-vpsnet. Explain its usage charges and obtain my Functions execution permission with explicit spending limits before testing it once. Show the final output.",
               "tools_triggered": "get_connected_account, list_functions, create_function, invoke_function, get_function_invocation",
-              "expected_behavior": "Use a supported runtime and stable create/invoke keys. Execute only after explicit usage-billing consent and the granted daily ceiling, poll the same invocation, verify the final output and stop at any limit. Never purchase credits or silently change the payer."
+              "expected_behavior": "Use a supported runtime and stable create/invoke keys. Execute only after explicit usage-billing consent and checking the connection's granted daily and any reported monthly ceiling; an omitted monthly ceiling never authorizes unlimited usage. Poll the same invocation, verify the final output and stop at any limit. Never purchase credits or silently change the payer."
             }
           ],
           "negative": [
@@ -99,11 +99,11 @@
           ]
         },
         "commerce": false,
-        "commerce_description": "Manages existing customer services; no purchases, checkout, subscriptions or billing changes. Executing an existing Functions service consumes metered usage, including failed runs, only with separate OAuth execution consent, a daily account-usage ceiling and per-call acknowledgment. This is disclosed for provider review.",
+        "commerce_description": "Manages existing customer services; no purchases, checkout, subscriptions or billing changes. Executing an existing Functions service consumes metered usage, including failed runs, only with separate OAuth execution consent, the connection's daily and any reported monthly account-usage ceilings and per-call acknowledgment. This is disclosed for provider review.",
         "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Add native client updates, Gemini Git skills, self-contained skill imports and an advisory first-use update check using the installed skill version. Connected-account output schemas and OAuth security declarations are clarified; existing permissions, consent and purchase restrictions are unchanged."
+        "release_notes": "Clarify Functions spending consent using the connection's actual daily and any reported monthly limits, including legacy responses. Keep existing MCP tools, schemas, annotations, OAuth permissions and purchase restrictions unchanged. Bundled skill versions remain separate from the hosted server version and provider review status."
       }
     }
   }

@@ -13,7 +13,7 @@ Choose a supported runtime, minimal suitable resources and a bounded timeout. Wr
 
 Environment values are redacted in OAuth reads. Omit `environment` during unrelated edits to preserve it; never copy `[REDACTED]` back as a secret value. Have the customer enter credentials through VPSnet's secure settings. Avoid printing existing secret-bearing output unnecessarily.
 
-Before execution, establish the user's agreement to usage charges and an explicit daily ceiling through the OAuth Functions execution permission. The ceiling counts total account Functions usage, including pending runs; reconnecting does not replenish it. Managing definitions alone does not grant execution. If a cap, balance or permission prevents a run, explain that state without initiating a purchase or changing the payer.
+Before execution, establish the user's agreement to usage charges and explicit spending limits through the OAuth Functions execution permission. Read the granted daily ceiling and any reported monthly ceiling from `get_connected_account`; do not substitute package defaults for the actual grant. These ceilings count total account Functions usage, including pending runs; reconnecting does not replenish them. An omitted or null monthly field means no explicit monthly cap was reported, not permission for unlimited usage. Managing definitions alone does not grant execution. If a cap, balance or permission prevents a run, explain that state without initiating a purchase or changing the payer.
 
 Explain that execution charges use the customer's VPSnet balance and are not covered by their AI subscription. The separate `functions:invoke` permission includes viewing Functions and run results; scope descriptions alone never grant execution.
 
