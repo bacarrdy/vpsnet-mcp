@@ -24,7 +24,7 @@
     "transport": "streamable-http",
     "authentication": "customer_oauth",
     "policy": "Customer-selected services and requested scopes; directory profile excludes purchases, billing and account API-key management.",
-    "cost_disclosure": "Existing VPSnet services have separate prices. Functions execution, including failed runs, consumes metered usage only with separate execution consent, daily ceiling and per-call acknowledgment.",
+    "cost_disclosure": "Existing VPSnet services have separate prices. Functions execution, including failed runs, consumes metered usage only with separate execution consent, the connection's daily and any reported monthly ceilings and per-call acknowledgment.",
     "source": "distribution/catalogs/metadata.json"
   },
   "publication_rule": "Do not mark acceptance without exact provider decision or public record. Record source/package hash, deployment, registry/catalog, installed bundle and active session separately. Updates never add OAuth authority.",

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.12 connector — prepared, not published
+
+- Clarify that Functions execution follows the connection's granted daily and any reported monthly spending limits; legacy missing or null monthly values never authorize unlimited usage. Update shared skills and review expectations without changing MCP tools, schemas, annotations, scopes or handlers.
+- Correct the tool-contract publication reference and distinguish a provider's further-review hold from a specific technical rejection. The hosted MCP server remains 2.3.16; this bundle does not claim a provider approval or backend rollout.
+
 ## 0.6.11 connector / 2.3.16 MCP server — 2026-10-14
 
 - Add static MCP guidance resources, a canonical catalog of 28 nonlegacy OAuth scopes, and four user-invoked diagnostic prompts without expanding account access.
