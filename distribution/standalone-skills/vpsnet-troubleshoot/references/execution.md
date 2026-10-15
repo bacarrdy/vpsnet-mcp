@@ -42,7 +42,10 @@ that every application displays it. This directory package manages existing
 services and does not authorize purchases. Request only permissions needed for
 the task. For account Functions execution, disclose charges to the VPSnet balance,
 which the AI subscription does not cover, and follow the Functions skill's
-separate execution consent, daily ceiling and per-call billing acknowledgment.
+separate execution consent, the granted daily and any reported monthly ceiling,
+and per-call billing acknowledgment. Read current limits from the connected
+account rather than assuming a package default or treating a missing limit as
+unlimited permission.
 See [scope descriptions and included access](https://github.com/bacarrdy/vpsnet-mcp/blob/main/docs/REMOTE_MCP.md#scope-descriptions-and-included-access).
 
 ## Server access

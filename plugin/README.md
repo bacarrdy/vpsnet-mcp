@@ -78,9 +78,10 @@ availability requirements and current plans; “microVM” does not mean a small
   the OS privileges disclosed at consent; choosing a directory does not isolate
   a shell. Windows support here covers service status and lifecycle, not guest
   PowerShell or RDP control.
-- Functions execution requires separate consent to metered usage and a daily
-  spending ceiling. The ceiling counts all account Functions usage, including
-  pending runs. Charges use your VPSnet balance; your AI subscription does not
+- Functions execution requires separate consent to metered usage and explicit
+  spending limits. Use the connection's actual daily and any reported monthly
+  ceiling. These ceilings count all account Functions usage, including pending
+  runs; an absent monthly value is not permission for unlimited usage. Charges use your VPSnet balance; your AI subscription does not
   cover them. This does not grant permission to buy resources or credits.
 - Disconnect an app in the VPSnet customer panel's **AI connections** page to
   revoke further access. Operation records remain available for review.
