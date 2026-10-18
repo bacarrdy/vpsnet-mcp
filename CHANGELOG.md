@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.13 connector — prepared, not published
+
+- Clarify that Functions execution follows the connection's granted daily and any reported monthly spending limits; legacy missing or null monthly values never authorize unlimited usage. Update shared skills and review expectations without changing MCP tools, schemas, annotations, scopes or handlers.
+- Correct the tool-contract publication reference and distinguish a provider's further-review hold from a specific technical rejection. The MCP server stays 2.4.0; this bundle does not claim a provider approval or backend rollout.
+
 ## 0.6.12 connector / 2.4.0 MCP server — 2026-10-18
 
 - Add the service file manager (backend `/account/services/{orderNo}/files/*`): `get_service_file_capabilities`, `list_service_files`, `stat_service_file`, `read_service_file`, `search_service_files`, `get_service_file_operation`, `create_service_directory`, `move_service_file`, `delete_service_files`, `write_service_file` (compare-and-swap), `list_service_file_uploads`, `abort_service_file_upload` and `extract_service_file_archive` (Firecracker). API keys need the explicit `files:read` / `files:manage` grants; the hosted connector maps them to `vm:files:read` / `vm:files:write`.

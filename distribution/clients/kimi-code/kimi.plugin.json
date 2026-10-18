@@ -1,6 +1,6 @@
 {
   "name": "vpsnet",
-  "version": "0.6.12",
+  "version": "0.6.13",
   "description": "Deploy applications and websites, troubleshoot servers, configure networks, DNS and TLS, and create and test Functions on existing VPSnet services with customer-selected access.",
   "homepage": "https://www.vpsnet.com",
   "license": "MIT",
