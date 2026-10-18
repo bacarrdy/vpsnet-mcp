@@ -1,12 +1,12 @@
 # Reviewed tool contracts
 
-Reviewed 2026-10-14. These are emitted server contracts, not a claim that a client or directory has refreshed or approved them.
+Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN site-to-site tools (2.4.0). These are emitted server contracts, not a claim that a client or directory has refreshed or approved them.
 
 | Fixture | Discovery context | Tool count |
 | --- | --- | ---: |
-| `stdio` | General local server, API-key transport | 311 |
-| `directory` | Remote profile, `services:read` | 235 |
-| `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 242 |
+| `stdio` | General local server, API-key transport | 331 |
+| `directory` | Remote profile, `services:read` | 252 |
+| `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 259 |
 
 OpenAI uses the remote directory contract; there is no separately implemented OpenAI profile. The HTTP gateway selects the orders profile only from the issuer's live ordering decision and actual granted order scopes. The fixture scope contexts are explicit because an orders-only subset or different VM scopes can affect discovery/security metadata. The counts above are not a universal client limit or a count observed in an authenticated Claude/OpenAI session.
 

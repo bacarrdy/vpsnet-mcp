@@ -11,6 +11,6 @@ For a managed app, inspect its installation, health and recent logs. For softwar
 
 For a private server, broken firewall or unavailable SSH, use the guest channel if available; it does not require guest networking. Use SSH when it is the appropriate independent path. A guest lock or pending operation is a reason to poll or retry the same request, not to duplicate work over another channel.
 
-For connectivity, follow the path from app listener through guest firewall, SDN security rules, private network, NAT or load balancer as relevant. Distinguish missing outbound internet from inability to execute a guest diagnostic. Check OS-specific commands rather than assuming a distribution.
+For connectivity, follow the path from app listener through guest firewall, SDN security rules, private network, NAT or load balancer as relevant. Distinguish missing outbound internet from inability to execute a guest diagnostic. Check OS-specific commands rather than assuming a distribution. For a VPN device or office that cannot connect, read its peer on `get_network_vpn_gateway` (last handshake, rx/tx, `current_endpoint`, `endpoint_conflict`) and `get_network_vpn_peer_history` before changing anything.
 
 Apply the smallest supported fix within the user's authorization. Preserve relevant before-state and do not restart unrelated services. Verify the original failing operation again, report its result, and stop. For Windows, report supported service and network evidence; guest PowerShell/RDP repair is outside the Linux execution tools.

@@ -6,9 +6,11 @@ const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8")
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 
 const networkingSource = readFileSync(new URL("../src/networking-tools.ts", import.meta.url), "utf8");
+const serviceFilesSource = readFileSync(new URL("../src/service-files.ts", import.meta.url), "utf8");
 const registeredTools = [
   ...[...source.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)].map(match => match[1]),
   ...[...networkingSource.matchAll(/^  tool\("([^"]+)"/gm)].map(match => match[1]),
+  ...[...serviceFilesSource.matchAll(/^  fileTool\("([^"]+)"/gm)].map(match => match[1]),
 ];
 
 const toolsStart = readme.indexOf("## Tools\n");
@@ -77,6 +79,13 @@ test("networking rows are scoped from how the tool is registered", async () => {
     assert.match(tool.scopes[0], /^networking:(read|manage)$/, name);
     if (/^(order|renew)_|^renew_/.test(name) && tool.paid) assert.match(tool.paid, /^Paid/, name);
   }
+});
+
+test("service file rows carry the explicit files scope of their registration", async () => {
+  const { tools } = await generator.expectedTools();
+  const files = [...tools].filter(([, tool]) => tool.kind === "files");
+  assert.ok(files.length >= 16);
+  for (const [name, tool] of files) assert.match(tool.scopes[0], /^files:(read|manage)$/, name);
 });
 
 test("the README documents authentication, rate limits and worked examples", () => {

@@ -203,6 +203,52 @@ export async function apiRequest(
 }
 
 /**
+ * Send raw bytes (an upload chunk) to an account API route with the caller's
+ * credentials. Same base, path, credential, redirect and timeout rules as
+ * apiRequest; only the request body differs.
+ */
+export async function apiRawRequest(
+  method: "PUT" | "POST",
+  path: string,
+  bytes: Uint8Array,
+  extraHeaders: Record<string, string> = {}
+): Promise<{ status: number; data: unknown }> {
+  validateApiPath(path);
+  const url = `${resolveApiBase()}${path}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "Content-Type": "application/octet-stream",
+    ...extraHeaders,
+    ...apiAuthorization(resolveApiKey),
+  };
+  const timeoutMs = resolveApiTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  let text: string;
+  try {
+    res = await fetch(url, { method, headers, body: bytes, redirect: "error", signal: controller.signal });
+    text = await res.text();
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`VPSnet API request timed out after ${timeoutMs}ms: ${method} ${path}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  let data: unknown;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    return { status: res.status, data: res.ok ? { success: false, error: "The VPSnet API answered with a non-JSON body." }
+      : describeNonApiResponse(res.status, res.headers.get("content-type"), text, new URL(url).host, false) };
+  }
+  if (res.ok === false) data = withHttpStatus(res.status, data, res.headers.get("retry-after"));
+  return { status: res.status, data: authorizationContext() ? data : annotateAuthFailure(res.status, data) };
+}
+
+/**
  * Structured tool error for a non-2xx answer whose body is not JSON.
  */
 export function describeNonApiResponse(

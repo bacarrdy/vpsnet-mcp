@@ -1,111 +1,48 @@
-# Prepared connector 0.6.11 / MCP server 2.3.16
+# Prepared connector 0.6.12 / MCP server 2.4.0
 
-Prepared on 2026-10-14 from frozen combined source `ed5fc9b`, based on `396431a`
-(connector 0.6.10 / MCP 2.3.15). Version files now identify the local candidate
-0.6.11 / 2.3.16; the publication feed remains at the last verified 0.6.10 /
-2.3.15. Final combined independent review is required before publication.
-No publication, remote deployment, catalog
-propagation, authenticated OpenAI rescan or Smithery scan is implied by these
-source changes or local test results.
+Prepared on 2026-10-18 from `df1b6c7` (connector 0.6.11 / MCP 2.3.16, both
+published). Version files identify the local candidate 0.6.12 / 2.4.0; the
+publication feed remains at the verified 0.6.11 / 2.3.16. No publication, remote
+deployment, catalog propagation, authenticated OpenAI rescan or Smithery scan is
+implied by these source changes or local test results.
 
 ## Integrated changes
 
-| Reviewed source | Included behavior |
-| --- | --- |
-| `648aa8c` | Four fixed resources, including all 28 nonlegacy scopes from the canonical catalog; four guided prompts; empty Smithery publishing config schema; protocol tests |
-| `7d01dad` | Typed `follow_up` on service reads and permanent-server purchase receipts; same-order/key continuation; bounded polling and readiness evidence |
-| `02464ab` | Optional nullable `function_monthly_limit_eur` account-result field and protocol/schema tests |
-| `281a32c` | Complete missing legacy stdio impact hints and top-level titles while retaining authored values and hosted descriptors |
-| `3427d39` | Separate intentional correction of five hosted impact annotations for confirmed reconciliation effects |
-| `3060f83` | Exact emitted tool contract snapshots, independent impact-policy fixture and CI drift checks |
+Source of truth: vpsnet_backend `268ca39ab958d222df1337e0e3eb7d69c4d3848f`
+(`spec/api-description-v1.yml` service-file routes, `spec/appliances-v1.yml` VPN
+site routes, `routes.php`).
 
-The integration retains both `registerOrderTools(server, options.remoteScopes)`
-and `registerReadOnlyContext(server)`. Resources and prompt retrieval perform no
-customer API request. Hosted retrieval retains existing OAuth checks; the scope
-catalog documents supported permissions and never represents granted access.
-Existing explicit user authorization remains valid. Functions list/get trace
-reconciliation is disclosed and is not independently certified side-effect free
-by the guidance.
+| Area | Added or changed |
+| --- | --- |
+| Service files (API key `files:read` / `files:manage`, hosted `vm:files:read` / `vm:files:write`) | 13 tools on both transports: capabilities, list, stat, read, search, operation, mkdir, move, delete, write (CAS), list/abort uploads, extract |
+| Service files, stdio only | `upload_service_file`, `download_service_file`, `get_service_file_download_url` |
+| VPN (`networking:read` / `networking:manage`) | `get_network_vpn_peer_history`, `set_network_vpn_site_options`, `set_network_vpn_site_alert`, `set_network_site_route_mode`; `create_network_vpn_peer` site-to-site fields; gateway description lists live peer statistics |
 
 ## Tool contract changes
 
-There are no added or removed tools in the combined candidate. Counts depend on the
-discovery profile and the exact scopes supplied to its constructor; they are not
-live hosted measurements or a universal count for all clients.
-
-| Local fixture profile | Scope options | Before / after count |
-| --- | --- | --- |
-| stdio | API-key profile; no remote scope options | 311 / 311 |
-| directory | `services:read` | 235 / 235 |
-| orders | `services:read orders:read orders:servers orders:domains` | 242 / 242 |
-
-| Tool | Intentional descriptor difference |
+| Local fixture profile | Before / after count |
 | --- | --- |
-| `get_service` | Expanded readiness description and an output schema for the added `follow_up` object |
-| `get_guest_agent_status` | Description separates KVM/Firecracker guest-agent evidence from VM and application readiness |
-| `order_service` (stdio) | Description explains same-order continuation and bounded progress updates |
-| `confirm_service_order`, `get_purchase_result` (orders profile) | Financial/provisioning descriptions and typed optional `follow_up` output |
-| `get_connected_account` (hosted) | Optional nullable monthly Functions limit in the output schema |
+| stdio | 311 / 331 |
+| directory (`services:read`) | 235 / 252 |
+| orders (`services:read orders:read orders:servers orders:domains`) | 242 / 259 |
 
-Input schemas, required scopes and OAuth security declarations are unchanged.
-The resources, async and monthly-field changes do not alter annotations. The
-separate stdio metadata completion adds missing top-level titles to 311 tools
-and completes missing fields in 166 annotation objects while preserving authored
-values. Its hosted descriptors remain unchanged. The independently reviewed
-hosted correction changes exactly these five tools:
-
-| Hosted tool | Previous read-only / destructive | Corrected read-only / destructive |
-| --- | --- | --- |
-| `list_snapshots` | true / false | false / true |
-| `get_hostname` | true / false | false / true |
-| `list_functions` | true / false | false / false |
-| `get_function` | true / false | false / false |
-| `create_domain_contact` | false / false | false / true |
-
-The confirmed effects and backend evidence are documented in
-[the tool-contract guide](TOOL_CONTRACTS.md). These hints do not change handlers
-or grant permission. Existing read-scoped endpoints can perform reconciliation;
-read scope and HTTP GET alone do not certify side-effect-free behavior.
-
-The only tool-result error classification change is narrow: a pending financial
-receipt with its original matching key and validated continuation remains pending
-even when its legacy body contains `success:false`. Explicit error fields and
-HTTP failures retain precedence. Ordinary S120 waiting remains nonfailure.
-Nothing automatically resubmits an order, creates another idempotency key,
-restarts a VM, grants a scope or schedules a callback.
-
-Financial acceptance, VM provisioned/running, guest capability and application
-health remain separate observations. Suggested ten-second polls are intervals,
-not ETAs. After six checks, return a pending progress update with the original
-identifiers so the user can resume. Operator attention and observed creation
-failures must be reported without blind retries.
+Changed existing descriptors: `create_network_vpn_peer` (description and three
+optional input fields; the device request body is unchanged), `get_network_vpn_gateway`
+and `get_network_vpn_summary` (descriptions). No tool is removed or renamed. The
+impact policy records the new file tools' effects; snapshots were refreshed with an
+explicit review reason.
 
 ## Backend and release boundaries
 
-The monthly Functions field is forward-compatible with the separately reviewed
-backend change. A stored null or omitted field does not mean unlimited usage;
-account policy still applies. This MCP change does not activate backend financial
-policy, migrate grants or expand any connection's service selection.
-
-The combined source was frozen before this local version preparation. The release
-owner must approve the final combined review before publication.
-Source/tag/artifact publication, hosted deployment,
-official registry publication, downstream catalog propagation and client OAuth
-verification are distinct states. Local package validation does not complete
-those external stages.
+The file manager is gated on the backend (`SERVICE_FILES_ENABLED`, plus
+`SERVICE_FILES_VDS_ENABLED` for Cloud VPS and `SERVICE_FILES_FC_ENABLED` plus the
+guest agent capability for Firecracker); while off the tools answer
+`filesUnavailable` with the reason. VPN site routes answer 503
+`vpn_site_routing_unavailable` while `APPLIANCE_VPN_SITE_TO_SITE_ENABLED` is off.
+Hosted exposure needs the gateway deployment and directory rescans as separate steps.
 
 ## Validation
 
-Run with the lockfile dependency tree (SDK 1.32.1), including `npm test` and
-`npm run docs:tools:check`. Protocol checks cover launched stdio, authenticated
-fixture HTTP, resource and prompt discovery/errors, unchanged OAuth boundaries,
-pending receipts, missing permissions, and Firecracker/KVM/Windows readiness
-fixtures. Package validation must include both `build/read-only-context.js` and
-`build/service-readiness.js`.
-
-Full emitted-tool descriptor snapshots include the separately reviewed annotation
-changes and the approved async/monthly output contracts. Snapshot refresh was
-explicitly requested with a review reason; CI compares exact emitted descriptors
-and cannot regenerate its own expectations. The release owner records the final
-source commit and verification receipt; this proposal makes no
-claim that OpenAI or another catalog has approved or rescanned the candidate.
+`npm test`, `npm run docs:tools:check`, `node scripts/tool-contracts.mjs --check`
+and `python3 scripts/release.py validate` pass locally; wait for the contract CI
+on Node 20 and 22 at the exact commit before publication.

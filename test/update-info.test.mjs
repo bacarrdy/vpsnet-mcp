@@ -106,7 +106,7 @@ test('HTTP update info requires authentication but no extra account scope and ne
   const port = remote.address().port;
   assert.equal((await rpc(port, 'tools/list', {}, false)).status, 401);
   const listing = await rpc(port, 'tools/list', {});
-  assert.equal(listing.body.result.tools.length, 235);
+  assert.equal(listing.body.result.tools.length, 252);
   const tool = listing.body.result.tools.find(value => value.name === 'get_update_info');
   assert.ok(tool);
   assert.deepEqual(tool.securitySchemes, [{ type: 'oauth2', scopes: [] }]);
