@@ -214,7 +214,7 @@ test("paid inventory wait and operator review remain exact read results with no 
     payment_total: "18.15", currency: "EUR" };
   const { client, call, requests } = await harness(t, () => ({ status: 200, body: response }));
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 311);
+  assert.equal(tools.length, 331);
   assert.match(tools.find(t => t.name === "get_network_product_order").description, /network_product_ip_inventory_wait/);
   assert.match(tools.find(t => t.name === "get_network_product_order").description, /operator review/);
   for (const update of [
@@ -310,7 +310,7 @@ test("every pinned customer SDN route has a typed tool or a documented common-ch
   const registered = new Set(networkingTools.filter(t => t.path.startsWith("/account/networking")).map(operation));
   const excluded = new Set(fixture.excluded.map(operation));
   const routed = new Set(fixture.routes.map(operation));
-  assert.equal(fixture.routes.length, 92);
+  assert.equal(fixture.routes.length, 96);
   for (const route of routed) assert.ok(registered.has(route) || excluded.has(route), route);
   for (const route of registered) assert.ok(routed.has(route), route);
   for (const route of excluded) assert.ok(!registered.has(route), `excluded legacy route must not become a bypass: ${route}`);

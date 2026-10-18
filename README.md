@@ -799,6 +799,28 @@ everything else.
 | `browse_restore_files` | Queue a backup directory listing job without restoring files | `services:read` | free |
 | `get_restore_file_browse` | Poll a queued backup directory listing (free, read-only) | `services:read` | free |
 
+### Service files
+Firecracker servers need the updated guest agent and Cloud VPS (KVM) the VDS file-manager switch; `files:read` / `files:manage` are explicit grants (an empty permission list does not include them).
+
+| Tool | Description | Scope | Paid |
+|------|-------------|-------|------|
+| `get_service_file_capabilities` | Check whether the file manager can serve a server now, with the verbatim unavailable reason, limits and transfer mode | `files:read` | free |
+| `list_service_files` | List one directory page inside a running server | `files:read` | free |
+| `stat_service_file` | Describe one entry, optionally with its SHA-256 | `files:read` | free |
+| `read_service_file` | View a text file (up to 1 MiB) or an image (up to 4 MiB), or read a 1 MiB window of any file | `files:read` | free |
+| `search_service_files` | Find entries by name (substring or glob) below a directory | `files:read` | free |
+| `get_service_file_download_url` | Mint a one-file download URL bound to the caller's address | `files:read` | free |
+| `download_service_file` | Download a server file to a local path on the MCP machine, size-checked, with its SHA-256 | `files:read` | free |
+| `get_service_file_operation` | Poll a file operation that answered 202 (slow guest, recursive delete, extraction) | `files:read` | free |
+| `create_service_directory` | Create a directory, optionally with missing parents | `files:manage` | free |
+| `move_service_file` | Rename or move one entry (confirmation required) | `files:manage` | free |
+| `delete_service_files` | **Destructive:** permanently delete files or directories (confirmation required) | `files:manage` | free |
+| `write_service_file` | Write a small file (up to 1 MiB) with compare-and-swap | `files:manage` | free |
+| `upload_service_file` | Upload a local file or base64 content in one call: chunked, resumable transfer, atomic commit and SHA-256 check | `files:manage` | free |
+| `list_service_file_uploads` | List the service's open uploads | `files:manage` | free |
+| `abort_service_file_upload` | Abort one open upload and remove its staging file | `files:manage` | free |
+| `extract_service_file_archive` | Firecracker: extract a zip/tar/tar.gz/.gz archive into a new directory | `files:manage` | free |
+
 ### SSH Keys
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
@@ -1096,7 +1118,7 @@ feature gate.
 | `attach_private_network_port` | Attach an owned service; omit ipv4 for automatic allocation or pass a fixed usable address | `networking:manage` | free |
 | `detach_private_network_port` | Detach the owned server port | `networking:manage` | free |
 | `retry_private_network_port` | Retry the failed current port operation with the PORT generation and any required restart approval. | `networking:manage` | free |
-| `get_network_vpn_summary` | Read the network's VPN summary, including truthful absence | `networking:read` | free |
+| `get_network_vpn_summary` | Read the network's VPN summary, including truthful absence; connected locations are managed on the gateway | `networking:read` | free |
 | `get_network_routed_egress` | Read this network's NAT/internet access, public address and qualification state. | `networking:read` | free |
 | `set_network_routed_egress` | Request the currently supported NAT transition for an owned network; the backend may refuse mode changes | `networking:manage` | free |
 | `get_security_group_capabilities` | Read security-group availability and whether the network default policy can be changed. | `networking:read` | free |
@@ -1123,17 +1145,21 @@ feature gate.
 | `add_network_load_balancer_listener` | Add a listener and optional initial members using currently offered protocol capabilities | `networking:manage` | free |
 | `remove_network_load_balancer_listener` | Remove a listener and its members; deleting the last listener is refused. | `networking:manage` | free |
 | `list_network_vpn_gateways` | List owned VPN gateways, their device peers and safe status | `networking:read` | free |
-| `get_network_vpn_gateway` | Read one owned VPN gateway, current generation, device peers, grant candidates and attachment capability. | `networking:read` | free |
+| `get_network_vpn_gateway` | Read one owned VPN gateway, its peers with live rx/tx, last handshake and current endpoint, grant candidates and site options | `networking:read` | free |
 | `delete_network_vpn_gateway` | Request teardown of an owned VPN gateway; all devices lose connectivity | `networking:manage` | free |
 | `attach_network_vpn_gateway` | Attach or move an account VPN to an owned network only when standalone attachment is advertised | `networking:manage` | free |
 | `detach_network_vpn_gateway` | Detach an account VPN from its network when supported; it keeps its paid period and devices but recreates the gateway | `networking:manage` | free |
 | `set_vpn_server_access` | Choose accept or groups_only for the VPN's access to attached servers when this capability is available | `networking:manage` | free |
-| `create_network_vpn_peer` | Add a device with an externally generated one-time PUBLIC reveal key | `networking:manage` | free |
+| `create_network_vpn_peer` | Add a device, or a connected location (site-to-site office router), with an externally generated one-time PUBLIC reveal key | `networking:manage` | free |
 | `take_network_vpn_peer_config` | Consume the device's sealed configuration ONCE | `networking:manage` | free |
 | `revoke_network_vpn_peer` | Revoke one device using the VPN GATEWAY generation | `networking:manage` | free |
 | `set_network_vpn_peer_grants` | Replace the device's complete reachable-server list when standalone VPN is available | `networking:manage` | free |
 | `get_network_vpn_egress_options` | Read supported VPN Internet exits and qualification | `networking:read` | free |
 | `set_network_vpn_peer_egress` | Set a device's private-only, inherited NAT, or advertised chosen exit policy | `networking:manage` | free |
+| `get_network_vpn_peer_history` | Read a device's or connected location's traffic and handshake history (24 h raw, 7 d, 30 d, 13 months) | `networking:read` | free |
+| `set_network_vpn_site_options` | Switch hub-and-spoke between the locations connected to a VPN | `networking:manage` | free |
+| `set_network_vpn_site_alert` | Switch the office-down e-mail of one connected location | `networking:manage` | free |
+| `set_network_site_route_mode` | Choose DHCP routes or an internal router for a network's routes to connected locations | `networking:manage` | free |
 | `list_network_products` | Read current paid products, live tier names, prices and purchase capability; public proxy load balancer 3/5-node offerings must come from this catalog. | `networking:read` | free |
 | `list_network_product_periods` | Read owned product periods, renewal availability and lifecycle facts. | `networking:read` | free |
 | `quote_network_product` | Create the network product's exact paid quote for COMMON CHECKOUT | `networking:manage` | Quote: `networking:order` |

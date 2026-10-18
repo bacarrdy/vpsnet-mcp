@@ -6,9 +6,10 @@
 //   node scripts/generate-tool-reference.mjs --check  exit 1 (and say why) when the README is stale
 //
 // Names come from src/index.ts (server.registerTool) and the compiled
-// networking registry (build/networking-tools.js, so run `npm run build` first).
+// networking and service-file registries (build/networking-tools.js and
+// build/service-files.js, so run `npm run build` first).
 // Scope/Paid cells come from scripts/tool-scopes.json for src/index.ts tools and
-// are DERIVED from the registration options for networking tools. Row
+// are DERIVED from the registration options for networking and service-file tools. Row
 // descriptions stay hand-written; a tool with no row gets one appended under
 // "Not yet categorised" with the first sentence of its code description.
 // Dependency-free: node builtins only.
@@ -36,6 +37,12 @@ export async function networkingTools() {
   process.env.VPSNET_API_KEY ||= "vpsnet_" + "x".repeat(43);
   const module = await import(new URL("build/networking-tools.js", root));
   return module.networkingTools;
+}
+
+export async function serviceFileTools() {
+  process.env.VPSNET_API_KEY ||= "vpsnet_" + "x".repeat(43);
+  const module = await import(new URL("build/service-files.js", root));
+  return module.serviceFileTools;
 }
 
 const ticks = (text) => text.replace(SCOPE_TOKEN, (token) => `\`${token}\``);
@@ -67,6 +74,9 @@ export async function expectedTools() {
   }
   for (const tool of await networkingTools()) {
     result.set(tool.name, { ...networkingCells(tool), code: tool.description, kind: "networking" });
+  }
+  for (const tool of await serviceFileTools()) {
+    result.set(tool.name, { scopes: [tool.scope], paid: "", code: tool.description, kind: "files" });
   }
   return { tools: result, metadata };
 }

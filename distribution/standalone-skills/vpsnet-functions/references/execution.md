@@ -82,11 +82,24 @@ returns a private `backupPath` for recovery. Inspect the final operation result
 and verify the application after editing. Never write a redacted placeholder
 back over an actual configuration value.
 
+The file manager tools work through the platform without a shell. Call
+`get_service_file_capabilities` first: an unavailable answer carries its reason
+verbatim (Firecracker `agent_update_required` until the guest agent is updated,
+`node_update_required` until the host is; Cloud VPS `feature_disabled` while the
+VDS file-manager switch is off). Report that reason; do not work around it. Use
+`list_service_files`, `stat_service_file`, `read_service_file` and
+`search_service_files` to read; `write_service_file` replaces a file only with
+the `version` or `sha256` you read (compare-and-swap) or creates one with
+`createOnly`. `move_service_file` and `delete_service_files` need the customer's
+approval of the exact paths (`confirm=true`). A slow guest is polled inside the
+tool; continue a returned operation with `get_service_file_operation` instead of
+repeating the change.
+
 ## Networking readiness and recovery
 
 For a new private network, poll `get_networking_operation` and `get_private_network` until `network.port_intent_ready=true`, then inspect each service with `list_network_attachment_candidates`. A successful `network_graph_created` operation can accompany `provisioning_status=configured` and `applied_generation=0`; the first guest attachment supplies endpoint qualification. Do not wait for generation equality before attaching the first eligible port. Preserve actual candidate refusals and obtain approval for a required restart.
 
-Operation IDs belong to separate stores. Network and private-port changes use `get_networking_operation`. Security-group and policy writes return `policies[]` or a policy operation: poll `get_network_security_policy` for each affected network using its project ID, desired/applied generation and reason. Appliance and VPN changes use `get_network_appliance_operation`, then the resource's health. A VPN server-access setting may already be saved while its network policy is pending. Public-binding bind/move/forward/delete use `get_network_public_binding`; their operation IDs are not generic networking operation IDs. DNS changes use `get_private_network.settings.dns_change`; NAT and public-address changes use `get_network_routed_egress` and `get_network_public_address`. Paid product orders, where supported, use `get_network_product_order` and the original quote's recovery path.
+Operation IDs belong to separate stores. Network and private-port changes use `get_networking_operation`. Security-group and policy writes return `policies[]` or a policy operation: poll `get_network_security_policy` for each affected network using its project ID, desired/applied generation and reason. Appliance and VPN changes use `get_network_appliance_operation`, then the resource's health. A VPN server-access setting may already be saved while its network policy is pending. Hub-and-spoke (`set_network_vpn_site_options`) is recorded at once and applied with the VPN's next generation: read `site_options.hub_and_spoke_applied` on the gateway before giving office routers their `routes_update` line. Public-binding bind/move/forward/delete use `get_network_public_binding`; their operation IDs are not generic networking operation IDs. DNS changes use `get_private_network.settings.dns_change`; NAT and public-address changes use `get_network_routed_egress` and `get_network_public_address`. Paid product orders, where supported, use `get_network_product_order` and the original quote's recovery path.
 
 For security policy, read `default_policy`, the assigned groups and their rules. `effective_policy.default_ingress/default_egress` describe implicit deny fallthrough after allow rules, rather than overriding a configured accept policy. Creating a group without egress rules adds an egress-any allow rule; updating a group keeps exactly the supplied rules. Verify the applied policy before claiming the firewall has changed.
 

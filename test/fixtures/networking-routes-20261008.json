@@ -645,6 +645,38 @@
       "controller": "ApplianceController",
       "action": "vpnPeerGrants",
       "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/site-options",
+      "controller": "ApplianceController",
+      "action": "vpnSiteOptions",
+      "spec": "appliances-v1.yml",
+      "added": "2026-10-18 (backend 268ca39ab958d222df1337e0e3eb7d69c4d3848f)"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/networks/{id}/site-route-mode",
+      "controller": "ApplianceController",
+      "action": "networkSiteRouteMode",
+      "spec": "appliances-v1.yml",
+      "added": "2026-10-18 (backend 268ca39ab958d222df1337e0e3eb7d69c4d3848f)"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/site-alert",
+      "controller": "ApplianceController",
+      "action": "vpnPeerSiteAlert",
+      "spec": "appliances-v1.yml",
+      "added": "2026-10-18 (backend 268ca39ab958d222df1337e0e3eb7d69c4d3848f)"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/history",
+      "controller": "ApplianceController",
+      "action": "vpnPeerHistory",
+      "spec": "appliances-v1.yml",
+      "added": "2026-10-18 (backend 268ca39ab958d222df1337e0e3eb7d69c4d3848f)"
     }
   ],
   "excluded": [

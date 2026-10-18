@@ -13,6 +13,7 @@ import { installRemotePolicy, installToolTitles, remoteInstructions, orderInstru
 import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { registerNetworkingTools } from "./networking-tools.js";
+import { registerServiceFileTools } from "./service-files.js";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson, initializeStdioApi } from "./api.js";
@@ -154,6 +155,7 @@ const server = new McpServer(
       "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
       "This server needs a MANAGEMENT API key (scope full, or read for GET-only use). An AI-scoped key is issued only for VPSnet AI assistant inference and is refused on every account route, so no tool here can work with one. When a tool result carries auth_problem, read its reason and fix and relay them instead of reporting a bare 'Unauthorized'.",
       "Service tools are scope-gated for API keys: service reads (lists, details, graphs, history, options, backup/snapshot/restore-point listings) require services:read; service mutations (start/stop/restart/console, suspend/resume, hostname, rDNS, root password, title, IPv6, extra settings, SSH key deploy, OS reinstall, plan change, renewal, auto-renew, backups, snapshots, firewall flush) require services:manage plus a full-access key; rescue requires services:rescue; paid whole-service restore additionally requires the services:restore paid scope. A key whose granular scope list was left empty keeps everything its access level (full/read) already allows, so scopes only ever narrow a key.",
+      "Service file manager tools (get_service_file_capabilities, list/stat/read/search, download/upload, write, mkdir, move, delete, extract) need an EXPLICIT files:read or files:manage grant on the API key (an empty permission list does not include them; changes need a full-access key). Call get_service_file_capabilities first and relay an unavailable reason verbatim: Firecracker servers need the updated guest agent (agent_update_required) and Cloud VPS (KVM) needs the VDS file-manager switch (feature_disabled). Writes are compare-and-swap: pass the version or sha256 you read. Slow guests are polled inside the tools; continue a returned operationId with get_service_file_operation instead of repeating a change.",
       "",
       "## Ordering a new VPS",
       "Flow: get_order_plans → get_order_options(plan) → order_service.",
@@ -274,6 +276,8 @@ installToolTitles(server);
 installToolInputSchemas(server);
 if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes, options.remoteProfile);
 registerNetworkingTools(server);
+// Local-path transfers and address-bound download URLs stay on stdio; the hosted connector gets the API-only file tools.
+registerServiceFileTools(server, undefined, options.remoteScopes ? "remote" : "stdio");
 
 // Helper to build service settings path
 const svc = (orderNo: string, action: string) =>

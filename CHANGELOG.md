@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.12 connector / 2.4.0 MCP server — 2026-10-18
+
+- Add the service file manager (backend `/account/services/{orderNo}/files/*`): `get_service_file_capabilities`, `list_service_files`, `stat_service_file`, `read_service_file`, `search_service_files`, `get_service_file_operation`, `create_service_directory`, `move_service_file`, `delete_service_files`, `write_service_file` (compare-and-swap), `list_service_file_uploads`, `abort_service_file_upload` and `extract_service_file_archive` (Firecracker). API keys need the explicit `files:read` / `files:manage` grants; the hosted connector maps them to `vm:files:read` / `vm:files:write`.
+- Add three stdio-only transfer tools: `upload_service_file` (local path or base64; create, chunked transfer to the API chunk route or the Firecracker data plane, commit, SHA-256 check), `download_service_file` (mint, fetch without the API key, atomic local write) and `get_service_file_download_url`. They are never registered on the hosted connector, whose downloads would be bound to the gateway's address.
+- Slow-guest 202 answers are polled inside the file tools; a still-running operation returns its `operationId` and the `get_service_file_operation` follow-up. Unavailable answers carry the API's reason verbatim (Firecracker `agent_update_required` / `node_update_required`, Cloud VPS `feature_disabled` while the VDS file-manager switch is off).
+- VPN site-to-site: `create_network_vpn_peer` accepts `kind=site_to_site` with `site.remote_prefixes`, optional `endpoint` / keepalive and `site_down_alert`; new `set_network_vpn_site_options` (hub-and-spoke), `set_network_vpn_site_alert` (office-down e-mail), `set_network_site_route_mode` (DHCP routes or internal router) and `get_network_vpn_peer_history` (24 h raw, 7 d, 30 d, 13 months). `get_network_vpn_gateway` documents live peer statistics including `current_endpoint`. An ordinary device request is unchanged.
+- Skills, resources and server instructions describe the file manager and the VPN additions. Tool counts: stdio 311 → 331, directory 235 → 252, orders 242 → 259; no tool is removed or renamed.
+
 ## 0.6.11 connector / 2.3.16 MCP server — 2026-10-14
 
 - Add static MCP guidance resources, a canonical catalog of 28 nonlegacy OAuth scopes, and four user-invoked diagnostic prompts without expanding account access.
