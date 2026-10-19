@@ -1,7 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, open, rename, stat, unlink } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { copyFile, link, mkdir, open, rename, stat, unlink } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
 import { z } from "zod";
 import { apiRawRequest, apiRequest, formatJson } from "./api.js";
@@ -18,7 +19,28 @@ export interface ServiceFileDeps {
   fetch: typeof fetch;
   sleep: (ms: number) => Promise<void>;
   now: () => number;
+  /** Deadline for one Firecracker data-plane chunk (headers and body); default uploadChunkTimeoutMs(bytes). */
+  chunkTimeoutMs?: number;
 }
+/** Per call: the MCP request's cancellation signal (the client sent notifications/cancelled). */
+export type RunContext = { signal?: AbortSignal };
+
+/**
+ * A Firecracker data-plane chunk must make progress: a stalled PUT is abandoned after
+ * UPLOAD_CHUNK_TIMEOUT_BASE_MS plus the time the chunk takes at UPLOAD_CHUNK_MIN_BYTES_PER_SECOND,
+ * never more than UPLOAD_CHUNK_TIMEOUT_MAX_MS (4 MiB chunks: about 94 s). The Cloud VPS chunk
+ * route is bounded by apiRawRequest's API timeout.
+ */
+export const UPLOAD_CHUNK_TIMEOUT_BASE_MS = 30_000;
+export const UPLOAD_CHUNK_MIN_BYTES_PER_SECOND = 64 * 1024;
+export const UPLOAD_CHUNK_TIMEOUT_MAX_MS = 10 * 60 * 1000;
+/** The whole download (headers and body) must finish inside this. */
+export const DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
+
+export function uploadChunkTimeoutMs(bytes: number): number {
+  return Math.min(UPLOAD_CHUNK_TIMEOUT_MAX_MS, UPLOAD_CHUNK_TIMEOUT_BASE_MS + Math.ceil(bytes / UPLOAD_CHUNK_MIN_BYTES_PER_SECOND) * 1000);
+}
+
 export const defaultServiceFileDeps: ServiceFileDeps = {
   request: apiRequest,
   rawRequest: apiRawRequest,
@@ -62,7 +84,7 @@ const reasonHints: Record<string, string> = {
 };
 
 type Annotations = { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean };
-type Run = (args: Record<string, any>, deps: ServiceFileDeps) => Promise<CallToolResult>;
+type Run = (args: Record<string, any>, deps: ServiceFileDeps, context?: RunContext) => Promise<CallToolResult>;
 export type ServiceFileTool = {
   /** localOnly: reads or writes this machine's files or mints a URL bound to the caller's address; stdio only. */
   name: string; scope: "files:read" | "files:manage"; description: string; localOnly: boolean;
@@ -119,7 +141,7 @@ function refuse(message: string, details: Record<string, unknown> = {}): CallToo
  * Follow a 202 {operationId, state} answer to its end inside the tool: succeeded answers what the call
  * would have answered, failed / needsAttention are errors, and a deadline returns the operation to continue.
  */
-export async function settleOperation(deps: ServiceFileDeps, no: string, res: ApiResult, waitMs: number): Promise<ApiResult> {
+export async function settleOperation(deps: ServiceFileDeps, no: string, res: ApiResult, waitMs: number, signal?: AbortSignal): Promise<ApiResult> {
   if (res.status !== 202) return res;
   const first = record(res.data);
   const id = first.operationId;
@@ -127,7 +149,7 @@ export async function settleOperation(deps: ServiceFileDeps, no: string, res: Ap
   const deadline = deps.now() + waitMs;
   let last = first;
   let delay = 1000;
-  while (deps.now() < deadline) {
+  while (deps.now() < deadline && !signal?.aborted) {
     await deps.sleep(Math.min(delay, Math.max(0, deadline - deps.now())));
     delay = Math.min(delay * 2, 5000);
     const polled = await deps.request("GET", `${files(no)}/operations/${id}`);
@@ -232,7 +254,9 @@ async function sourceSha256(source: Source): Promise<string> {
   return hash.digest("hex");
 }
 
-async function putChunk(deps: ServiceFileDeps, no: string, upload: Record<string, any>, offset: number, bytes: Buffer, size: number): Promise<ApiResult> {
+const CANCELLED: ApiResult = { status: 0, data: { success: false, error: "The request was cancelled by the client.", cancelled: true } };
+
+async function putChunk(deps: ServiceFileDeps, no: string, upload: Record<string, any>, offset: number, bytes: Buffer, size: number, signal?: AbortSignal): Promise<ApiResult> {
   const headers = {
     "Content-Range": `bytes ${offset}-${offset + bytes.length - 1}/${size}`,
     "X-Chunk-Sha256": createHash("sha256").update(bytes).digest("hex"),
@@ -244,14 +268,29 @@ async function putChunk(deps: ServiceFileDeps, no: string, upload: Record<string
   }
   const url = trustedTransferUrl(transfer.url);
   if (!url) return { status: 0, data: { success: false, error: "The upload's data-plane URL is not an https VPSnet URL; refusing to send file data there." } };
+  if (signal?.aborted) return CANCELLED;
+  // The data plane does not go through apiRawRequest, so it gets its own deadline, and the
+  // client's cancellation reaches the request: a stalled transfer never holds the tool open.
+  const timeoutMs = deps.chunkTimeoutMs ?? uploadChunkTimeoutMs(bytes.length);
+  const controller = new AbortController();
+  const onCancel = () => controller.abort();
+  signal?.addEventListener("abort", onCancel, { once: true });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await deps.fetch(url, {
-      method: "PUT", redirect: "error", body: bytes,
+      method: "PUT", redirect: "error", body: bytes, signal: controller.signal,
       headers: { ...headers, "Content-Type": "application/octet-stream", Accept: "application/json" },
     });
     return { status: response.status, data: await parseJson(response) };
   } catch (error) {
+    if (signal?.aborted) return CANCELLED;
+    if (controller.signal.aborted) {
+      return { status: 0, data: { success: false, timedOut: true, error: `Data-plane transfer of the chunk at offset ${offset} made no progress for ${timeoutMs} ms; whether it arrived is unknown.` } };
+    }
     return { status: 0, data: { success: false, error: `Data-plane transfer failed: ${(error as Error).message}` } };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener("abort", onCancel);
   }
 }
 
@@ -264,7 +303,8 @@ async function abortUpload(deps: ServiceFileDeps, no: string, id: string): Promi
   try { await deps.request("DELETE", `${files(no)}/uploads/${id}`); } catch { /* the hourly pass removes it */ }
 }
 
-export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<string, any>): Promise<CallToolResult> {
+export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<string, any>, context: RunContext = {}): Promise<CallToolResult> {
+  const signal = context.signal;
   if (args.overwrite === true && typeof args.expectedVersion !== "string") {
     return refuse("overwrite needs expectedVersion: read it with stat_service_file first (compare-and-swap).");
   }
@@ -293,11 +333,23 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
     let refreshed = false;
     while (offset < size) {
       const length = Math.min(chunkSize, size - offset);
-      const res = await putChunk(deps, args.orderNo, upload, offset, await source.read(offset, length), size);
+      const res = signal?.aborted ? CANCELLED : await putChunk(deps, args.orderNo, upload, offset, await source.read(offset, length), size, signal);
       const body = record(res.data);
       if (res.status === 200) {
         offset = Number.isInteger(body.received) ? body.received : offset + length;
         chunks += 1; attempts = 0; refreshed = false;
+        continue;
+      }
+      if (body.cancelled === true) {
+        // The client no longer waits for this call: free the upload slot and say what was sent.
+        await abortUpload(deps, args.orderNo, id);
+        return result({ status: 0, data: { success: false, error: "The upload was cancelled by the client; its open upload was aborted and the target file is untouched.", cancelled: true, uploadId: id, uploadAborted: true, sentBytes: offset, size } });
+      }
+      if (body.timedOut === true && attempts < 3) {
+        // Delivery of that chunk is uncertain: the API says what arrived (and gives a fresh URL); continue from there.
+        attempts += 1;
+        const fresh = await refreshUpload(deps, args.orderNo, id);
+        if (fresh) { upload = fresh; if (Number.isInteger(fresh.received)) offset = fresh.received; }
         continue;
       }
       if (res.status === 409 && body.filesChunkOutOfOrder === true && Number.isInteger(body.received) && body.received !== offset && attempts < 3) {
@@ -320,7 +372,7 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
       return result({ status: res.status || 502, data: { ...body, success: false, uploadId: id, uploadAborted: true, sentBytes: offset, size } });
     }
     const complete = await deps.request("POST", `${files(args.orderNo)}/uploads/${id}/complete`);
-    const settled = await settleOperation(deps, args.orderNo, complete, waitMs(args, 60));
+    const settled = await settleOperation(deps, args.orderNo, complete, waitMs(args, 60), signal);
     const committed = record(settled.data);
     if (settled.status === 200 && committed.success !== false && typeof committed.sha256 === "string" && committed.sha256.toLowerCase() !== digest) {
       return result({ status: 422, data: { ...committed, success: false, error: "checksum_mismatch", localSha256: digest } });
@@ -333,13 +385,49 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
 
 // ---------------------------------------------------------------- download
 
-export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<string, any>): Promise<CallToolResult> {
+class DestinationExistsError extends Error {
+  constructor(public readonly target: string) {
+    super(`${target} appeared while the file was being downloaded; nothing was replaced.`);
+  }
+}
+
+/**
+ * Put the finished partial file under its final name. With overwrite approved the name is
+ * replaced; otherwise the publication is an exclusive create: a destination that appeared
+ * since the preflight check (a concurrent download, another process) is never replaced,
+ * whatever the preflight saw. link() is atomic and fails with EEXIST; a file system without
+ * hard links gets copyFile(COPYFILE_EXCL), which also refuses an existing name.
+ */
+export async function publishDownload(partial: string, target: string, overwrite: boolean): Promise<void> {
+  if (overwrite) {
+    await rename(partial, target);
+    return;
+  }
+  try {
+    await link(partial, target);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EEXIST") throw new DestinationExistsError(target);
+    if (!["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"].includes(code ?? "")) throw error;
+    try {
+      await copyFile(partial, target, fsConstants.COPYFILE_EXCL);
+    } catch (copyError) {
+      if ((copyError as NodeJS.ErrnoException).code === "EEXIST") throw new DestinationExistsError(target);
+      throw copyError;
+    }
+  }
+  await unlink(partial);
+}
+
+export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<string, any>, context: RunContext = {}): Promise<CallToolResult> {
   const target: string = args.localPath;
+  const overwrite = args.overwrite === true;
   const existing = await stat(target).catch(() => null);
-  if (existing && (!existing.isFile() || args.overwrite !== true)) {
+  if (existing && (!existing.isFile() || !overwrite)) {
     return refuse(existing.isFile() ? `${target} exists; pass overwrite=true only after the user approved replacing it.` : `${target} exists and is not a regular file.`);
   }
-  const minted = await settleOperation(deps, args.orderNo, await deps.request("GET", `${files(args.orderNo)}/download-url${query({ path: args.path })}`), waitMs(args));
+  if (context.signal?.aborted) return refuse("The request was cancelled by the client; nothing was saved.", { cancelled: true });
+  const minted = await settleOperation(deps, args.orderNo, await deps.request("GET", `${files(args.orderNo)}/download-url${query({ path: args.path })}`), waitMs(args), context.signal);
   if (minted.status !== 200 || record(minted.data).success === false) return result(minted);
   const link = record(minted.data);
   const url = trustedTransferUrl(link.url);
@@ -347,7 +435,9 @@ export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<st
   await mkdir(dirname(target), { recursive: true });
   const partial = `${target}.part-${randomBytes(6).toString("hex")}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30 * 60 * 1000);
+  const onCancel = () => controller.abort();
+  context.signal?.addEventListener("abort", onCancel, { once: true });
+  const timeout = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
   let handle;
   try {
     const response = await deps.fetch(url, { method: "GET", redirect: "error", signal: controller.signal, headers: { Accept: "application/octet-stream" } });
@@ -372,14 +462,20 @@ export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<st
       await unlink(partial).catch(() => undefined);
       return refuse("The download ended early; nothing was saved.", { expectedSize: link.size, receivedBytes: written });
     }
-    await rename(partial, target);
+    await publishDownload(partial, target, overwrite);
     return result({ status: 200, data: { success: true, path: args.path, localPath: target, size: written, sha256: hash.digest("hex"), version: link.version ?? null, filename: link.filename ?? null } });
   } catch (error) {
     await handle?.close().catch(() => undefined);
     await unlink(partial).catch(() => undefined);
+    if (error instanceof DestinationExistsError) {
+      return refuse(`${error.message} Pass overwrite=true only after the user approved replacing ${target}, or choose another localPath.`, { localPath: target, destinationExists: true });
+    }
+    if (context.signal?.aborted) return refuse("The download was cancelled by the client; nothing was saved.", { cancelled: true });
+    if (controller.signal.aborted) return refuse(`The download made no progress within ${DOWNLOAD_TIMEOUT_MS} ms; nothing was saved.`, { timedOut: true });
     return refuse(`Download failed: ${(error as Error).message}`);
   } finally {
     clearTimeout(timeout);
+    context.signal?.removeEventListener("abort", onCancel);
   }
 }
 
@@ -417,7 +513,7 @@ export const serviceFileTools: ServiceFileTool[] = [
   }, { ...ADDITIVE }, async (args, deps) => result(await readCall(deps, args, "download-url", { path: args.path }))),
   fileTool("download_service_file", "files:read", "Download one file from the server to a local path on the machine running this MCP server: mints a download URL, fetches it without the API key (the URL is its own token) and writes the file atomically, verifying the size and answering the SHA-256. An existing local file is replaced only with overwrite=true after the user approved it.", {
     path: guestPath, localPath, overwrite: z.boolean().optional(), waitSeconds,
-  }, { ...DESTRUCTIVE }, async (args, deps) => downloadServiceFile(deps, args)),
+  }, { ...DESTRUCTIVE }, async (args, deps, context) => downloadServiceFile(deps, args, context)),
   fileTool("get_service_file_operation", "files:read", "Poll a file operation that answered 202 (a slow guest, a recursive delete or an extraction): pending, running, succeeded (result = the answer the call would have given), failed (errorCode) or needsAttention (outcome unknown: inspect the files). Results are kept 24 hours. Use the operationId a file tool returned; never repeat the original change instead.", {
     operationId: hexId,
   }, READ, async (args, deps) => result(await deps.request("GET", `${files(args.orderNo)}/operations/${args.operationId}`))),
@@ -449,7 +545,7 @@ export const serviceFileTools: ServiceFileTool[] = [
   fileTool("upload_service_file", "files:manage", "Upload a file to the server in one call: from localPath (a file on the machine running this MCP server) or contentBase64. The tool computes the SHA-256, starts a resumable upload, sends every chunk (Cloud VPS: the API chunk route, at most 64 MiB; Firecracker: the node's data plane without the API key, at most 2 GiB), commits it atomically and checks the SHA-256 the server computed. A new file is created 0644 unless mode is given; overwrite=true replaces an existing file and needs its expectedVersion (stat_service_file). At most 3 open uploads per service; a failed transfer is aborted so its slot is freed. " + SLOW, {
     path: guestPath, localPath: localPath.optional(), contentBase64: base64.optional(),
     overwrite: z.boolean().optional(), expectedVersion: z.string().min(1).max(256).optional(), mode: fileMode.optional(), confirmSystemPath, waitSeconds,
-  }, DESTRUCTIVE, async (args, deps) => uploadServiceFile(deps, args)),
+  }, DESTRUCTIVE, async (args, deps, context) => uploadServiceFile(deps, args, context)),
   fileTool("list_service_file_uploads", "files:manage", "List the service's open uploads (received bytes, state, expiry). Use it when an upload answers filesUploadsLimit to find stale uploads to abort.", {}, READ,
     async (args, deps) => result(await deps.request("GET", `${files(args.orderNo)}/uploads`))),
   fileTool("abort_service_file_upload", "files:manage", "Abort one open upload and remove its staging file (the target file is not touched). Only for an upload the user no longer needs.", {
@@ -468,6 +564,6 @@ export function registerServiceFileTools(server: McpServer, deps: ServiceFileDep
   for (const tool of serviceFileTools) {
     if (transport === "remote" && tool.localOnly) continue;
     server.registerTool(tool.name, { description: tool.description, inputSchema: tool.schema, annotations: tool.annotations },
-      async args => tool.run(args as Record<string, any>, deps));
+      async (args, extra) => tool.run(args as Record<string, any>, deps, { signal: extra.signal }));
   }
 }
