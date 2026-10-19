@@ -151,6 +151,7 @@ export async function settleOperation(deps: ServiceFileDeps, no: string, res: Ap
   let delay = 1000;
   while (deps.now() < deadline && !signal?.aborted) {
     await deps.sleep(Math.min(delay, Math.max(0, deadline - deps.now())));
+    if (signal?.aborted) break;
     delay = Math.min(delay * 2, 5000);
     const polled = await deps.request("GET", `${files(no)}/operations/${id}`);
     const body = record(polled.data);
@@ -257,6 +258,7 @@ async function sourceSha256(source: Source): Promise<string> {
 const CANCELLED: ApiResult = { status: 0, data: { success: false, error: "The request was cancelled by the client.", cancelled: true } };
 
 async function putChunk(deps: ServiceFileDeps, no: string, upload: Record<string, any>, offset: number, bytes: Buffer, size: number, signal?: AbortSignal): Promise<ApiResult> {
+  if (signal?.aborted) return CANCELLED;
   const headers = {
     "Content-Range": `bytes ${offset}-${offset + bytes.length - 1}/${size}`,
     "X-Chunk-Sha256": createHash("sha256").update(bytes).digest("hex"),
@@ -305,6 +307,7 @@ async function abortUpload(deps: ServiceFileDeps, no: string, id: string): Promi
 
 export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<string, any>, context: RunContext = {}): Promise<CallToolResult> {
   const signal = context.signal;
+  if (signal?.aborted) return result(CANCELLED);
   if (args.overwrite === true && typeof args.expectedVersion !== "string") {
     return refuse("overwrite needs expectedVersion: read it with stat_service_file first (compare-and-swap).");
   }
@@ -313,6 +316,7 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
   try {
     const size = source.size;
     const digest = await sourceSha256(source);
+    if (signal?.aborted) return result(CANCELLED);
     const create = await deps.request("POST", `${files(args.orderNo)}/uploads`, Object.fromEntries(Object.entries({
       path: args.path, size, sha256: digest, overwrite: args.overwrite, expectedVersion: args.expectedVersion,
       mode: args.mode, confirmSystemPath: args.confirmSystemPath,
@@ -321,6 +325,11 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
     let upload = record(record(create.data).upload);
     const id = upload.id;
     if (typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id)) return result({ status: 502, data: { success: false, error: "The upload answer carried no upload id.", answer: create.data } });
+    const cancelUpload = async (sentBytes: number) => {
+      await abortUpload(deps, args.orderNo, id);
+      return result({ status: 0, data: { success: false, error: "The upload was cancelled by the client; its open upload was aborted and the target file is untouched.", cancelled: true, uploadId: id, uploadAborted: true, sentBytes, size } });
+    };
+    if (signal?.aborted) return cancelUpload(0);
     if (record(upload.transfer).auth === undefined && size > 0) upload = (await refreshUpload(deps, args.orderNo, id)) ?? upload;
     const chunkSize = Number(upload.chunkSize);
     if (size > 0 && (!Number.isInteger(chunkSize) || chunkSize <= 0)) {
@@ -342,8 +351,7 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
       }
       if (body.cancelled === true) {
         // The client no longer waits for this call: free the upload slot and say what was sent.
-        await abortUpload(deps, args.orderNo, id);
-        return result({ status: 0, data: { success: false, error: "The upload was cancelled by the client; its open upload was aborted and the target file is untouched.", cancelled: true, uploadId: id, uploadAborted: true, sentBytes: offset, size } });
+        return cancelUpload(offset);
       }
       if (body.timedOut === true && attempts < 3) {
         // Delivery of that chunk is uncertain: the API says what arrived (and gives a fresh URL); continue from there.
@@ -371,6 +379,9 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
       await abortUpload(deps, args.orderNo, id);
       return result({ status: res.status || 502, data: { ...body, success: false, uploadId: id, uploadAborted: true, sentBytes: offset, size } });
     }
+    // Cancellation can arrive with the final chunk (or the creation of an empty upload).
+    // Check again before the operation that publishes the target file.
+    if (signal?.aborted) return cancelUpload(offset);
     const complete = await deps.request("POST", `${files(args.orderNo)}/uploads/${id}/complete`);
     const settled = await settleOperation(deps, args.orderNo, complete, waitMs(args, 60), signal);
     const committed = record(settled.data);
@@ -428,6 +439,7 @@ export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<st
   }
   if (context.signal?.aborted) return refuse("The request was cancelled by the client; nothing was saved.", { cancelled: true });
   const minted = await settleOperation(deps, args.orderNo, await deps.request("GET", `${files(args.orderNo)}/download-url${query({ path: args.path })}`), waitMs(args), context.signal);
+  if (context.signal?.aborted) return refuse("The request was cancelled by the client; nothing was saved.", { cancelled: true });
   if (minted.status !== 200 || record(minted.data).success === false) return result(minted);
   const link = record(minted.data);
   const url = trustedTransferUrl(link.url);
@@ -437,9 +449,11 @@ export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<st
   const controller = new AbortController();
   const onCancel = () => controller.abort();
   context.signal?.addEventListener("abort", onCancel, { once: true });
+  if (context.signal?.aborted) onCancel();
   const timeout = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
   let handle;
   try {
+    controller.signal.throwIfAborted();
     const response = await deps.fetch(url, { method: "GET", redirect: "error", signal: controller.signal, headers: { Accept: "application/octet-stream" } });
     if (!response.ok || !response.body) {
       const body = await parseJson(response);
@@ -462,6 +476,7 @@ export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<st
       await unlink(partial).catch(() => undefined);
       return refuse("The download ended early; nothing was saved.", { expectedSize: link.size, receivedBytes: written });
     }
+    controller.signal.throwIfAborted();
     await publishDownload(partial, target, overwrite);
     return result({ status: 200, data: { success: true, path: args.path, localPath: target, size: written, sha256: hash.digest("hex"), version: link.version ?? null, filename: link.filename ?? null } });
   } catch (error) {

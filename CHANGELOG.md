@@ -3,7 +3,7 @@
 ## Unreleased MCP server (after 2.4.0) — audit fixes 2026-10-19
 
 - `download_service_file` (AI-MCP-02): the finished partial file is published with an exclusive create unless `overwrite=true` was passed, so a destination that appears after the preflight check (a concurrent download, another process) is never replaced; the call is refused with `destinationExists` and nothing is left behind. `overwrite=true` keeps replace semantics.
-- `upload_service_file` (AI-MCP-03): a Firecracker data-plane chunk has a bounded deadline (30 s plus the chunk at 64 KiB/s, at most 10 minutes); a chunk that makes no progress is abandoned, the received offset is read back from the API before the retry, and three stalled attempts abort the upload with its id and sent bytes. The MCP request's cancellation reaches the chunk transfer, the download fetch and operation polling; a cancelled upload aborts its open upload. No tool, schema, annotation or scope changes.
+- `upload_service_file` (AI-MCP-03): a Firecracker data-plane chunk has a bounded deadline (30 s plus the chunk at 64 KiB/s, at most 10 minutes); a chunk that makes no progress is abandoned, the received offset is read back from the API before the retry, and an initial stalled attempt plus three retries abort the upload with its id and sent bytes. The MCP request's cancellation reaches the chunk transfer, the download fetch and operation polling; a cancelled upload aborts its open upload, including cancellation before final publication or creation of an empty upload. Download cancellation is checked after token creation and before local publication. No tool, schema, annotation or scope changes.
 
 ## 0.6.13 connector — prepared, not published
 

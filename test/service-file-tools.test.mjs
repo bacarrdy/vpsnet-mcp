@@ -341,7 +341,7 @@ test("a chunk that stalls past its deadline is abandoned, the received offset is
   assert.equal(calls.some(c => c.kind === "api" && c.method === "DELETE"), false);
 });
 
-test("three stalled chunks abort the upload with its id and the reconciled offset; the source handle is released", async () => {
+test("an initial stalled chunk and three bounded retries abort the upload with its id and reconciled offset", async () => {
   const dir = mkdtempSync(join(tmpdir(), "vpsnet-upload-stall-"));
   try {
     const file = join(dir, "big.bin");
@@ -401,6 +401,90 @@ test("a cancelled download fetch saves nothing and names the cancellation", asyn
     assert.equal(json(res).cancelled, true);
     assert.deepEqual(readdirSync(dir), []);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("the chunk deadline and client cancellation cover a stalled response body after headers arrive", async () => {
+  for (const cancelled of [false, true]) {
+    const client = new AbortController();
+    const content = Buffer.from("body");
+    const url = "https://novnc.vpsnet.com/fc-files/upload?fixture=body";
+    const upload = received => ({ status: 200, data: { success: true, upload: { id: UPLOAD, received, chunkSize: 4, transfer: { auth: "token", url } } } });
+    const { deps, calls } = mock([
+      ["POST /account/services/FC1/files/uploads", upload(0)],
+      ...(cancelled ? [[`DELETE /account/services/FC1/files/uploads/${UPLOAD}`, { status: 200, data: { success: true } }]] : [
+        [`GET /account/services/FC1/files/uploads/${UPLOAD}`, upload(4)],
+        [`POST /account/services/FC1/files/uploads/${UPLOAD}/complete`, { status: 200, data: { success: true, sha256: sha(content) } }],
+      ]),
+    ], { fetchRoutes: [[`PUT ${url}`, call => new Response(new ReadableStream({ start(controller) {
+      call.init.signal.addEventListener("abort", () => controller.error(new DOMException("Aborted", "AbortError")), { once: true });
+      if (cancelled) queueMicrotask(() => client.abort());
+    } }), { status: 200 })]] });
+    deps.chunkTimeoutMs = 10;
+    const res = await tool("upload_service_file").run({ orderNo: "FC1", path: "/srv/a.bin", contentBase64: content.toString("base64") }, deps, { signal: client.signal });
+    assert.equal(calls.filter(call => call.kind === "fetch").length, 1);
+    assert.equal(calls.find(call => call.kind === "fetch").init.signal.aborted, true);
+    if (cancelled) {
+      assert.equal(json(res).cancelled, true);
+      assert.equal(calls.at(-1).method, "DELETE");
+    } else {
+      assert.equal(res.isError, undefined, res.content[0].text);
+      assert.equal(calls.at(-2).method, "GET", "the received offset is reconciled before completion");
+    }
+  }
+});
+
+test("cancellation before upload creation or with the final response never publishes the target", async () => {
+  const already = new AbortController(); already.abort();
+  const { deps: none, calls: nothing } = mock([]);
+  const early = await tool("upload_service_file").run({ orderNo: "FC1", path: "/srv/empty", contentBase64: "" }, none, { signal: already.signal });
+  assert.equal(json(early).cancelled, true);
+  assert.equal(nothing.length, 0);
+
+  for (const empty of [true, false]) {
+    const client = new AbortController();
+    const url = "https://novnc.vpsnet.com/fc-files/upload?fixture=cancel";
+    const { deps, calls } = mock([
+      ["POST /account/services/FC1/files/uploads", () => {
+        if (empty) client.abort();
+        return { status: 201, data: { upload: { id: UPLOAD, received: 0, chunkSize: 4, transfer: { auth: "token", url } } } };
+      }],
+      [`DELETE /account/services/FC1/files/uploads/${UPLOAD}`, { status: 200, data: { success: true } }],
+    ], { fetchRoutes: [[`PUT ${url}`, () => {
+      client.abort();
+      return { status: 200, body: { received: 4 } };
+    }]] });
+    const res = await tool("upload_service_file").run({ orderNo: "FC1", path: "/srv/target", contentBase64: empty ? "" : Buffer.from("last").toString("base64") }, deps, { signal: client.signal });
+    assert.equal(json(res).cancelled, true);
+    assert.equal(json(res).uploadAborted, true);
+    assert.equal(json(res).sentBytes, empty ? 0 : 4);
+    assert.equal(calls.at(-1).method, "DELETE");
+    assert.equal(calls.some(call => call.path?.endsWith("/complete")), false);
+  }
+});
+
+test("cancellation during download token creation prevents fetching or saving the file", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "vpsnet-download-mint-cancel-"));
+  try {
+    const client = new AbortController();
+    const { deps, calls } = mock([[/^GET \/account\/services\/VP1\/files\/download-url\?/, () => {
+      client.abort();
+      return { status: 200, data: { success: true, url: "https://www.vpsnet.com/files-download/fixture", size: 3 } };
+    }]]);
+    const res = await tool("download_service_file").run({ orderNo: "VP1", path: "/srv/x", localPath: join(dir, "x") }, deps, { signal: client.signal });
+    assert.equal(json(res).cancelled, true);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(readdirSync(dir), []);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("operation polling stops when the request is cancelled during its delay", async () => {
+  const client = new AbortController();
+  const { deps, calls } = mock([]);
+  deps.sleep = async () => client.abort();
+  const res = await settleOperation(deps, "VP1", { status: 202, data: { operationId: OP, state: "running" } }, 10_000, client.signal);
+  assert.equal(calls.length, 0);
+  assert.equal(res.data.pending, true, "the operation remains available for later inspection");
+  assert.equal(res.data.operationId, OP);
 });
 
 test("the per-chunk deadline is bounded and scales with the chunk; registration hands the request's signal to the tool", async () => {
