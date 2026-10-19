@@ -309,6 +309,20 @@ test("publishDownload is an exclusive create unless overwrite was approved", asy
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test("unavailable atomic no-replace publication never exposes a partial destination", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "vpsnet-publish-unsupported-"));
+  try {
+    const partial = join(dir, "complete.part"), target = join(dir, "complete");
+    writeFileSync(partial, "complete download");
+    for (const code of ["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"]) {
+      const unsupported = async () => { throw Object.assign(new Error("Unavailable"), { code }); };
+      await assert.rejects(publishDownload(partial, target, false, unsupported), /Atomic no-replace publication is unavailable.*nothing was published/);
+      assert.equal(existsSync(target), false, code);
+      assert.equal(readFileSync(partial, "utf8"), "complete download", "the completed partial remains available for caller cleanup");
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 // AI-MCP-03: the Firecracker data-plane PUT has a deadline and honours the request's cancellation.
 const abortable = (init, { onAbort } = {}) => new Promise((_, reject) => {
   assert.ok(init.signal instanceof AbortSignal, "the data-plane request carries an abort signal");
@@ -457,6 +471,34 @@ test("cancellation before upload creation or with the final response never publi
     assert.equal(json(res).cancelled, true);
     assert.equal(json(res).uploadAborted, true);
     assert.equal(json(res).sentBytes, empty ? 0 : 4);
+    assert.equal(calls.at(-1).method, "DELETE");
+    assert.equal(calls.some(call => call.path?.endsWith("/complete")), false);
+  }
+});
+
+test("cancelled uploads distinguish attempted cleanup from confirmed cleanup", async () => {
+  const unknown = [
+    { status: 503, data: { success: false } },
+    { status: 200, data: { success: false } },
+    { status: 202, data: { success: true, state: "pending" } },
+    () => { throw new Error("cleanup transport unavailable"); },
+  ];
+  for (const answer of unknown) {
+    const client = new AbortController();
+    const { deps, calls } = mock([
+      ["POST /account/services/FC1/files/uploads", () => {
+        client.abort();
+        return { status: 201, data: { upload: { id: UPLOAD, received: 0 } } };
+      }],
+      [`DELETE /account/services/FC1/files/uploads/${UPLOAD}`, answer],
+    ]);
+    const res = await tool("upload_service_file").run({ orderNo: "FC1", path: "/srv/target", contentBase64: "" }, deps, { signal: client.signal });
+    const body = json(res);
+    assert.equal(body.cancelled, true);
+    assert.equal(body.uploadAbortAttempted, true);
+    assert.equal(body.uploadAborted, false);
+    assert.equal(body.uploadId, UPLOAD);
+    assert.match(body.error, /cleanup was not confirmed.*uploadId/);
     assert.equal(calls.at(-1).method, "DELETE");
     assert.equal(calls.some(call => call.path?.endsWith("/complete")), false);
   }

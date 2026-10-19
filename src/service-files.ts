@@ -1,8 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createHash, randomBytes } from "node:crypto";
-import { constants as fsConstants } from "node:fs";
-import { copyFile, link, mkdir, open, rename, stat, unlink } from "node:fs/promises";
+import { link, mkdir, open, rename, stat, unlink } from "node:fs/promises";
 import { dirname, isAbsolute } from "node:path";
 import { z } from "zod";
 import { apiRawRequest, apiRequest, formatJson } from "./api.js";
@@ -301,8 +300,13 @@ async function refreshUpload(deps: ServiceFileDeps, no: string, id: string): Pro
   return res.status === 200 ? record(record(res.data).upload) : null;
 }
 
-async function abortUpload(deps: ServiceFileDeps, no: string, id: string): Promise<void> {
-  try { await deps.request("DELETE", `${files(no)}/uploads/${id}`); } catch { /* the hourly pass removes it */ }
+async function abortUpload(deps: ServiceFileDeps, no: string, id: string): Promise<boolean> {
+  try {
+    const res = await deps.request("DELETE", `${files(no)}/uploads/${id}`);
+    return res.status >= 200 && res.status < 300 && res.status !== 202 && record(res.data).success !== false;
+  } catch {
+    return false; // Cleanup can be retried using the returned upload id.
+  }
 }
 
 export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<string, any>, context: RunContext = {}): Promise<CallToolResult> {
@@ -326,15 +330,18 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
     const id = upload.id;
     if (typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id)) return result({ status: 502, data: { success: false, error: "The upload answer carried no upload id.", answer: create.data } });
     const cancelUpload = async (sentBytes: number) => {
-      await abortUpload(deps, args.orderNo, id);
-      return result({ status: 0, data: { success: false, error: "The upload was cancelled by the client; its open upload was aborted and the target file is untouched.", cancelled: true, uploadId: id, uploadAborted: true, sentBytes, size } });
+      const uploadAborted = await abortUpload(deps, args.orderNo, id);
+      const error = uploadAborted
+        ? "The upload was cancelled by the client; its open upload was aborted and the target file is untouched."
+        : "The upload was cancelled before publication, but cleanup was not confirmed. Inspect or abort the open upload using its uploadId.";
+      return result({ status: 0, data: { success: false, error, cancelled: true, uploadId: id, uploadAbortAttempted: true, uploadAborted, sentBytes, size } });
     };
     if (signal?.aborted) return cancelUpload(0);
     if (record(upload.transfer).auth === undefined && size > 0) upload = (await refreshUpload(deps, args.orderNo, id)) ?? upload;
     const chunkSize = Number(upload.chunkSize);
     if (size > 0 && (!Number.isInteger(chunkSize) || chunkSize <= 0)) {
-      await abortUpload(deps, args.orderNo, id);
-      return result({ status: 502, data: { success: false, error: "The upload answer carried no chunk size.", uploadId: id } });
+      const uploadAborted = await abortUpload(deps, args.orderNo, id);
+      return result({ status: 502, data: { success: false, error: "The upload answer carried no chunk size.", uploadId: id, uploadAbortAttempted: true, uploadAborted } });
     }
     let offset = Number.isInteger(upload.received) ? upload.received : 0;
     let chunks = 0;
@@ -376,8 +383,8 @@ export async function uploadServiceFile(deps: ServiceFileDeps, args: Record<stri
         await deps.sleep(Number.isFinite(retry) && retry > 0 ? Math.min(retry * 1000, 30_000) : 1000 * 2 ** attempts);
         continue;
       }
-      await abortUpload(deps, args.orderNo, id);
-      return result({ status: res.status || 502, data: { ...body, success: false, uploadId: id, uploadAborted: true, sentBytes: offset, size } });
+      const uploadAborted = await abortUpload(deps, args.orderNo, id);
+      return result({ status: res.status || 502, data: { ...body, success: false, uploadId: id, uploadAbortAttempted: true, uploadAborted, sentBytes: offset, size } });
     }
     // Cancellation can arrive with the final chunk (or the creation of an empty upload).
     // Check again before the operation that publishes the target file.
@@ -402,30 +409,31 @@ class DestinationExistsError extends Error {
   }
 }
 
+class AtomicPublicationUnavailableError extends Error {
+  constructor() {
+    super("Atomic no-replace publication is unavailable for this destination; nothing was published. Choose a localPath on a file system that permits hard links, or explicitly request overwrite=true if replacement is intended.");
+  }
+}
+
 /**
  * Put the finished partial file under its final name. With overwrite approved the name is
  * replaced; otherwise the publication is an exclusive create: a destination that appeared
  * since the preflight check (a concurrent download, another process) is never replaced,
- * whatever the preflight saw. link() is atomic and fails with EEXIST; a file system without
- * hard links gets copyFile(COPYFILE_EXCL), which also refuses an existing name.
+ * whatever the preflight saw. link() is atomic and fails with EEXIST. If it is
+ * unavailable, refuse: copying to the final name would expose a partial file.
  */
-export async function publishDownload(partial: string, target: string, overwrite: boolean): Promise<void> {
+export async function publishDownload(partial: string, target: string, overwrite: boolean, createLink: typeof link = link): Promise<void> {
   if (overwrite) {
     await rename(partial, target);
     return;
   }
   try {
-    await link(partial, target);
+    await createLink(partial, target);
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code;
     if (code === "EEXIST") throw new DestinationExistsError(target);
-    if (!["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"].includes(code ?? "")) throw error;
-    try {
-      await copyFile(partial, target, fsConstants.COPYFILE_EXCL);
-    } catch (copyError) {
-      if ((copyError as NodeJS.ErrnoException).code === "EEXIST") throw new DestinationExistsError(target);
-      throw copyError;
-    }
+    if (["EPERM", "ENOTSUP", "EOPNOTSUPP", "ENOSYS", "EXDEV", "EMLINK"].includes(code ?? "")) throw new AtomicPublicationUnavailableError();
+    throw error;
   }
   await unlink(partial);
 }
@@ -485,6 +493,7 @@ export async function downloadServiceFile(deps: ServiceFileDeps, args: Record<st
     if (error instanceof DestinationExistsError) {
       return refuse(`${error.message} Pass overwrite=true only after the user approved replacing ${target}, or choose another localPath.`, { localPath: target, destinationExists: true });
     }
+    if (error instanceof AtomicPublicationUnavailableError) return refuse(error.message, { atomicPublicationUnavailable: true });
     if (context.signal?.aborted) return refuse("The download was cancelled by the client; nothing was saved.", { cancelled: true });
     if (controller.signal.aborted) return refuse(`The download made no progress within ${DOWNLOAD_TIMEOUT_MS} ms; nothing was saved.`, { timedOut: true });
     return refuse(`Download failed: ${(error as Error).message}`);
