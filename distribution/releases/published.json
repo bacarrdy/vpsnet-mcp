@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "plugin": {
-    "version": "0.6.12",
-    "source_commit": "03df155def22ba704caf66806c034165849e45aa",
-    "verified_at": "2026-10-18T08:11:39Z",
-    "url": "https://github.com/bacarrdy/vpsnet-mcp/releases/download/plugin-0.6.12/vpsnet-plugin-0.6.12.zip",
-    "sha256": "ebd2f3242ea9e6fa7ba06a3249565b29b1047fce0b55fb06ed0866e21c84a3cb",
-    "ci_run": 39110437522,
+    "version": "0.6.13",
+    "source_commit": "ff9302a11a2b5bbe645f7523da715131a497f541",
+    "verified_at": "2026-10-22T12:46:24Z",
+    "url": "https://github.com/bacarrdy/vpsnet-mcp/releases/download/plugin-0.6.13/vpsnet-plugin-0.6.13.zip",
+    "sha256": "b6ebeb9dfb702a67e843ca11da775d0e44dca6f2976b009be6e11b7118710ace",
+    "ci_run": 39780858480,
     "ci_conclusion": "success"
   },
   "mcp": {
