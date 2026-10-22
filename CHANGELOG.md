@@ -1,11 +1,17 @@
 # Changelog
 
-## Unreleased MCP server (after 2.4.0) — audit fixes 2026-10-19
+## 0.6.13 connector / 2.4.0 MCP server (stdio fixes) — 2026-10-22
+
+Service-file audit fixes (PR #4, audit 2026-10-19):
 
 - `download_service_file` (AI-MCP-02): the finished partial file is published with an exclusive create unless `overwrite=true` was passed, so a destination that appears after the preflight check (a concurrent download, another process) is never replaced; the call is refused with `destinationExists` and nothing is left behind. `overwrite=true` keeps replace semantics. A destination that cannot be published with an atomic hard link is refused instead of exposing a partial final file.
 - `upload_service_file` (AI-MCP-03): a Firecracker data-plane chunk has a bounded deadline (30 s plus the chunk at 64 KiB/s, at most 10 minutes); a chunk that makes no progress is abandoned, the received offset is read back from the API before the retry, and an initial stalled attempt plus three retries abort the upload with its id and sent bytes. The MCP request's cancellation reaches the chunk transfer, the download fetch and operation polling; a cancelled upload aborts its open upload, including cancellation before final publication or creation of an empty upload. Download cancellation is checked after token creation and before local publication. Upload cleanup reports whether abortion was attempted and confirmed; a failed or pending cleanup keeps its upload id for follow-up. No tool, schema, annotation or scope changes.
 
-## 0.6.13 connector — prepared, not published
+DNS (PR #5):
+
+- `delete_dns_zone` passes `confirm_outage` to the backend and explains the 409 refusal: when the zone is published and its domain is delegated to VPSnet (deleting it stops the domain resolving worldwide) the API answers 409 `deleteRequiresConfirmation` (`zone_serves_domain`, `confirm_field=confirm_outage`) and the tool description tells the agent to relay the refusal and and repeat the call with the new optional `confirm_outage=true` only after the user explicitly confirmed the outage. Records of a deleted zone are kept for 7 days, so a re-create within that window restores them. Tool-contract snapshot updated; new `test/dns-zone-delete-confirm.test.mjs`.
+
+Connector bundle:
 
 - Clarify that Functions execution follows the connection's granted daily and any reported monthly spending limits; legacy missing or null monthly values never authorize unlimited usage. Update shared skills and review expectations without changing MCP tools, schemas, annotations, scopes or handlers.
 - Correct the tool-contract publication reference and distinguish a provider's further-review hold from a specific technical rejection. The MCP server stays 2.4.0; this bundle does not claim a provider approval or backend rollout.
