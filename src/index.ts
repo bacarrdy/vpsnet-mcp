@@ -6625,14 +6625,20 @@ server.registerTool(
   "delete_dns_zone",
   {
     description:
-      "Delete a forward DNS zone. Published zones are queued for removal from the managed DNS platform. Requires dns:write when using an API key.",
+      "Delete a forward DNS zone. Published zones are queued for removal from the managed DNS platform; the zone's own records are kept on the deletion record, so re-creating the same name in the same account within 7 days publishes it again with those records. A published zone that the domain is delegated to VPSnet for (get_dns_zone: delegation.state=platform) answers for the whole internet: deleting it stops the domain resolving worldwide (websites, e-mail). The API refuses such a delete with HTTP 409 deleteRequiresConfirmation (reason zone_serves_domain, confirm_field confirm_outage, the delegated nameservers) and deletes nothing. Tell the user exactly that and call again with confirm_outage=true only after the user explicitly confirmed the outage; never set it by default or infer it. Requires dns:write when using an API key.",
     inputSchema: {
       zone_id: positiveIdSchema.describe("DNS zone ID"),
+      confirm_outage: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe("true only after the user explicitly confirmed that deleting this zone stops the domain resolving worldwide; required when the API answered deleteRequiresConfirmation. Default false."),
     },
     annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
   },
-  async ({ zone_id }) => {
-    const { data } = await apiRequest("DELETE", `/account/dns/zones/${encodeURIComponent(String(zone_id))}`);
+  async ({ zone_id, confirm_outage }) => {
+    const query = confirm_outage === true ? "?confirm_outage=true" : "";
+    const { data } = await apiRequest("DELETE", `/account/dns/zones/${encodeURIComponent(String(zone_id))}${query}`);
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
 );
