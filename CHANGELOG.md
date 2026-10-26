@@ -4,6 +4,18 @@
 
 - Add `get_application_server_routes` (`applications:read`) and `configure_application_server_routes` (`applications:manage`, idempotent, confirmed) for Managed Applications server routes: customer-owned hostnames routed to the customer's own local services (127.0.0.1:port) with automatic certificates, plus an optional fallback web server. Configure replaces the complete route set under an `expected_revision`. Tool-contract snapshots, scope catalog, remote policy and README updated.
 
+## 0.6.14 connector / 2.4.1 MCP server — 2026-10-26
+
+Reinstall credentials (PR #2, contract checked against vpsnet_backend master `OsController::store()` / `dedicatedStore()`):
+
+- `reinstall_os` credentials follow the backend's reinstall contract. Over the remote directory profile (used by Claude and OpenAI directory connectors) the tool never collects a password: `rootPassword` is removed from discovery, the input schema is strict so a cached call that still sends `rootPassword` fails before any service read, and the description asks for an account public `sshKey` ID only (a dedicated server otherwise reuses its installed key, else VPSnet generates and delivers a password through its existing customer access flow). Over stdio and the explicitly authorized orders profile, `sshKey` and `rootPassword` are accepted for both VPS and dedicated reinstall and are mutually exclusive; the dedicated-only restriction on `sshKey` and the dedicated refusal of `rootPassword` are removed. Disk-loss and snapshot-deletion consent rules are unchanged. Reviewed snapshots updated (`stdio`, `directory`, `orders`); no tool is added, renamed or removed. After deployment, request a publisher rescan where supported; cached directory definitions that still list `rootPassword` will be refused rather than silently ignored.
+
+MCP server 2.4.1 carries this tool-contract change on top of 2.4.0 (the npm registry still serves 2.3.16; 2.4.1 is the next npm candidate and includes every 2.4.0 change). No tool is added, renamed or removed; tool counts stay stdio 331, directory 252, orders 259.
+
+Release tooling:
+
+- `scripts/release.py prepare --component mcp` changes only the root `version` and `packages[""].version` of `package-lock.json`; a dependency that shares the current version string (for example `2.4.1`) is left untouched instead of refusing the bump. Regression test in `scripts/tests/test_release_updates.py`.
+
 ## 0.6.13 connector / 2.4.0 MCP server (stdio fixes) — 2026-10-22
 
 Service-file audit fixes (PR #4, audit 2026-10-19):

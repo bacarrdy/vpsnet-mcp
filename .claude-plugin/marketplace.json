@@ -10,7 +10,7 @@
     {
       "name": "vpsnet",
       "source": "./plugin",
-      "version": "0.6.13",
+      "version": "0.6.14",
       "description": "Install applications, build and run websites, troubleshoot servers, configure private networks and create and test Functions on your VPSnet services. Supports Linux Cloud VPS/KVM and Firecracker, plus Windows and BSD service management, with customer-selected access."
     }
   ]

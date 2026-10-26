@@ -3,7 +3,7 @@
   "name": "com.vpsnet/vpsnet",
   "title": "VPSnet",
   "description": "Manage VPSnet servers, apps, private networks and Functions with authorized customer access.",
-  "version": "0.6.13",
+  "version": "0.6.14",
   "websiteUrl": "https://www.vpsnet.com",
   "repository": {
     "url": "https://github.com/bacarrdy/vpsnet-mcp",

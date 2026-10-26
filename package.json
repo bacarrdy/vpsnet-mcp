@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "type": "module",
   "description": "MCP server for managing VPSnet.com services, applications, DNS, domains, billing, and server lifecycle operations",
   "bin": {
@@ -25,6 +25,7 @@
     "build/custom-project-contract.js",
     "build/file-restore-contract.js",
     "build/index.js",
+    "build/service-reinstall-contract.js",
     "build/service-rescue-contract.js",
     "build/service-readiness.js",
     "build/temp-vm-contract.js",

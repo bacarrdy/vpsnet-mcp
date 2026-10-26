@@ -1,3 +1,4 @@
+import { reinstallDescription } from "./service-reinstall-contract.js";
 import { RemoteAuthError } from './remote-auth-error.js';
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -418,6 +419,13 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     const objectSchema = config.inputSchema instanceof z.ZodObject ? config.inputSchema : undefined;
     const inputSchema = { ...(objectSchema ? objectSchema.shape : config.inputSchema as Record<string, z.ZodTypeAny>) };
     let schemaChanged = false;
+    const directoryReinstall = name === 'reinstall_os' && profile === 'directory';
+    if (directoryReinstall) {
+      delete inputSchema.rootPassword;
+      inputSchema.sshKey = z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional()
+        .describe('Account public SSH key ID from list_ssh_keys. If omitted, dedicated servers reuse an installed key when available; otherwise VPSnet generates and delivers a password through its existing customer access flow. Never send a private key or password.');
+      schemaChanged = true;
+    }
     if (name === 'get_order_plans' && profile === 'orders') {
       inputSchema.type = z.enum(['vps', 'vds', 'firecracker']);
       schemaChanged = true;
@@ -448,7 +456,11 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     }
     return original(name, {
       ...config,
-      inputSchema: objectSchema ? (schemaChanged ? objectSchema.extend(inputSchema) : objectSchema) : inputSchema,
+      // A cached directory call containing rootPassword must fail, never silently
+      // discard the chosen password and start a different reinstall.
+      inputSchema: directoryReinstall ? z.object(inputSchema).strict()
+        : objectSchema ? (schemaChanged ? objectSchema.extend(inputSchema) : objectSchema) : inputSchema,
+      ...(directoryReinstall ? { description: reinstallDescription(true) } : {}),
       title: config.title || (config.annotations as { title?: string } | undefined)?.title || defaultToolTitle(name),
       annotations,
       _meta: { ...(config._meta as object || {}), securitySchemes },
