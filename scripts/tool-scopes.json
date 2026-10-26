@@ -81,6 +81,12 @@
   ],
   "paid": ""
  },
+ "get_application_server_routes": {
+  "scopes": [
+   "applications:read"
+  ],
+  "paid": ""
+ },
  "get_application_installation": {
   "scopes": [
    "applications:read"
@@ -202,6 +208,12 @@
   "paid": ""
  },
  "install_application": {
+  "scopes": [
+   "applications:manage"
+  ],
+  "paid": ""
+ },
+ "configure_application_server_routes": {
   "scopes": [
    "applications:manage"
   ],

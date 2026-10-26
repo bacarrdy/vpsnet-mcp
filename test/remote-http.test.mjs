@@ -83,7 +83,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
   for (const name of [
     'set_private_network_dns', 'set_private_network_names', 'set_network_routed_egress', 'retry_network_security_policy',
     'retry_private_network', 'retry_private_network_port',
-    'configure_application_resource_thresholds', 'configure_application_access',
+    'configure_application_resource_thresholds', 'configure_application_access', 'configure_application_server_routes',
     'cancel_application_action', 'update_function', 'reinstall_os',
   ]) assert.equal(hints(name)?.destructiveHint, true, `${name} can replace, remove or cancel existing state`);
   for (const name of [
@@ -91,7 +91,7 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     'create_function', 'update_function', 'create_dns_zone',
   ]) assert.equal(hints(name)?.openWorldHint, true, `${name} can involve external registries, public endpoints or DNS`);
   for (const name of [
-    'configure_application_access', 'configure_application_resource_thresholds',
+    'configure_application_access', 'configure_application_server_routes', 'configure_application_resource_thresholds',
     'confirm_application_compose_adoption', 'delete_function',
     'change_rdns', 'clear_rdns', 'set_domain_nameservers',
     'create_domain_glue_record', 'delete_domain_glue_record',

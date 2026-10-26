@@ -1715,6 +1715,127 @@
       "name": "configure_application_resource_thresholds",
       "title": "Configure application resource thresholds"
     },
+    "configure_application_server_routes": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Configure application server routes"
+      },
+      "description": "Queue a change of the server routes of one owned Managed Applications server. This REPLACES the COMPLETE set: read get_application_server_routes first, then send the full list of wanted routes and the fallback; a route or fallback that is omitted is removed. Each route sends one customer hostname to 127.0.0.1:<port> on the same server over http or https (ports 1024-65535 except 10080, 10443 and 19090; no host field, upstream is always local; at most 64 routes). The hostname's DNS must point at the server so the automatic certificate can be issued; get_application_server_routes reports the DNS state and the records to create. The server must have at least one installed managed application. Unknown hostnames are never sent to an application (HTTP 421 / TLS unrecognized_name). Coexistence: if the customer runs their own web server (Caddy, nginx, Traefik) on ports 80/443, either point it at local ports instead, or move it to local ports and declare it as fallback ({http_port?, https_port?}); the fallback receives every hostname the front door does not serve (HTTP proxied with its Host header, HTTPS passed through unterminated). Pass expected_revision from the read; a stale revision is refused with applicationServerRoutesRevisionConflict. Confirm the exact full set with the user first. A queued response (202, action type configure_routes) must be verified by polling get_application_server_routes until state is active. Requires applications:manage and is not a paid API-key operation.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "confirmed": {
+            "const": true,
+            "description": "True only after the user confirmed the complete route set",
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "description": "Current revision returned by get_application_server_routes",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "fallback": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "http_port": {
+                    "maximum": 65535,
+                    "minimum": 1024,
+                    "type": "integer"
+                  },
+                  "https_port": {
+                    "maximum": 65535,
+                    "minimum": 1024,
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The customer's own web server on local ports, receiving every hostname the front door does not serve. null or omitted removes the fallback."
+          },
+          "idempotencyKey": {
+            "description": "Client-global unique key. Reuse it only to replay this exact request; never reuse it for another service or request.",
+            "maxLength": 190,
+            "minLength": 8,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,189}$",
+            "type": "string"
+          },
+          "orderNo": {
+            "description": "Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP12345 or VP12345-1",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "type": "string"
+          },
+          "routes": {
+            "description": "The COMPLETE wanted set of routes; omitting a route removes it. An empty array removes all routes.",
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "hostname": {
+                  "description": "Customer-owned hostname, for example app.example.com",
+                  "maxLength": 253,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "upstream": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "port": {
+                      "maximum": 65535,
+                      "minimum": 1024,
+                      "type": "integer"
+                    },
+                    "scheme": {
+                      "enum": [
+                        "http",
+                        "https"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "scheme",
+                    "port"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "hostname",
+                "upstream"
+              ],
+              "type": "object"
+            },
+            "maxItems": 64,
+            "type": "array"
+          }
+        },
+        "required": [
+          "orderNo",
+          "expected_revision",
+          "routes",
+          "idempotencyKey",
+          "confirmed"
+        ],
+        "type": "object"
+      },
+      "name": "configure_application_server_routes",
+      "title": "Configure application server routes"
+    },
     "configure_network_public_forwarding": {
       "annotations": {
         "destructiveHint": true,
@@ -5725,6 +5846,38 @@
       },
       "name": "get_application_recipe_validation",
       "title": "Get application recipe validation"
+    },
+    "get_application_server_routes": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Get application server routes"
+      },
+      "description": "Get the server routes of one owned Managed Applications server: customer-owned hostnames routed by the in-guest HTTPS front door to the customer's own local services (for example app.example.com to 127.0.0.1:3000) with an automatic certificate, the optional fallback (the customer's own web server on local ports), the current revision, applied revision, overall state, per-route state and DNS status (ok, missing, elsewhere, unknown, with the A/AAAA records to create), availability and limits. Read this before configure_application_server_routes and pass its revision as expected_revision. Requires applications:read.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "orderNo": {
+            "description": "Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP12345 or VP12345-1",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderNo"
+        ],
+        "type": "object"
+      },
+      "name": "get_application_server_routes",
+      "title": "Get application server routes"
     },
     "get_automatic_ssl_subscription": {
       "annotations": {

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add `get_application_server_routes` (`applications:read`) and `configure_application_server_routes` (`applications:manage`, idempotent, confirmed) for Managed Applications server routes: customer-owned hostnames routed to the customer's own local services (127.0.0.1:port) with automatic certificates, plus an optional fallback web server. Configure replaces the complete route set under an `expected_revision`. Tool-contract snapshots, scope catalog, remote policy and README updated.
+
 ## 0.6.13 connector / 2.4.0 MCP server (stdio fixes) — 2026-10-22
 
 Service-file audit fixes (PR #4, audit 2026-10-19):
