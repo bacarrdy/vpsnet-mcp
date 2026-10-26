@@ -88,9 +88,21 @@ def prepare(root, component, target):
         path = safe_path(root, name)
         raw = path.read_text()
         pattern = r'("version"\s*:\s*")' + re.escape(old) + r'(")'
-        expected = 2 if name == 'package-lock.json' else 1
-        updated, count = re.subn(pattern, lambda m: m[1] + target + m[2], raw)
-        require(count == expected, 'Unexpected version layout: ' + name)
+        if name == 'package-lock.json':
+            # Only the root "version" and packages[""].version (the first two
+            # occurrences) belong to this package; a dependency may share the
+            # same version string and must stay untouched.
+            lock = json.loads(raw)
+            require(lock.get('version') == old and lock.get('packages', {}).get('', {}).get('version') == old,
+                    'Unexpected version layout: ' + name)
+            updated, count = re.subn(pattern, lambda m: m[1] + target + m[2], raw, count=2)
+            relock = json.loads(updated)
+            require(count == 2 and relock['version'] == target and relock['packages']['']['version'] == target
+                    and json.dumps({k: v for k, v in relock['packages'].items() if k}) == json.dumps({k: v for k, v in lock['packages'].items() if k}),
+                    'Unexpected version layout: ' + name)
+        else:
+            updated, count = re.subn(pattern, lambda m: m[1] + target + m[2], raw)
+            require(count == 1, 'Unexpected version layout: ' + name)
         replacements[path] = updated
     data = config(root)
     data['plugin_version' if component == 'plugin' else 'mcp_version'] = target

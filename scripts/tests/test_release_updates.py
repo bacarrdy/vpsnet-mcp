@@ -151,6 +151,18 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(release.validate_versions(self.root)['mcp_version'], self.next_mcp)
         self.assertEqual((self.root / VERSION_REFERENCE).read_bytes(), installed_version)
 
+    def test_prepare_runtime_leaves_dependency_with_same_version_untouched(self):
+        path = self.root / 'package-lock.json'
+        lock = json.loads(path.read_text())
+        lock['packages']['node_modules/synthetic-same-version'] = {'version': self.mcp_version}
+        path.write_text(json.dumps(lock, indent=2) + '\n')
+        release.prepare(self.root, 'mcp', self.next_mcp)
+        current = json.loads(path.read_text())
+        self.assertEqual(current['version'], self.next_mcp)
+        self.assertEqual(current['packages']['']['version'], self.next_mcp)
+        self.assertEqual(current['packages']['node_modules/synthetic-same-version'], {'version': self.mcp_version})
+        self.assertEqual({k: v for k, v in current['packages'].items() if k}, {k: v for k, v in lock['packages'].items() if k})
+
     def test_stale_version_reference_blocks_validate_build_and_prepare(self):
         path = self.root / VERSION_REFERENCE
         path.write_text('{"schema_version":1,"plugin_version":"0.0.0"}')
