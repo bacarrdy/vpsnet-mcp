@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add `get_application_server_routes` (`applications:read`) and `configure_application_server_routes` (`applications:manage`, idempotent, confirmed) for Managed Applications server routes: customer-owned hostnames routed to the customer's own local services (127.0.0.1:port) with automatic certificates, plus an optional fallback web server. Configure replaces the complete route set under an `expected_revision`. Tool-contract snapshots, scope catalog, remote policy and README updated.
+
 ## 0.6.14 connector / 2.4.1 MCP server — 2026-10-26
 
 Reinstall credentials (PR #2, contract checked against vpsnet_backend master `OsController::store()` / `dedicatedStore()`):

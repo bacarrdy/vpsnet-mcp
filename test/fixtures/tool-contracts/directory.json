@@ -26,6 +26,7 @@
     "clone_network_security_group",
     "configure_application_access",
     "configure_application_resource_thresholds",
+    "configure_application_server_routes",
     "configure_network_public_forwarding",
     "confirm_application_compose_adoption",
     "create_application_recipe",
@@ -77,6 +78,7 @@
     "get_application_installation",
     "get_application_logs",
     "get_application_recipe_validation",
+    "get_application_server_routes",
     "get_automatic_ssl_subscription",
     "get_backup_history",
     "get_backup_status",
@@ -864,6 +866,28 @@
       }
     },
     "configure_application_resource_thresholds": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "applications:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "applications:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "configure_application_server_routes": {
       "set": {
         "_meta": {
           "securitySchemes": [
@@ -2210,6 +2234,28 @@
       }
     },
     "get_application_recipe_validation": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "applications:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "applications:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "get_application_server_routes": {
       "set": {
         "_meta": {
           "securitySchemes": [

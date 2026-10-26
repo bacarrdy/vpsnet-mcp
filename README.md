@@ -707,6 +707,8 @@ everything else.
 | `confirm_application_compose_adoption` | Confirm the exact source takeover after explicit approval | `applications:manage` | free |
 | `install_application` | Queue a confirmed, version-pinned managed installation | `applications:manage` | free |
 | `configure_application_access` | Queue a confirmed platform-hostname, private, public-IP, managed-HTTPS, or customer-managed external-HTTPS access change | `applications:manage` | free |
+| `get_application_server_routes` | Read customer-hostname server routes, fallback, revision, per-route state and DNS status | `applications:read` | free |
+| `configure_application_server_routes` | Replace the complete confirmed set of customer-hostname routes to local services (and optional fallback web server) with automatic certificates | `applications:manage` | free |
 | `configure_application_resource_thresholds` | Replace confirmed non-enforcing application resource thresholds and reached/recovered email preference | `applications:manage` | free |
 | `manage_application` | Compatibility tool for older clients; use the individual actions below | `applications:manage` | free |
 | `reconcile_application` | Reconcile an application with its declared configuration | `applications:manage` | free |

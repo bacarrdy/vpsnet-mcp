@@ -178,6 +178,7 @@ const server = new McpServer(
       "Uninstall permanently deletes the managed containers, configuration, saved credentials, and application data. Existing server backups are retained. Set acknowledge_data_loss=true only after the user explicitly confirms that loss.",
       "install_application and application lifecycle tools are asynchronous. A queued response is not proof that the application is healthy; poll get_application_installation and inspect get_application_events.",
       "Use configure_application_access to change an installed application's access mode. Read the installation first and pass its current revision. When access.request.schema_version=2, submit every exact access.endpoints key once and match the user's requested service by endpoint service and port; array order and primary=true are metadata, not a recommendation. platform_https allocates an opaque VPSnet hostname with automatic DNS and HTTPS; private has no public listener; public_http uses the server's public IP over HTTP; managed_https uses a selected VPSnet-managed DNS zone and may add additional_addresses such as the bare domain without www; external_https records a customer-managed HTTPS address and does not configure or validate DNS, TLS, or the customer's reverse proxy.",
+      "Server routes send a customer's own hostnames to the customer's own local services on a Managed Applications server (hostname to 127.0.0.1:port, automatic certificate once DNS points at the server). Use get_application_server_routes, then configure_application_server_routes with expected_revision and the COMPLETE route set (omitted routes are removed); it needs at least one installed managed application. A customer web server already on ports 80/443 must be pointed at local ports or moved and declared as fallback.",
       "get_application_installation includes bounded application and per-container resource history plus optional display thresholds when the worker supports those measurements. Use configure_application_resource_thresholds only at the user's request. Thresholds highlight CPU, memory, network-per-minute, or restart-delta samples but do not reserve or enforce resources, trigger server actions, or affect billing. Email is disabled by default; when the user enables it, VPSnet sends one reached and one recovered message per threshold episode without repeating while the metric remains high.",
       "Use list_application_registry_credentials only for non-secret private registry credential metadata. Exact custom HTTPS registry hostnames are supported. Registry token creation and rotation are intentionally unavailable through MCP because secrets must not enter model prompts or tool arguments; use the VPSnet panel or direct REST API.",
       "Customer recipes are customer-owned Compose definitions, distinct from VPSnet catalog blueprints. Validation resolves mutable image tags once and returns an immutable digest-pinned Compose definition before checking it on the target worker. Recipe creation and revision tools freeze that exact validated definition; installation runs an exact revision. Export is available only for customer recipes and never for VPSnet catalog recipes.",
@@ -2228,6 +2229,126 @@ server.registerTool(
         `installations/${encodeURIComponent(installation_id)}/configure-access`
       ),
       applicationAccessConfigurationRequestBody(access, expected_revision),
+      { "Idempotency-Key": idempotencyKey }
+    );
+    return {
+      content: [
+        {
+          type: "text",
+          text: safeApplicationMutationResult(status, data, orderNo),
+        },
+      ],
+    };
+  }
+);
+
+server.registerTool(
+  "get_application_server_routes",
+  {
+    description:
+      "Get the server routes of one owned Managed Applications server: customer-owned hostnames routed by the in-guest HTTPS front door to the customer's own local services (for example app.example.com to 127.0.0.1:3000) with an automatic certificate, the optional fallback (the customer's own web server on local ports), the current revision, applied revision, overall state, per-route state and DNS status (ok, missing, elsewhere, unknown, with the A/AAAA records to create), availability and limits. Read this before configure_application_server_routes and pass its revision as expected_revision. Requires applications:read.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+    },
+    annotations: {
+      title: "Get application server routes",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo }) => {
+    const { data } = await apiRequest(
+      "GET",
+      applicationPath(orderNo, "server-routes")
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+const serverRouteHostnameSchema = z
+  .string()
+  .min(1)
+  .max(253)
+  .describe("Customer-owned hostname, for example app.example.com");
+const serverRoutePortSchema = z
+  .number()
+  .int()
+  .min(1024)
+  .max(65535)
+  .refine((port) => ![10080, 10443, 19090].includes(port), {
+    message: "Ports 10080, 10443 and 19090 are reserved",
+  });
+
+server.registerTool(
+  "configure_application_server_routes",
+  {
+    description:
+      "Queue a change of the server routes of one owned Managed Applications server. This REPLACES the COMPLETE set: read get_application_server_routes first, then send the full list of wanted routes and the fallback; a route or fallback that is omitted is removed. Each route sends one customer hostname to 127.0.0.1:<port> on the same server over http or https (ports 1024-65535 except 10080, 10443 and 19090; no host field, upstream is always local; at most 64 routes). The hostname's DNS must point at the server so the automatic certificate can be issued; get_application_server_routes reports the DNS state and the records to create. The server must have at least one installed managed application. Unknown hostnames are never sent to an application (HTTP 421 / TLS unrecognized_name). Coexistence: if the customer runs their own web server (Caddy, nginx, Traefik) on ports 80/443, either point it at local ports instead, or move it to local ports and declare it as fallback ({http_port?, https_port?}); the fallback receives every hostname the front door does not serve (HTTP proxied with its Host header, HTTPS passed through unterminated). Pass expected_revision from the read; a stale revision is refused with applicationServerRoutesRevisionConflict. Confirm the exact full set with the user first. A queued response (202, action type configure_routes) must be verified by polling get_application_server_routes until state is active. Requires applications:manage and is not a paid API-key operation.",
+    inputSchema: {
+      orderNo: applicationOrderNoSchema,
+      expected_revision: z
+        .number()
+        .int()
+        .min(0)
+        .max(Number.MAX_SAFE_INTEGER)
+        .describe("Current revision returned by get_application_server_routes"),
+      routes: z
+        .array(
+          z.object({
+            hostname: serverRouteHostnameSchema,
+            upstream: z.object({
+              scheme: z.enum(["http", "https"]),
+              port: serverRoutePortSchema,
+            }),
+          })
+        )
+        .max(64)
+        .describe(
+          "The COMPLETE wanted set of routes; omitting a route removes it. An empty array removes all routes."
+        ),
+      fallback: z
+        .object({
+          http_port: serverRoutePortSchema.optional(),
+          https_port: serverRoutePortSchema.optional(),
+        })
+        .nullable()
+        .optional()
+        .describe(
+          "The customer's own web server on local ports, receiving every hostname the front door does not serve. null or omitted removes the fallback."
+        ),
+      idempotencyKey: idempotencyKeySchema.describe(
+        "Client-global unique key. Reuse it only to replay this exact request; never reuse it for another service or request."
+      ),
+      confirmed: z
+        .literal(true)
+        .describe("True only after the user confirmed the complete route set"),
+    },
+    annotations: {
+      title: "Configure application server routes",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: true,
+    },
+  },
+  async ({
+    orderNo,
+    expected_revision,
+    routes,
+    fallback,
+    idempotencyKey,
+    confirmed,
+  }) => {
+    const { status, data } = await apiRequest(
+      "PUT",
+      applicationPath(orderNo, "server-routes"),
+      {
+        expectedRevision: expected_revision,
+        routes,
+        fallback: fallback ?? null,
+        confirmed,
+      },
       { "Idempotency-Key": idempotencyKey }
     );
     return {
