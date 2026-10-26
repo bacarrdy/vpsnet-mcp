@@ -23,7 +23,6 @@ async function harness(t, dedicated = false) {
       } else response = { success: true, noty: '11111111-1111-4111-8111-111111111111' };
     } else if (req.url === `${base}/change-os` && req.method === 'POST') {
       if (dedicated && body.confirmReinstall !== true) { res.statusCode = 422; response = { baremetalReinstallConfirmationRequired: true }; }
-      else if (dedicated && body.rootPassword !== undefined) { res.statusCode = 422; response = { baremetalRootPasswordNotSupported: true }; }
       else response = { success: true, reinstall: '11111111-1111-4111-8111-111111111111' };
     } else if (req.url === `${base}/firecracker/backup/status`) {
       response = { success: true, running: 1, total: 2, latest_consistency_attested_by: 'guest_agent' };
@@ -77,11 +76,10 @@ test('history and SSH pagination reach older server records and keys', async t =
   assert.equal(requests.length, before);
 });
 
-test('dedicated reinstall requires exact disk-loss consent and key-only credentials', async t => {
+test('dedicated reinstall requires exact disk-loss consent and supports backend credential choices', async t => {
   const { call, requests } = await harness(t, true);
   assert.equal((await call('reinstall_os', { osVersion: 7 })).isError, true);
   assert.equal((await call('reinstall_os', { osVersion: 7, confirmReinstall: false })).isError, true);
-  assert.equal((await call('reinstall_os', { osVersion: 7, confirmReinstall: true, rootPassword: 'Synthetic123' })).isError, true);
   assert.equal(requests.filter(r => r.method === 'POST').length, 0);
   const result = await call('reinstall_os', { osVersion: 7, confirmReinstall: true, sshKey: 12 });
   assert.notEqual(result.isError, true);
@@ -89,14 +87,21 @@ test('dedicated reinstall requires exact disk-loss consent and key-only credenti
   assert.ok(JSON.parse(result.content[0].text).reinstall);
   await call('reinstall_os', { osVersion: 7, confirmReinstall: true });
   assert.deepEqual(requests.at(-1).body, { osVersion: 7, confirmReinstall: true });
+  assert.notEqual((await call('reinstall_os', { osVersion: 7, confirmReinstall: true, rootPassword: 'Synthetic123' })).isError, true);
+  assert.deepEqual(requests.at(-1).body, { osVersion: 7, confirmReinstall: true, rootPassword: 'Synthetic123' });
+  const before = requests.length;
+  assert.equal((await call('reinstall_os', { osVersion: 7, confirmReinstall: true, rootPassword: 'Synthetic123', sshKey: 12 })).isError, true);
+  assert.equal(requests.length, before, 'Mutually exclusive credentials fail before any backend call');
 });
 
-test('VPS reinstall never forwards dedicated-only fields', async t => {
+test('VPS reinstall rejects dedicated confirmation and forwards account SSH keys', async t => {
   const { call, requests } = await harness(t);
   assert.equal((await call('reinstall_os', { osVersion: 7, confirmReinstall: true, sshKey: 12 })).isError, true);
   assert.equal(requests.filter(r => r.method === 'POST').length, 0);
   assert.notEqual((await call('reinstall_os', { osVersion: 7, rootPassword: 'Synthetic123', confirmSnapshotDelete: true })).isError, true);
   assert.deepEqual(requests.at(-1).body, { osVersion: 7, rootPassword: 'Synthetic123', confirmSnapshotDelete: true });
+  assert.notEqual((await call('reinstall_os', { osVersion: 7, sshKey: 12 })).isError, true);
+  assert.deepEqual(requests.at(-1).body, { osVersion: 7, sshKey: 12 });
 });
 
 test('Firecracker backup reads use correct endpoints, preserve history and remain discoverable', async t => {
