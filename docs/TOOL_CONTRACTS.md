@@ -1,6 +1,6 @@
 # Reviewed tool contracts
 
-Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN site-to-site tools (2.4.0); updated 2026-10-26 for the `reinstall_os` credential contract (2.4.1: no `rootPassword` on the directory profile, `sshKey`/`rootPassword` mutually exclusive elsewhere). These are emitted server contracts, not a claim that a client or directory has refreshed or approved them.
+Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN site-to-site tools (2.4.0); updated 2026-10-26 for the `reinstall_os` credential contract (2.4.1: no `rootPassword` on the directory profile, `sshKey`/`rootPassword` mutually exclusive elsewhere); updated 2026-10-26 for the Managed Applications server-routes tools (2.5.0). These are emitted server contracts, not a claim that a client or directory has refreshed or approved them.
 
 | Fixture | Discovery context | Tool count |
 | --- | --- | ---: |

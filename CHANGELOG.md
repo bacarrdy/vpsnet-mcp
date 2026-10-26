@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.6.15 connector / 2.5.0 MCP server — 2026-10-26
+
+Managed Applications server routes (PR #6, contract checked against vpsnet_backend R74 `c506653d`, `ApplicationsController::serverRoutes()` / `configureServerRoutes()` and `ApplicationServerRouteContract`):
 
 - Add `get_application_server_routes` (`applications:read`) and `configure_application_server_routes` (`applications:manage`, idempotent, confirmed) for Managed Applications server routes: customer-owned hostnames routed to the customer's own local services (127.0.0.1:port) with automatic certificates, plus an optional fallback web server. Configure replaces the complete route set under an `expected_revision`. Tool-contract snapshots, scope catalog, remote policy and README updated.
+- The backend routes `GET`/`PUT /account/services/{orderNo}/applications/server-routes` are live in production since backend R74. Applying a change needs the in-guest runner contract `2026.10.26.1` or newer; an older runner is refused by the backend with 409 `applicationServerRoutesRunnerUpdateRequired`. Tool counts: stdio 331 → 333, directory 252 → 254, orders 259 → 261; no tool is removed or renamed. After the hosted gateway runs 2.5.0, request a publisher rescan where supported.
 
 ## 0.6.14 connector / 2.4.1 MCP server — 2026-10-26
 
