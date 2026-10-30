@@ -1,4 +1,5 @@
 import { reinstallDescription } from "./service-reinstall-contract.js";
+import { createDnsZoneDescription } from "./dns-zone-contract.js";
 import { RemoteAuthError } from './remote-auth-error.js';
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -321,7 +322,7 @@ export function installToolTitles(server: McpServer): void {
 const additiveTools = new Set([
   'create_vm_file',
   'start_service', 'resume_service', 'create_function', 'create_ssh_key',
-  'create_dns_zone', 'create_domain_contact', 'create_domain_glue_record', 'add_domain_parent_ds',
+  'create_domain_contact', 'create_domain_glue_record', 'add_domain_parent_ds',
   'create_free_certificate', 'create_application_recipe', 'create_application_recipe_revision',
   'open_vm_session', 'validate_application_recipe', 'prepare_application_compose_adoption',
 ]);
@@ -420,6 +421,17 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     const inputSchema = { ...(objectSchema ? objectSchema.shape : config.inputSchema as Record<string, z.ZodTypeAny>) };
     let schemaChanged = false;
     const directoryReinstall = name === 'reinstall_os' && profile === 'directory';
+    const hostedDnsCreate = name === 'create_dns_zone';
+    if (hostedDnsCreate) {
+      // Authentication secrets must not pass through hosted model arguments.
+      // This changes dispatch validation too, not just advertised tools/list.
+      for (const field of Object.keys(inputSchema)) {
+        if (field !== 'zone' && field !== 'kind') delete inputSchema[field];
+      }
+      inputSchema.kind = z.literal('native').optional()
+        .describe('Only native zones are supported by this hosted tool. Defaults to native.');
+      schemaChanged = true;
+    }
     if (directoryReinstall) {
       delete inputSchema.rootPassword;
       inputSchema.sshKey = z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional()
@@ -456,11 +468,12 @@ export function installRemotePolicy(server: McpServer, scopes: readonly string[]
     }
     return original(name, {
       ...config,
-      // A cached directory call containing rootPassword must fail, never silently
-      // discard the chosen password and start a different reinstall.
-      inputSchema: directoryReinstall ? z.object(inputSchema).strict()
+      // Refuse cached credential-bearing calls before the handler; never strip
+      // a password/TSIG input and silently perform a different operation.
+      inputSchema: directoryReinstall || hostedDnsCreate ? z.object(inputSchema).strict()
         : objectSchema ? (schemaChanged ? objectSchema.extend(inputSchema) : objectSchema) : inputSchema,
       ...(directoryReinstall ? { description: reinstallDescription(true) } : {}),
+      ...(hostedDnsCreate ? { description: createDnsZoneDescription(true) } : {}),
       title: config.title || (config.annotations as { title?: string } | undefined)?.title || defaultToolTitle(name),
       annotations,
       _meta: { ...(config._meta as object || {}), securitySchemes },

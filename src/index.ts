@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { installToolInputSchemas } from "./tool-schema.js";
+import { createDnsZoneDescription } from "./dns-zone-contract.js";
 import { registerOrderTools } from "./remote-orders.js";
 import { registerRemoteTools } from "./remote-tools.js";
 import { registerReadOnlyContext } from "./read-only-context.js";
@@ -6556,8 +6557,7 @@ server.registerTool(
 server.registerTool(
   "create_dns_zone",
   {
-    description:
-      "Create a forward DNS zone in pending verification state. Native zones are managed here; secondary zones AXFR from public primary DNS servers and require TSIG. Returns the ownership TXT in verificationRecord (name _vpsnet-dns.<zone>). If the value is lost, read get_dns_zone.zone.verification.record.value first; use reissue_dns_zone_verification only when it is null/unrecoverable or the customer requests rotation. The API records the nameservers the parent zone delegates the name to, so the TXT can still be proven at that previous provider after the domain is pointed at VPSnet. warnings: delegatedToPlatform (the domain already points at VPSnet nameservers - keep them, do not point it back) or parentServedByPlatform (the TXT goes in the parent zone); zone.verification.next_step says what to do next. Add the TXT at that location, then call verify_dns_zone. Requires dns:write when using an API key.",
+    description: createDnsZoneDescription(),
     inputSchema: {
       zone: z.string().describe("Zone name, e.g. example.com"),
       kind: dnsZoneKindSchema
@@ -6582,7 +6582,7 @@ server.registerTool(
     },
     annotations: {
       readOnlyHint: false,
-      destructiveHint: false,
+      destructiveHint: true,
       openWorldHint: true,
     },
   },

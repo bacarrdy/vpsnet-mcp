@@ -108,9 +108,10 @@ test('HTTP OAuth discovery, tenant isolation, scoped catalogue, revocation and n
     assert.equal(hints(name)?.destructiveHint, true, `${name} can remove data or disrupt resolution`);
   }
   assert.equal(hints('validate_application_recipe').readOnlyHint, false, 'validation queues work and resolves image tags');
-  for (const name of ['create_application_recipe', 'create_application_recipe_revision', 'create_function', 'create_dns_zone']) {
+  for (const name of ['create_application_recipe', 'create_application_recipe_revision', 'create_function']) {
     assert.equal(hints(name).destructiveHint, false, `${name} adds a resource without replacing one`);
   }
+  assert.equal(hints('create_dns_zone').destructiveHint, true, 'ownership-based restoration can delete stale candidates and publish DNS');
   assert.equal(list.body.result.tools.find(t => t.name === 'run_vm_command').annotations.openWorldHint, true);
   assert.ok(list.body.result.tools.find(t => t.name === 'list_services').inputSchema.properties.page);
   assert.ok(list.body.result.tools.find(t => t.name === 'list_dns_zones').inputSchema.properties.snapshot);

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — DNS create review correction (2026-10-30)
+
+- `create_dns_zone` now discloses ownership-based restoration/publication and stale-candidate deletion. Its destructive hint is true in every profile; backend creation behavior is unchanged.
+- Hosted directory **and orders** profiles accept only native zone creation, without raw TSIG inputs. They use a strict input schema: cached secondary or credential-bearing calls fail before the backend request and never silently become native creates. Configure secondary zones/TSIG in the authenticated VPSnet control panel. Local stdio retains its existing secondary API contract. This is an intentional hosted input restriction, not just a discovery filter; see [review and release notes](docs/DNS_ZONE_REVIEW.md).
+- No tool rename, OAuth scope change, automatic credential migration, publication, or version bump is implied. The provided OpenAI finding names no specific rule; these corrections are independently justified, not a claim that OpenAI approved the tool.
+
 ## 0.6.15 connector / 2.5.0 MCP server — 2026-10-26
 
 Managed Applications server routes (PR #6, contract checked against vpsnet_backend R74 `c506653d`, `ApplicationsController::serverRoutes()` / `configureServerRoutes()` and `ApplicationServerRouteContract`):

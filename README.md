@@ -953,7 +953,7 @@ short-lived quote token.
 | `list_service_dns_options` | List owned zones and service addresses available for DNS attachment | `dns:read` | free |
 | `attach_service_dns_record` | Point an owned-zone name at one service address | `dns:write` | free |
 | `list_dns_zones` | List forward DNS zones owned by the account | `dns:read` | free |
-| `create_dns_zone` | Create a native or secondary zone awaiting ownership TXT verification | `dns:write` | free |
+| `create_dns_zone` | Create a zone; qualifying ownership may restore and publish it. Hosted: native only; local stdio: native or secondary | `dns:write` | free |
 | `get_dns_zone` | Get desired records with IDs and a recoverable ownership TXT value | `dns:read` | free |
 | `reapply_dns_zone` | Retry publication of a published DNS zone whose apply_state is failed. | `dns:write` | free |
 | `get_dns_zone_diagnostics` | Inspect delegation, SOA, DNSSEC, and record hygiene | `dns:read` | free |

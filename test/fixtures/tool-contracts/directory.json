@@ -1010,11 +1010,31 @@
           ]
         },
         "annotations": {
-          "destructiveHint": false,
+          "destructiveHint": true,
           "idempotentHint": false,
           "openWorldHint": true,
           "readOnlyHint": false,
           "title": "Create DNS zone"
+        },
+        "description": "Create a native forward DNS zone in the connected VPSnet account. Secondary zones and their TSIG credentials must be configured in the VPSnet control panel; this hosted tool does not accept authentication secrets. Normally creates pending_verification. With qualifying current ownership proof, the API may instead restore a recently deleted zone and queue immediate publication. Publication can delete stale zone candidates for the same name, including their DNS records and DDNS tokens. Existing live zones are refused; this does not register a domain or change registrar nameservers. Read the returned zone.status and apply_state: queued publication is not proof of live DNS service. When verification is needed, verificationRecord contains the public ownership TXT challenge (_vpsnet-dns.<zone>). Follow zone.verification.next_step and warnings for its location, then call verify_dns_zone. Keep nameservers already delegated to VPSnet. A previous-provider or parent-zone location may be required. If the TXT value is missing, first read get_dns_zone.zone.verification.record.value; reissue_dns_zone_verification rotates it only when unrecoverable or requested by the customer. Requires dns:write.",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "native",
+              "description": "Only native zones are supported by this hosted tool. Defaults to native.",
+              "type": "string"
+            },
+            "zone": {
+              "description": "Zone name, e.g. example.com",
+              "type": "string"
+            }
+          },
+          "required": [
+            "zone"
+          ],
+          "type": "object"
         },
         "securitySchemes": [
           {
