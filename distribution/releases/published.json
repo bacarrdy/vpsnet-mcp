@@ -1,21 +1,21 @@
 {
   "schema_version": 1,
   "plugin": {
-    "version": "0.6.15",
-    "source_commit": "194ed0482189e59e66541a670496c7482db9dbd4",
-    "verified_at": "2026-10-26T15:38:30Z",
-    "url": "https://github.com/bacarrdy/vpsnet-mcp/releases/download/plugin-0.6.15/vpsnet-plugin-0.6.15.zip",
-    "sha256": "93601d693af621c24794776650cbfe56247f9b7d42110dc993b331a9a33a85f1",
-    "ci_run": 40351006212,
+    "version": "0.6.16",
+    "source_commit": "451bd20d9dc202f5b86cd5bbe766816c4a76f754",
+    "verified_at": "2026-10-30T07:51:32.627952Z",
+    "url": "https://github.com/bacarrdy/vpsnet-mcp/releases/download/plugin-0.6.16/vpsnet-plugin-0.6.16.zip",
+    "sha256": "666f783568e49e1ba31e3e3ebf0434a20676a17580253455d6f9d4adbd08b2b6",
+    "ci_run": 41022401319,
     "ci_conclusion": "success"
   },
   "mcp": {
-    "version": "2.3.16",
-    "source_commit": "a8699f966d3ac29037ae2e4c4ab9c32479f79aaa",
-    "verified_at": "2026-10-14T12:49:48.501993+00:00",
-    "url": "https://registry.npmjs.org/vpsnet-mcp/-/vpsnet-mcp-2.3.16.tgz",
-    "sha256": "c0060a738ced7721de4840e08f2280e8d24df04095d9bb542c4220b51c180ee8",
-    "ci_run": 38565958060,
+    "version": "2.6.0",
+    "source_commit": "451bd20d9dc202f5b86cd5bbe766816c4a76f754",
+    "verified_at": "2026-10-30T07:55:54.303434Z",
+    "url": "https://registry.npmjs.org/vpsnet-mcp/-/vpsnet-mcp-2.6.0.tgz",
+    "sha256": "ef4e4e8c401e07122e9ee17f67b7b565763a68c83a5a1d07644d578dd64de21d",
+    "ci_run": 41022401319,
     "ci_conclusion": "success"
   }
 }
