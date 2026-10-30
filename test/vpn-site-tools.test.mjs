@@ -79,3 +79,91 @@ test("VPN site tools are scoped, annotated and send the exact documented request
   await call("create_network_vpn_peer", { gateway_id: GATEWAY, name: "laptop", grants: [], reveal_public_key: REVEAL, idempotencyKey: KEY });
   assert.deepEqual(requests.at(-1).body, { name: "laptop", grants: [], reveal_public_key: REVEAL }, "an ordinary device request stays unchanged");
 });
+
+test("IPsec site creation preserves the protocol, profile and external public reveal key", async t => {
+  const { requests, call } = await harness(t, () => ({ status: 202, body: { peer: { id: PEER, protocol: "ipsec_ikev2" }, operation: { in_progress: true } } }));
+  const body = { name: "branch", grants: ["100.64.0.10"], reveal_public_key: REVEAL, kind: "site_to_site", protocol: "ipsec_ikev2",
+    site: { remote_prefixes: ["192.168.50.0/24"], remote_address: null, vendor: "fortigate", pqc: true, legacy_compat: false }, site_down_alert: true };
+  const result = await call("create_network_vpn_peer", { gateway_id: GATEWAY, ...body, idempotencyKey: KEY });
+  assert.notEqual(result.isError, true);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].path, `/account/networking/appliances/vpn-gateways/${GATEWAY}/peers`);
+  assert.equal(requests[0].headers["idempotency-key"], KEY);
+  assert.deepEqual(requests[0].body, body);
+
+  const wireguard = { ...body, protocol: "wireguard", site: { remote_prefixes: ["192.168.50.0/24"], endpoint: "91.225.104.20:51820", router_model: "mikrotik" } };
+  assert.notEqual((await call("create_network_vpn_peer", { gateway_id: GATEWAY, ...wireguard, idempotencyKey: KEY + "-wg" })).isError, true);
+  assert.deepEqual(requests[1].body, wireguard);
+});
+
+test("incompatible VPN intents and raw secrets are refused before any backend call", async t => {
+  const { requests, call } = await harness(t, () => ({ status: 202, body: {} }));
+  const device = { gateway_id: GATEWAY, name: "device", grants: [], reveal_public_key: REVEAL, idempotencyKey: KEY };
+  const site = { ...device, kind: "site_to_site", protocol: "ipsec_ikev2", grants: ["100.64.0.10"], site: { remote_prefixes: ["192.168.50.0/24"] } };
+  const cases = [
+    { ...device, protocol: "ipsec_ikev2" },
+    { ...device, protocol: "wireguard" },
+    { ...device, site_down_alert: false },
+    { ...device, site: site.site },
+    { ...site, site: { ...site.site, endpoint: "91.225.104.20:51820" } },
+    { ...site, site: { ...site.site, persistent_keepalive_seconds: 25 } },
+    { ...site, protocol: "wireguard", site: { ...site.site, remote_address: null } },
+    { ...site, protocol: "wireguard", site: { ...site.site, vendor: "fortigate" } },
+    { ...site, site: { ...site.site, pqc: true, legacy_compat: true } },
+    { ...site, grants: [] },
+    { ...site, grant_scope: "network" },
+    { ...device, grant_scope: "network", grants: ["100.64.0.10"] },
+    { ...site, site: { ...site.site, psk: "synthetic-secret-must-not-reach-api" } },
+    { ...site, private_key: "synthetic-secret-must-not-reach-api" },
+  ];
+  for (const [index, args] of cases.entries()) {
+    assert.equal((await call("create_network_vpn_peer", args)).isError, true, `invalid intent ${index}`);
+  }
+  assert.equal(requests.length, 0);
+});
+
+test("network-wide device grants preserve scope and do not silently fill individual lists", async t => {
+  const { requests, call } = await harness(t, () => ({ status: 202, body: {} }));
+  const create = { name: "all-servers", grants: [], grant_scope: "network", reveal_public_key: REVEAL };
+  assert.notEqual((await call("create_network_vpn_peer", { gateway_id: GATEWAY, ...create, idempotencyKey: KEY })).isError, true);
+  assert.deepEqual(requests[0].body, create);
+  const update = { gateway_id: GATEWAY, peer_id: PEER, expected_generation: 2, idempotencyKey: KEY + "-update" };
+  assert.notEqual((await call("set_network_vpn_peer_grants", { ...update, grant_scope: "network" })).isError, true);
+  assert.deepEqual(requests[1].body, { expected_generation: 2, grant_scope: "network" });
+  assert.notEqual((await call("set_network_vpn_peer_grants", { ...update, grants: ["100.64.0.10"] })).isError, true);
+  assert.deepEqual(requests[2].body, { expected_generation: 2, grants: ["100.64.0.10"] }, "old request body stays unchanged");
+  assert.equal((await call("set_network_vpn_peer_grants", update)).isError, true);
+  assert.equal((await call("set_network_vpn_peer_grants", { ...update, grant_scope: "network", grants: ["100.64.0.10"] })).isError, true);
+  assert.equal(requests.length, 3);
+});
+
+test("IPsec recipe is a scoped non-consuming read with placeholder-only setup material", async t => {
+  const recipe = { vendor: "fortigate", cli: ["secret = {{PSK}}"], notes: ["Synthetic recipe"] };
+  const { client, requests, call } = await harness(t, () => ({ status: 200, body: recipe }));
+  const tools = (await client.listTools()).tools;
+  const definition = tools.find(tool => tool.name === "get_network_vpn_peer_recipe");
+  assert.equal(definition.annotations.readOnlyHint, true);
+  assert.equal(definition.annotations.destructiveHint, false);
+  assert.match(definition.description, /networking:read/);
+  assert.match(tools.find(tool => tool.name === "get_network_vpn_peer_history").description, /For IPsec, connected means the SA was up/);
+  const result = await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, vendor: "fortigate", lang: "lt" });
+  assert.deepEqual(JSON.parse(result.content[0].text), recipe);
+  assert.equal(requests[0].method, "GET");
+  assert.equal(requests[0].path, `/account/networking/appliances/vpn-gateways/${GATEWAY}/peers/${PEER}/recipe?vendor=fortigate&lang=lt`);
+  assert.equal(requests[0].body, undefined);
+  await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER });
+  assert.equal(requests[1].path, `/account/networking/appliances/vpn-gateways/${GATEWAY}/peers/${PEER}/recipe`);
+  assert.equal((await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, vendor: "unknown_router" })).isError, true);
+  assert.equal(requests.length, 2);
+});
+
+test("unavailable IPsec profile is returned without fallback, retries or another purchase", async t => {
+  const refusal = { reason_code: "vpn_ipsec_pqc_unavailable" };
+  const { requests, call } = await harness(t, () => ({ status: 409, body: refusal }));
+  const result = await call("create_network_vpn_peer", { gateway_id: GATEWAY, name: "branch", grants: ["100.64.0.10"], reveal_public_key: REVEAL,
+    kind: "site_to_site", protocol: "ipsec_ikev2", site: { remote_prefixes: ["192.168.50.0/24"], pqc: true }, idempotencyKey: KEY });
+  assert.equal(result.isError, true);
+  assert.deepEqual(JSON.parse(result.content[0].text), { ...refusal, http_status: 409 });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].body.site.pqc, true);
+});

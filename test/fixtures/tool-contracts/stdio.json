@@ -1723,7 +1723,7 @@
         "readOnlyHint": false,
         "title": "Configure application server routes"
       },
-      "description": "Queue a change of the server routes of one owned Managed Applications server. This REPLACES the COMPLETE set: read get_application_server_routes first, then send the full list of wanted routes and the fallback; a route or fallback that is omitted is removed. Each route sends one customer hostname to 127.0.0.1:<port> on the same server over http or https (ports 1024-65535 except 10080, 10443 and 19090; no host field, upstream is always local; at most 64 routes). The hostname's DNS must point at the server so the automatic certificate can be issued; get_application_server_routes reports the DNS state and the records to create. The server must have at least one installed managed application. Unknown hostnames are never sent to an application (HTTP 421 / TLS unrecognized_name). Coexistence: if the customer runs their own web server (Caddy, nginx, Traefik) on ports 80/443, either point it at local ports instead, or move it to local ports and declare it as fallback ({http_port?, https_port?}); the fallback receives every hostname the front door does not serve (HTTP proxied with its Host header, HTTPS passed through unterminated). Pass expected_revision from the read; a stale revision is refused with applicationServerRoutesRevisionConflict. Confirm the exact full set with the user first. A queued response (202, action type configure_routes) must be verified by polling get_application_server_routes until state is active. Requires applications:manage and is not a paid API-key operation.",
+      "description": "Queue a change of the server routes of one owned Managed Applications server. This REPLACES the COMPLETE set: read get_application_server_routes first, then send the full list of wanted routes and the fallback; a route or fallback that is omitted is removed. Each route sends one customer hostname to 127.0.0.1:<port> on the same server over http or https (ports 1024-65535 except 10080, 10443 and 19090; no host field, upstream is always local; at most 64 routes). The hostname needs verified ownership evidence as well as DNS pointing at the server; pointing DNS alone does not prove ownership. get_application_server_routes reports DNS, per-route state/errors and records to create. Preserve backend refusals, including applicationServerRoutesDeliveredCertificates when delivered certificates prevent enabling routes. Removed hostname claims are not released until the change is applied. The server must have at least one installed managed application. Unknown hostnames are never sent to an application (HTTP 421 / TLS unrecognized_name). Coexistence: if the customer runs their own web server (Caddy, nginx, Traefik) on ports 80/443, either point it at local ports instead, or move it to local ports and declare it as fallback ({http_port?, https_port?}); the fallback receives every hostname the front door does not serve (HTTP proxied with its Host header, HTTPS passed through unterminated). Pass expected_revision from the read; a stale revision is refused with applicationServerRoutesRevisionConflict. Confirm the exact full set with the user first. A queued response (202, action type configure_routes) must be verified by polling get_application_server_routes until state is active. Requires applications:manage and is not a paid API-key operation.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -3365,7 +3365,7 @@
         "readOnlyHint": false,
         "title": "Create network VPN peer"
       },
-      "description": "Add a device, or with kind=site_to_site a connected location (office router), with an externally generated one-time PUBLIC reveal key. Pass 0-16 owned grant-candidate IPv4 addresses: split-tunnel VPNs require at least one; full-tunnel VPNs may use an empty list; a site always needs at least one. A site also needs site.remote_prefixes (its private office ranges) and may set site_down_alert=true for the office-down e-mail; omit kind for an ordinary device. Keep the matching private key entirely outside MCP. The gateway generates the WireGuard key; wait for config_available before consuming its sealed configuration. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Add a WireGuard device, or with kind=site_to_site a connected site, using an externally generated one-time PUBLIC reveal key. For individual access pass 0-16 owned grant-candidate IPv4 addresses: split-tunnel devices require at least one; full-tunnel devices may use an empty list; sites always require at least one. A device may instead use grant_scope=network with grants=[] for all eligible current and future servers of its network; obtain approval for that broader access. Devices must omit protocol, site and site_down_alert. Sites require site.remote_prefixes and may enable site_down_alert. Site protocol defaults to wireguard (endpoint/keepalive and optional router_model); ipsec_ikev2 uses remote_address, vendor and optional mutually exclusive pqc/legacy_compat instead. Before IPsec, read get_network_appliance_capabilities for offered vendors and get_network_vpn_gateway for capabilities.site_ipsec and ipsec_profiles; the gateway must advertise availability. Personal-device IPsec is unsupported. Keep the matching private key entirely outside MCP. The gateway generates the tunnel secret; wait for config_available before consuming the sealed configuration. For IPsec router instructions use get_network_vpn_peer_recipe; never send a raw PSK to MCP. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -3378,6 +3378,14 @@
             "maxLength": 36,
             "minLength": 36,
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "grant_scope": {
+            "description": "servers (default) chooses individual grants; network grants a device every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants and is unavailable for sites.",
+            "enum": [
+              "servers",
+              "network"
+            ],
             "type": "string"
           },
           "grants": {
@@ -3406,46 +3414,124 @@
             "pattern": "^[^\\x00-\\x1f\\x7f]+$",
             "type": "string"
           },
+          "protocol": {
+            "enum": [
+              "wireguard",
+              "ipsec_ikev2"
+            ],
+            "type": "string"
+          },
           "reveal_public_key": {
             "description": "Customer-generated one-time X25519 PUBLIC key only. Keep its private key outside MCP; needed to decrypt the sealed configuration.",
             "pattern": "^[A-Za-z0-9+/]{43}=$",
             "type": "string"
           },
           "site": {
-            "additionalProperties": false,
-            "properties": {
-              "endpoint": {
-                "anyOf": [
-                  {
-                    "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}:\\d{1,5}$",
-                    "type": "string"
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "endpoint": {
+                    "anyOf": [
+                      {
+                        "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}:\\d{1,5}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The office router's fixed public IPv4:port; omit or null to learn a roaming endpoint"
                   },
-                  {
-                    "type": "null"
+                  "persistent_keepalive_seconds": {
+                    "maximum": 600,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "remote_prefixes": {
+                    "description": "The office's PRIVATE IPv4 networks (10/8, 172.16/12, 192.168/16 or 100.64/10), canonical and disjoint",
+                    "items": {
+                      "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}\\/(?:[0-9]|[12][0-9]|3[0-2])$",
+                      "type": "string"
+                    },
+                    "maxItems": 16,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "router_model": {
+                    "enum": [
+                      "mikrotik",
+                      "pfsense",
+                      "opnsense",
+                      "unifi",
+                      "linux",
+                      "other"
+                    ],
+                    "type": "string"
                   }
-                ],
-                "description": "The office router's fixed public IPv4:port; omit or null to learn a roaming endpoint"
-              },
-              "persistent_keepalive_seconds": {
-                "maximum": 600,
-                "minimum": 0,
-                "type": "integer"
-              },
-              "remote_prefixes": {
-                "description": "The office's PRIVATE IPv4 networks (10/8, 172.16/12, 192.168/16 or 100.64/10), canonical and disjoint",
-                "items": {
-                  "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}\\/(?:[0-9]|[12][0-9]|3[0-2])$",
-                  "type": "string"
                 },
-                "maxItems": 16,
-                "minItems": 1,
-                "type": "array"
+                "required": [
+                  "remote_prefixes"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "legacy_compat": {
+                    "description": "Request only when the gateway advertises legacy_compat in ipsec_profiles; cannot be true together with pqc",
+                    "type": "boolean"
+                  },
+                  "pqc": {
+                    "description": "Request only when the gateway advertises pqc in ipsec_profiles; cannot be true together with legacy_compat. Requested PQC is not proof of negotiated post_quantum.",
+                    "type": "boolean"
+                  },
+                  "remote_address": {
+                    "anyOf": [
+                      {
+                        "format": "ipv4",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The site's canonical public IPv4 address; omit or null for a dynamic address. No port. The backend validates address and prefix eligibility."
+                  },
+                  "remote_prefixes": {
+                    "description": "The office's PRIVATE IPv4 networks (10/8, 172.16/12, 192.168/16 or 100.64/10), canonical and disjoint",
+                    "items": {
+                      "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}\\/(?:[0-9]|[12][0-9]|3[0-2])$",
+                      "type": "string"
+                    },
+                    "maxItems": 16,
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "vendor": {
+                    "description": "Advertised router recipe vendor; omitted uses generic_strongswan",
+                    "enum": [
+                      "fortigate",
+                      "mikrotik",
+                      "pfsense",
+                      "opnsense",
+                      "cisco_ios_xe",
+                      "cisco_asa",
+                      "unifi",
+                      "junos_srx",
+                      "panos",
+                      "generic_strongswan",
+                      "generic_libreswan"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "remote_prefixes"
+                ],
+                "type": "object"
               }
-            },
-            "required": [
-              "remote_prefixes"
-            ],
-            "type": "object"
+            ]
           },
           "site_down_alert": {
             "type": "boolean"
@@ -6214,7 +6300,7 @@
         "readOnlyHint": true,
         "title": "Get domain"
       },
-      "description": "Get one owned domain with current nameservers and any pending domain action. Requires domains:read when using an API key.",
+      "description": "Get one owned domain with current nameservers and any pending domain action. An automatic DNSSEC move may report dnssec_transition steps with waiting/retrying states; queued or waiting is not completed. Requires domains:read when using an API key.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -6778,7 +6864,7 @@
         "readOnlyHint": true,
         "title": "Get network appliance capabilities"
       },
-      "description": "Read available load balancer providers/tiers, public qualification, VPN capabilities and quota. Tier availability and prices are returned by the backend, never hardcoded. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read available load balancer providers/tiers, public qualification, VPN capabilities (including technologies and ipsec_vendors) and quota. Tier availability and prices are returned by the backend, never hardcoded. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7089,7 +7175,7 @@
         "readOnlyHint": true,
         "title": "Get network VPN gateway"
       },
-      "description": "Read one owned VPN gateway, current generation, device peers, grant candidates and attachment capability. Each peer (device or connected location) carries its live WireGuard statistics: rx_bytes / tx_bytes, last_handshake_at and current_endpoint (the outer address:port WireGuard last saw; live only, null until learned), plus site_alert and endpoint_conflict for a location. site_options shows hub_and_spoke, hub_and_spoke_applied and route_mode while site-to-site is enabled. For traffic over time use get_network_vpn_peer_history. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read one owned VPN gateway, current generation, peers, grant candidates and attachment capability. Read capabilities.site_ipsec and ipsec_profiles before requesting an IPsec site; availability depends on this gateway's advertised capabilities. Peer grant_scope distinguishes individual servers from network-wide access to current and future eligible servers. WireGuard peers carry rx_bytes / tx_bytes, last_handshake_at and current_endpoint (the outer address:port last observed; live only, null until learned). IPsec sites report SA/liveness and crypto facts: an old CHILD-SA rekey time is not a failed WireGuard handshake, and requested pqc is not observed post_quantum. site_options shows hub_and_spoke, hub_and_spoke_applied and route_mode while site-to-site is enabled. For traffic over time use get_network_vpn_peer_history. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7121,7 +7207,7 @@
         "readOnlyHint": true,
         "title": "Get network VPN peer history"
       },
-      "description": "Read one device's or connected location's WireGuard traffic and handshake history, oldest point first: range 24h = raw 30-second samples (kept 24 h), 7d = 10-minute points and 30d = hourly points (from per-minute rows kept 30 days), 13m = daily UTC points (from hourly rows kept 13 months). rx = bytes the VPN received from the peer, tx = bytes sent to it, connected = a handshake at most 180 s old in the step. A period the VPN did not observe has no point (unknown, never 0). The endpoint IP is live only (current_endpoint on get_network_vpn_gateway) and never part of the history. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read one device's or site's traffic and connection history, oldest point first: range 24h = raw 30-second samples (kept 24 h), 7d = 10-minute points and 30d = hourly points (from per-minute rows kept 30 days), 13m = daily UTC points (from hourly rows kept 13 months). rx = bytes the VPN received from the peer, tx = bytes sent to it. For WireGuard, connected means a handshake at most 180 s old in the step. For IPsec, connected means the SA was up at the sample; its CHILD-SA rekey timestamp is not the WireGuard liveness timer. A period the VPN did not observe has no point (unknown, never 0). The endpoint IP is live only on get_network_vpn_gateway and never part of the history. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7162,6 +7248,70 @@
       },
       "name": "get_network_vpn_peer_history",
       "title": "Get network VPN peer history"
+    },
+    "get_network_vpn_peer_recipe": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get network VPN peer recipe"
+      },
+      "description": "Read router setup instructions for one owned IPsec IKEv2 site. Optional vendor selects an advertised recipe; omit to use the site's saved vendor. Language defaults to en. The recipe contains the literal {{PSK}} placeholder, never the secret: replace it outside MCP using the customer's one-time sealed configuration. Devices, WireGuard sites and revoked sites are refused. Read current gateway capabilities; this tool does not enable IPsec or establish deployment/interoperability. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "lang": {
+            "enum": [
+              "en",
+              "lt"
+            ],
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "vendor": {
+            "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog",
+            "enum": [
+              "fortigate",
+              "mikrotik",
+              "pfsense",
+              "opnsense",
+              "cisco_ios_xe",
+              "cisco_asa",
+              "unifi",
+              "junos_srx",
+              "panos",
+              "generic_strongswan",
+              "generic_libreswan"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_network_vpn_peer_recipe",
+      "title": "Get network VPN peer recipe"
     },
     "get_network_vpn_summary": {
       "annotations": {
@@ -9602,7 +9752,7 @@
         "readOnlyHint": true,
         "title": "List network products"
       },
-      "description": "Read current paid products, live tier names, prices and purchase capability; public proxy load balancer 3/5-node offerings must come from this catalog. Pass an owned network_id to include that target's purchase eligibility and refusal reasons. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read current paid products, live tier names, prices, currently offered period terms and purchase capability; public proxy load balancer 3/5-node offerings must come from this catalog. Pass an owned network_id to include that target's purchase eligibility and refusal reasons. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -11593,6 +11743,12 @@
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
           },
+          "period_months": {
+            "description": "Paid term in months from the current list_network_products catalog; omit for one month. The 1-120 bound is not an offer list. Disclose this term and the exact quoted total before confirmation.",
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
           "tier": {
             "pattern": "^[a-z][a-z0-9_]*$",
             "type": "string"
@@ -12241,6 +12397,12 @@
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
           },
+          "period_months": {
+            "description": "Paid term in months from the current list_network_products catalog; omit for one month. The 1-120 bound is not an offer list. Disclose this term and the exact quoted total before confirmation.",
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
+          },
           "tier": {
             "pattern": "^[a-z][a-z0-9_]*$",
             "type": "string"
@@ -12265,7 +12427,7 @@
         "readOnlyHint": false,
         "title": "Quote network product renewal"
       },
-      "description": "Quote one next paid month for a network product; no charge. Preserve the returned quote and this idempotency key for renewal. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
+      "description": "Quote the selected paid term (one month when omitted) for a network product; no charge. Preserve the returned quote and this idempotency key for renewal. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -12284,6 +12446,12 @@
             "minLength": 36,
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
+          },
+          "period_months": {
+            "description": "Paid term in months from the current list_network_products catalog; omit for one month. The 1-120 bound is not an offer list. Disclose this term and the exact quoted total before confirmation.",
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           },
           "resource_id": {
             "description": "Exact lowercase UUID returned by an owned networking resource",
@@ -12330,6 +12498,12 @@
             "minLength": 36,
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
+          },
+          "period_months": {
+            "description": "Paid term in months from the current list_network_products catalog; omit for one month. The 1-120 bound is not an offer list. Disclose this term and the exact quoted total before confirmation.",
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
@@ -12348,7 +12522,7 @@
         "readOnlyHint": false,
         "title": "Quote public address renewal"
       },
-      "description": "Quote the address's next month without charging; use the returned quote and this key for confirmation. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
+      "description": "Quote the address's selected term (one month when omitted) without charging; use the returned quote and this key for confirmation. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -12367,6 +12541,12 @@
             "description": "Stable Idempotency-Key for this exact intent; reuse unchanged on recovery, never generate a new key for an uncertain result",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{15,189}$(?![\\s\\S])",
             "type": "string"
+          },
+          "period_months": {
+            "description": "Paid term in months from the current list_network_products catalog; omit for one month. The 1-120 bound is not an offer list. Disclose this term and the exact quoted total before confirmation.",
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
@@ -12429,7 +12609,7 @@
         "readOnlyHint": false,
         "title": "Quote VPN period renewal"
       },
-      "description": "Quote the VPN's next month on its actual paid scope; no charge. Availability follows the owned gateway's current capability. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
+      "description": "Quote the VPN's selected term (one month when omitted) on its actual paid scope; no charge. Availability follows the owned gateway's current capability. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -12448,6 +12628,12 @@
             "description": "Stable Idempotency-Key for this exact intent; reuse unchanged on recovery, never generate a new key for an uncertain result",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{15,189}$(?![\\s\\S])",
             "type": "string"
+          },
+          "period_months": {
+            "description": "Paid term in months from the current list_network_products catalog; omit for one month. The 1-120 bound is not an offer list. Disclose this term and the exact quoted total before confirmation.",
+            "maximum": 120,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
@@ -13331,7 +13517,7 @@
         "readOnlyHint": false,
         "title": "Renew VPN period"
       },
-      "description": "Pay the VPN's approved next-month renewal from account balance using the exact quote and original key. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
+      "description": "Pay the VPN's approved quoted renewal term from account balance using the exact quote and original key. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -14483,7 +14669,7 @@
         "readOnlyHint": false,
         "title": "Set domain nameservers"
       },
-      "description": "Queue an asynchronous registrar nameserver change for an owned domain. When applied, the parent zone delegates the domain to the new public nameservers, replacing the prior delegation. Nameservers must be hostnames, not IP addresses; same-domain nameserver IP records are managed separately. This does not manage DNS records or PTR. Requires domains:manage when using an API key.",
+      "description": "Queue an asynchronous registrar nameserver change for an owned domain. When applied, the parent zone delegates the domain to the new public nameservers, replacing the prior delegation. Nameservers must be hostnames, not IP addresses; same-domain nameserver IP records are managed separately. This does not manage DNS records or PTR. Follow returned dnssec_transition steps until done; preserve parentDsUnreadable or parentDsRemovalRequired refusals and do not bypass an active transition with manual DS edits. Requires domains:manage when using an API key.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -14857,7 +15043,7 @@
         "readOnlyHint": false,
         "title": "Set network VPN peer grants"
       },
-      "description": "Replace the device's complete reachable-server list when standalone VPN is available. Empty list removes server grants; use gateway generation. Check routes_update on the resulting peer for changes the customer must make to AllowedIPs. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Replace the peer's complete server-access choice using the gateway generation. Read the gateway and current grant_scope first. Omitted grant_scope means servers: supply the full 0-16 address list; this also disables a device's previous network-wide access to future servers, even if today's list is unchanged. Empty grants removes a device's server access; a site still needs at least one grant. grant_scope=network is device-only: omit grants or send [] to allow every eligible current and future server of the network, subject to network security policy. Confirm that scope and its effects. Check routes_update for required customer router/client changes. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -14875,6 +15061,14 @@
             "maxLength": 36,
             "minLength": 36,
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "grant_scope": {
+            "description": "servers (default) chooses individual grants; network grants a device every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants and is unavailable for sites.",
+            "enum": [
+              "servers",
+              "network"
+            ],
             "type": "string"
           },
           "grants": {
@@ -14902,7 +15096,6 @@
           "gateway_id",
           "peer_id",
           "expected_generation",
-          "grants",
           "idempotencyKey"
         ],
         "type": "object"
@@ -15487,7 +15680,7 @@
         "readOnlyHint": false,
         "title": "Take network VPN peer config"
       },
-      "description": "Consume the device's sealed configuration ONCE. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys. Save the returned sealed payload externally; a second pickup is 410. Never retry automatically after an uncertain transport result. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Consume a device's or site's sealed configuration ONCE, including the sealed IPsec site material when applicable. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys or a raw PSK. Save and decrypt the returned sealed payload outside MCP; a second pickup is 410. Never retry automatically after an uncertain transport result. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },

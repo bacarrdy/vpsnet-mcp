@@ -55,7 +55,7 @@ async function harness(t, { snapshots = 1, pending = false } = {}) {
 test("advertised snapshot and dedicated consent stay optional and are never defaulted", async t => {
   const { client, requests } = await harness(t);
   const tools = (await client.listTools()).tools;
-  assert.equal(tools.length, 333);
+  assert.equal(tools.length, 334);
   const tool = tools.find(tool => tool.name === "reinstall_os");
   assert.match(tool.description, /cannot provide rollback after reinstall/);
   assert.doesNotMatch(tool.description, /take one first|DELETE it once the reinstall succeeds/);

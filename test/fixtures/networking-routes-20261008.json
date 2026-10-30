@@ -677,6 +677,15 @@
       "action": "vpnPeerHistory",
       "spec": "appliances-v1.yml",
       "added": "2026-10-18 (backend 268ca39ab958d222df1337e0e3eb7d69c4d3848f)"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/recipe",
+      "controller": "ApplianceController",
+      "action": "vpnPeerRecipe",
+      "backend_commit": "779254fe25961acd2f3360770756647f5d689def",
+      "audited_at": "2026-10-30",
+      "source": "routes.php / app/Http/Controllers/User/ApplianceController.php / app/Services/Appliance/VpnPeerRepository.php"
     }
   ],
   "excluded": [

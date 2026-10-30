@@ -1056,7 +1056,8 @@ resource. DNS changes are polled through the network's `settings.dns_change`.
 New private/public load balancers, VPNs and public addresses use an explicit
 quote → common checkout → order-status flow. Quote tools always send
 `prepare_after_payment=true`: no provisioning happens before payment.
-Show the quote's exact EUR `gross_amount`, obtain approval, and pass the same
+Choose `period_months` only from the live catalog's offered terms (omission is one month).
+Show the quoted term and exact EUR `gross_amount`, obtain approval, and pass the same
 `idempotencyKey`, `quote_id` and `quoteToken` to `order_network_product`.
 API keys additionally need full access, enabled paid operations,
 `networking:order`, and spend limits. Read `get_network_payment_methods` and
@@ -1084,12 +1085,28 @@ not an alternative to checkout.
 Device configuration pickup is a one-time **management** action, even though
 its HTTP method is GET. Generate the reveal key pair outside MCP, submit only
 the X25519 public key, save the returned sealed ciphertext, and decrypt it
-outside the conversation. Neither private keys nor plaintext WireGuard
-configuration are requested or decrypted by these tools. Never automatically
+outside the conversation. Neither private keys, plaintext WireGuard configuration nor IPsec PSKs are
+requested or decrypted by these tools. Router recipes retain a literal PSK
+placeholder; fill it only in the customer's external configuration workflow. Never automatically
 repeat a pickup after an uncertain response.
 
-The current backend has no customer network rename, existing-port fixed-IP
-edit, appliance retry, or native site-to-site API in this release. Fixed DHCP
+For personal devices use WireGuard; IPsec IKEv2 is a site-to-site option only.
+Read the selected gateway's `capabilities.site_ipsec` and `ipsec_profiles`
+before selecting the protocol, vendor or cipher mode. A listed tool does not
+prove an older gateway image supports IPsec. Read router recipes with
+`get_network_vpn_peer_recipe`; don't use a different vendor profile than the
+one used to create the peer unless the returned API guidance supports it.
+For IPsec, connected means an established SA and the handshake timestamp is a
+CHILD-SA rekey; WireGuard uses its recent-handshake status.
+
+Device `grant_scope=network` authorizes eligible current and future servers in
+the attached private network, still subject to network security policy. Obtain
+that broader authorization explicitly. Selected-server access uses
+`grant_scope=servers`; replacing grants without a scope also selects servers,
+so inspect and preserve the intended scope when editing an existing device.
+
+This release exposes no customer network rename, existing-port fixed-IP edit,
+or appliance restart/rebuild tools. Fixed DHCP
 addresses are selected at attach; removing/recreating an attachment requires
 separate approval and is not represented as an in-place edit. Legacy unpaid
 LB/VPN create routes, legacy stock-before-payment purchases and enabling
@@ -1147,7 +1164,7 @@ feature gate.
 | `add_network_load_balancer_listener` | Add a listener and optional initial members using currently offered protocol capabilities | `networking:manage` | free |
 | `remove_network_load_balancer_listener` | Remove a listener and its members; deleting the last listener is refused. | `networking:manage` | free |
 | `list_network_vpn_gateways` | List owned VPN gateways, their device peers and safe status | `networking:read` | free |
-| `get_network_vpn_gateway` | Read one owned VPN gateway, its peers with live rx/tx, last handshake and current endpoint, grant candidates and site options | `networking:read` | free |
+| `get_network_vpn_gateway` | Read one owned VPN gateway, protocol-specific peer status, IPsec capabilities/profiles, device grant scopes and site options | `networking:read` | free |
 | `delete_network_vpn_gateway` | Request teardown of an owned VPN gateway; all devices lose connectivity | `networking:manage` | free |
 | `attach_network_vpn_gateway` | Attach or move an account VPN to an owned network only when standalone attachment is advertised | `networking:manage` | free |
 | `detach_network_vpn_gateway` | Detach an account VPN from its network when supported; it keeps its paid period and devices but recreates the gateway | `networking:manage` | free |
@@ -1158,6 +1175,7 @@ feature gate.
 | `set_network_vpn_peer_grants` | Replace the device's complete reachable-server list when standalone VPN is available | `networking:manage` | free |
 | `get_network_vpn_egress_options` | Read supported VPN Internet exits and qualification | `networking:read` | free |
 | `set_network_vpn_peer_egress` | Set a device's private-only, inherited NAT, or advertised chosen exit policy | `networking:manage` | free |
+| `get_network_vpn_peer_recipe` | Read public IPsec router instructions with a PSK placeholder; no secret retrieval | `networking:read` | free |
 | `get_network_vpn_peer_history` | Read a device's or connected location's traffic and handshake history (24 h raw, 7 d, 30 d, 13 months) | `networking:read` | free |
 | `set_network_vpn_site_options` | Switch hub-and-spoke between the locations connected to a VPN | `networking:manage` | free |
 | `set_network_vpn_site_alert` | Switch the office-down e-mail of one connected location | `networking:manage` | free |

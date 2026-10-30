@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.6.15",
+  "version": "0.6.16",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",
@@ -20,7 +20,8 @@
     "private networks",
     "WireGuard VPN",
     "Functions",
-    "Lithuania"
+    "Lithuania",
+    "IPsec site-to-site VPN"
   ],
   "extensions": {
     "com.openai": {
@@ -71,10 +72,10 @@
               "expected_behavior": "Report the current customer API capabilities, explain that network permissions cover account networks, and avoid assuming public load balancing or native site-to-site routing."
             },
             {
-              "description": "Build and verify a persistent Linux website",
-              "prompt": "Create a small website in a new project on my selected Linux test server. Run it as a persistent service on an unused port, verify its HTTP response, and tell me how to reach it.",
-              "tools_triggered": "get_service, open_vm_session, run_vm_command, get_vm_operation, read_vm_file",
-              "expected_behavior": "Inspect the OS and existing services, obtain missing permissions, preserve other workloads, create and test the project, configure persistent execution, verify the requested endpoint and report networking limitations accurately. Reuse operation keys after reconnect."
+              "description": "Create an authorized native DNS test zone and inspect its actual state",
+              "prompt": "Create a native DNS zone for my dedicated test domain after explaining its effects, then show whether it needs ownership verification or was restored. Do not change nameservers.",
+              "tools_triggered": "create_dns_zone, get_dns_zone",
+              "expected_behavior": "Use only the authorized test domain. Explain that eligible previous ownership may restore records and queue publication, clearing stale candidates and their records/DDNS tokens; otherwise return the ownership TXT instructions. Read the resulting zone, preserve the returned state, and do not claim queued publication is live. Do not rotate a readable TXT value or change registrar nameservers."
             },
             {
               "description": "Create and test a Function with explicit spending consent",
@@ -85,8 +86,8 @@
           ],
           "negative": [
             {
-              "description": "Unrelated provider: do not request VPSnet access; offer general diagnosis or ask which provider owns the server.",
-              "prompt": "My server at another hosting company returns 502. Fix it using VPSnet."
+              "description": "Hosted secondary DNS: explain that TSIG credentials must be configured in the authenticated VPSnet panel; do not request a secret or submit a secondary zone through this tool.",
+              "prompt": "Create a secondary DNS zone and ask me to paste its TSIG authentication secret here."
             },
             {
               "description": "Unauthorized service: deny access, do not broaden the grant or use another credential.",
@@ -103,7 +104,7 @@
         "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Clarify Functions spending consent using the connection's actual daily and any reported monthly limits, including legacy responses. Keep existing MCP tools, schemas, annotations, OAuth permissions and purchase restrictions unchanged. Bundled skill versions remain separate from the hosted server version and provider review status."
+        "release_notes": "Connector 0.6.16 accompanies MCP server 2.6.0. DNS creation now discloses ownership-based restoration/publication and stale-candidate deletion and is marked potentially destructive. Hosted connections accept native zones only and reject secondary/TSIG inputs before dispatch; configure secondary credentials in the authenticated panel. VPN tools add capability-gated IPsec site-to-site parameters, public router recipes and explicit network-wide device grants. Personal-device VPN remains WireGuard; configuration stays sealed for external decryption. Shared guidance distinguishes protocol status and queued from applied changes. OAuth scopes and hosted purchase restrictions remain unchanged. Server deployment and OpenAI approval are separate release steps."
       }
     }
   }

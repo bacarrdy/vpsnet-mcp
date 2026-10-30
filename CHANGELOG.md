@@ -1,10 +1,17 @@
 # Changelog
 
-## Unreleased — DNS create review correction (2026-10-30)
+## 0.6.16 connector / 2.6.0 MCP server — 2026-10-30
 
-- `create_dns_zone` now discloses ownership-based restoration/publication and stale-candidate deletion. Its destructive hint is true in every profile; backend creation behavior is unchanged.
-- Hosted directory **and orders** profiles accept only native zone creation, without raw TSIG inputs. They use a strict input schema: cached secondary or credential-bearing calls fail before the backend request and never silently become native creates. Configure secondary zones/TSIG in the authenticated VPSnet control panel. Local stdio retains its existing secondary API contract. This is an intentional hosted input restriction, not just a discovery filter; see [review and release notes](docs/DNS_ZONE_REVIEW.md).
-- No tool rename, OAuth scope change, automatic credential migration, publication, or version bump is implied. The provided OpenAI finding names no specific rule; these corrections are independently justified, not a claim that OpenAI approved the tool.
+Contract reconciliation against backend `c506653d..779254fe25961acd2f3360770756647f5d689def` uses routes and implementations as well as changelogs; the backend root changelog did not record this interval's changes.
+
+- `create_dns_zone` discloses ownership-based restoration/publication and stale-candidate deletion. Its destructive hint is true in every profile; backend creation behavior is unchanged.
+- Hosted directory **and orders** profiles accept native zones only, with strict rejection of secondary/TSIG fields before API dispatch. Existing secondary calls never silently become native creates. Configure secondary credentials in the authenticated VPSnet panel; local stdio keeps its existing secondary API. See [DNS review correction](docs/DNS_ZONE_REVIEW.md).
+- VPN peer creation supports WireGuard or IPsec IKEv2 **site-to-site** profiles, subject to the selected gateway's advertised capabilities and profile/vendor support. Personal devices remain WireGuard. `get_network_vpn_peer_recipe` reads public router instructions containing a PSK placeholder; actual configuration remains sealed for external decryption. No raw PSK/private-key input is added.
+- Device grants explicitly support selected servers or the entire eligible current/future private network. Replacing grants must preserve the intended `grant_scope`; omission selects individual servers. Neither mode bypasses security policy.
+- Existing local stdio network purchase/renewal quotes accept `period_months` from the live catalog. Approval binds the exact quoted term and total; hosted connectors still expose no checkout/purchase tools.
+- Correct outdated site-to-site, protocol-health, DNSSEC-transition and application-route guidance. Tool names, existing OAuth scope names and the MCP endpoint stay stable; one read-only router recipe tool is added. Prepared contract counts: stdio 334, directory 255, orders 262.
+- npm 2.6.0 also includes the earlier 2.4.x/2.5.0 source changes below, which were not published to npm after 2.3.16: service files and transfer fixes, reinstall credentials, DNS delete consent and Managed Applications server routes. GitHub plugin releases and the hosted gateway have independent version histories.
+- The supplied OpenAI finding names no specific rule. These corrections follow verified behavior and published requirements; neither a source release nor passing local checks implies OpenAI approval.
 
 ## 0.6.15 connector / 2.5.0 MCP server — 2026-10-26
 

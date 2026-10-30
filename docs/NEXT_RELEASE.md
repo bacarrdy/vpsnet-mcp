@@ -1,48 +1,47 @@
-# Prepared connector 0.6.12 / MCP server 2.4.0
+# Connector 0.6.16 / MCP server 2.6.0
 
-Prepared on 2026-10-18 from `df1b6c7` (connector 0.6.11 / MCP 2.3.16, both
-published). Version files identify the local candidate 0.6.12 / 2.4.0; the
-publication feed remains at the verified 0.6.11 / 2.3.16. No publication, remote
-deployment, catalog propagation, authenticated OpenAI rescan or Smithery scan is
-implied by these source changes or local test results.
+Prepared October 30, 2026. Backend comparison: `c506653d` through
+`779254fe25961acd2f3360770756647f5d689def`, using customer routes, controllers
+and contract services; the backend root changelog is incomplete for this period.
+See [CHANGELOG](../CHANGELOG.md) and [DNS correction](DNS_ZONE_REVIEW.md).
 
-## Integrated changes
+## Included
 
-Source of truth: vpsnet_backend `268ca39ab958d222df1337e0e3eb7d69c4d3848f`
-(`spec/api-description-v1.yml` service-file routes, `spec/appliances-v1.yml` VPN
-site routes, `routes.php`).
+- Truthful DNS restoration/publication effects and destructive hint; strict
+  native-only hosted input; local secondary support retained.
+- Capability-gated IPsec site-to-site inputs, public router recipe read,
+  explicit device grant scope and protocol-specific health guidance.
+- Catalog-selected terms on existing local network quote tools, without
+  expanding hosted purchase capabilities.
+- Corrected bundled skills and OpenAI review cases/release notes.
+- Earlier source changes since the last npm publication, 2.3.16, remain included.
 
-| Area | Added or changed |
-| --- | --- |
-| Service files (API key `files:read` / `files:manage`, hosted `vm:files:read` / `vm:files:write`) | 13 tools on both transports: capabilities, list, stat, read, search, operation, mkdir, move, delete, write (CAS), list/abort uploads, extract |
-| Service files, stdio only | `upload_service_file`, `download_service_file`, `get_service_file_download_url` |
-| VPN (`networking:read` / `networking:manage`) | `get_network_vpn_peer_history`, `set_network_vpn_site_options`, `set_network_vpn_site_alert`, `set_network_site_route_mode`; `create_network_vpn_peer` site-to-site fields; gateway description lists live peer statistics |
+## Publication and deployment evidence
 
-## Tool contract changes
+Source versions, GitHub releases, npm tarballs, hosted runtime and OpenAI review
+are separate. Record publication receipts only after validating actual public
+bytes and exact-source CI. The production gateway observed before this update
+still ran 2.4.1 (`eb957787983a44cf7d1d64924047a0b95735ee63`), while GitHub's latest
+plugin was 0.6.15; prepared 2.5.0 artifacts did not prove production activation.
 
-| Local fixture profile | Before / after count |
-| --- | --- |
-| stdio | 311 / 331 |
-| directory (`services:read`) | 235 / 252 |
-| orders (`services:read orders:read orders:servers orders:domains`) | 242 / 259 |
+Use `vpsnet-plugin-0.6.16.zip` for the existing OpenAI plugin. The generic
+`vpsnet-agent-plugin` ZIP deliberately removes OpenAI-specific metadata.
+A ZIP cannot update a remote tool schema: deploy the tested server, verify its
+tools/list metadata, then refresh the existing OpenAI submission. The generic
+further-review finding does not identify a violated rule or guarantee acceptance.
+Reviewer-account cases and provider approval are separate from local synthetic tests.
 
-Changed existing descriptors: `create_network_vpn_peer` (description and three
-optional input fields; the device request body is unchanged), `get_network_vpn_gateway`
-and `get_network_vpn_summary` (descriptions). No tool is removed or renamed. The
-impact policy records the new file tools' effects; snapshots were refreshed with an
-explicit review reason.
+## Deliberate exclusions
 
-## Backend and release boundaries
+No App Cloud activation; no API-key-forbidden WHOIS privacy write; no raw TSIG
+or PSK input in hosted DNS/VPN tools. New VPN restart/rebuild and payment-receipt
+helper endpoints remain outside this release's MCP surface. Their absence is
+not a promise that all current backend capabilities are exposed.
 
-The file manager is gated on the backend (`SERVICE_FILES_ENABLED`, plus
-`SERVICE_FILES_VDS_ENABLED` for Cloud VPS and `SERVICE_FILES_FC_ENABLED` plus the
-guest agent capability for Firecracker); while off the tools answer
-`filesUnavailable` with the reason. VPN site routes answer 503
-`vpn_site_routing_unavailable` while `APPLIANCE_VPN_SITE_TO_SITE_ENABLED` is off.
-Hosted exposure needs the gateway deployment and directory rescans as separate steps.
+## Required release checks
 
-## Validation
-
-`npm test`, `npm run docs:tools:check`, `node scripts/tool-contracts.mjs --check`
-and `python3 scripts/release.py validate` pass locally; wait for the contract CI
-on Node 20 and 22 at the exact commit before publication.
+Run the full npm tests, generated tool reference check, reviewed three-profile
+contract snapshots and release validation. Require Node 20 and 22 GitHub CI on
+the exact release commit, inspect final archives and verify published hashes.
+Hosted activation keeps existing OAuth, service and proxy configuration and
+retains the previous immutable runtime for rollback.
