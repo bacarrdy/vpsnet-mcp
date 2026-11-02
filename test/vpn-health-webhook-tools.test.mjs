@@ -6,6 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createVpsnetServer } from '../build/index.js';
+import { safeVpnWebhookPayload } from '../build/networking-tools.js';
 
 const gateway_id = '2f186a34-88a3-49fc-93e8-71931b212867';
 const peer_id = 'a22093d5-985a-443c-9a93-e0dcf6609d84';
@@ -14,7 +15,7 @@ const reveal_public_key = Buffer.alloc(32, 1).toString('base64');
 const sealed_secret = {
   ephemeral_public_key: Buffer.alloc(32, 2).toString('base64'),
   nonce: Buffer.alloc(24, 3).toString('base64'),
-  ciphertext: Buffer.alloc(64, 4).toString('base64'),
+  ciphertext: Buffer.alloc(93, 4).toString('base64'),
 };
 const path = `/account/networking/appliances/vpn-gateways/${gateway_id}/peers/${peer_id}/health-webhooks`;
 const destination = 'https://hooks.example.com/private/integration-token';
@@ -155,4 +156,25 @@ test('malformed sealed_secret cannot smuggle extra plaintext fields', async t =>
   assert.equal(content(result).sealed_secret, '[invalid sealed material]');
   assert.equal(content(result).private_url, undefined);
   assert.doesNotMatch(JSON.stringify(result), /raw-fixture-secret|private\/integration-token/);
+});
+
+test('webhook projection accepts the backend envelope size and rejects malformed or oversized ciphertext', () => {
+  const subscription = { id: subscription_id, url: destination, enabled: true, last_delivery: null };
+  const project = sealed => safeVpnWebhookPayload({ subscription, sealed_secret: sealed, secret: 'raw-fixture-secret' }, 201);
+  const valid = project(sealed_secret);
+  assert.deepEqual(valid.sealed_secret, sealed_secret);
+  assert.equal(valid.subscription.url, 'https://hooks.example.com');
+  assert.equal(valid.secret, undefined);
+  for (const ciphertext of [
+    Buffer.alloc(92, 4).toString('base64'), // same encoded length as 93 bytes
+    Buffer.alloc(94, 4).toString('base64'), // one byte over the backend envelope
+    Buffer.alloc(131072, 4).toString('base64'), // reviewer reproduction, canonical and oversized
+    sealed_secret.ciphertext.slice(0, -1) + '!', // invalid base64 at the expected length
+  ]) {
+    const projected = project({ ...sealed_secret, ciphertext });
+    assert.equal(projected.sealed_secret, '[invalid sealed material]');
+    assert.equal(projected.subscription.url, 'https://hooks.example.com');
+    assert.equal(projected.secret, undefined);
+    assert.doesNotMatch(JSON.stringify(projected), /private\/integration-token|raw-fixture-secret/);
+  }
 });

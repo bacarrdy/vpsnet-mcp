@@ -390,12 +390,16 @@ export function safeVpnPayload(data: unknown, status: number): unknown {
           if (!item || typeof item !== "object" || Array.isArray(item)) { out.sealed_secret = "[invalid sealed material]"; continue; }
           const sealed = item as Record<string, unknown>;
           const names = Object.keys(sealed).sort();
-          const valid = (value: unknown, bytes?: number) => typeof value === "string" && value.length > 0
-            && Buffer.from(value, "base64").toString("base64") === value
-            && (bytes === undefined || Buffer.from(value, "base64").length === bytes);
+          const valid = (value: unknown, bytes: number) => {
+            if (typeof value !== "string" || value.length !== 4 * Math.ceil(bytes / 3)) return false;
+            const decoded = Buffer.from(value, "base64");
+            return decoded.length === bytes && decoded.toString("base64") === value;
+          };
+          // Backend seals {"secret":"<64 hex chars>"}: 77 JSON bytes plus the 16-byte NaCl box MAC.
+          const ciphertextBytes = 93;
           if (JSON.stringify(names) !== JSON.stringify(["ciphertext", "ephemeral_public_key", "nonce"])
-              || !valid(sealed.ephemeral_public_key, 32) || !valid(sealed.nonce, 24) || !valid(sealed.ciphertext)
-              || Buffer.from(sealed.ciphertext as string, "base64").length < 16) {
+              || !valid(sealed.ephemeral_public_key, 32) || !valid(sealed.nonce, 24)
+              || !valid(sealed.ciphertext, ciphertextBytes)) {
             out.sealed_secret = "[invalid sealed material]"; continue;
           }
           out.sealed_secret = { ephemeral_public_key: sealed.ephemeral_public_key, nonce: sealed.nonce, ciphertext: sealed.ciphertext };
