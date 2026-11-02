@@ -85,8 +85,19 @@ const ipsecSitePeer = z.object({
 const grantScope = z.enum(["servers", "network"])
   .describe("servers (default) chooses individual grants; network grants a device every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants and is unavailable for sites.");
 const publicKey = z.string().regex(/^[A-Za-z0-9+/]{43}=$/)
-  .refine(value => Buffer.from(value, "base64").length === 32)
+  .refine(value => Buffer.from(value, "base64").length === 32 && Buffer.from(value, "base64").toString("base64") === value)
   .describe("Customer-generated one-time X25519 PUBLIC key only. Keep its private key outside MCP; needed to decrypt the sealed configuration.");
+const webhookUrl = z.string().min(1).max(2048).refine(value => {
+  if (!value.startsWith("https://") || /[\x00-\x20\x7f\\?#]/.test(value)) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && !parsed.username && !parsed.password && !parsed.search && !parsed.hash
+      && (parsed.port === "" || parsed.port === "443")
+      && parsed.hostname.length <= 253
+      && /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/.test(parsed.hostname)
+      && value.slice(8).split("/")[0].toLowerCase() === value.slice(8).split("/")[0];
+  } catch { return false; }
+}, "Use a public HTTPS DNS endpoint on port 443 without credentials, query or fragment; the backend verifies public DNS addresses.");
 const reach = z.object({ load_balancers: z.boolean(), floating_ips: z.boolean() }).strict();
 const routerInputs = z.record(z.union([z.string().max(256), z.number().int().safe()]))
   .refine(values => Object.keys(values).length <= 32 && Object.keys(values).every(k => /^[a-z][a-z0-9_]{1,31}$/.test(k) && !/(?:secret|password|private|psk|token|key)/i.test(k)),
@@ -120,7 +131,7 @@ type Fields = z.ZodRawShape;
 type Options = {
   idempotent?: boolean; paid?: boolean; quote?: boolean; readOnly?: boolean;
   query?: string[]; fixedQuery?: Record<string, string>; fixedBody?: Record<string, unknown>; destructive?: boolean;
-  validate?: (input: Record<string, unknown>) => void;
+  validate?: (input: Record<string, unknown>) => void; bodyless?: boolean;
 };
 export type NetworkingTool = {
   name: string; method: string; path: string; description: string;
@@ -250,6 +261,9 @@ export const networkingTools: NetworkingTool[] = [
   tool("revoke_network_vpn_peer", "DELETE", peer, "Revoke one device using the VPN GATEWAY generation. Its tunnel access ends after the next applied configuration.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("set_network_vpn_peer_grants", "PUT", `${peer}/grants`, "Replace the peer's complete server-access choice using the gateway generation. Read the gateway and current grant_scope first. Omitted grant_scope means servers: supply the full 0-16 address list; this also disables a device's previous network-wide access to future servers, even if today's list is unchanged. Empty grants removes a device's server access; a site still needs at least one grant. grant_scope=network is device-only: omit grants or send [] to allow every eligible current and future server of the network, subject to network security policy. Confirm that scope and its effects. Check routes_update for required customer router/client changes.", { expected_generation: generation, grants: z.array(ipv4).max(16).optional(), grant_scope: grantScope.optional() }, { idempotent: true, destructive: true, validate: validateVpnPeerGrants }),
   tool("get_network_vpn_peer_history", "GET", `${peer}/history`, "Read one device's or site's traffic and connection history, oldest point first: range 24h = raw 30-second samples (kept 24 h), 7d = 10-minute points and 30d = hourly points (from per-minute rows kept 30 days), 13m = daily UTC points (from hourly rows kept 13 months). rx = bytes the VPN received from the peer, tx = bytes sent to it. For WireGuard, connected means a handshake at most 180 s old in the step. For IPsec, connected means the SA was up at the sample; its CHILD-SA rekey timestamp is not the WireGuard liveness timer. A period the VPN did not observe has no point (unknown, never 0). The endpoint IP is live only on get_network_vpn_gateway and never part of the history.", { range: z.enum(["24h", "7d", "30d", "13m"]) }, { query: ["range"] }),
+  tool("list_network_vpn_site_health_webhooks", "GET", `${peer}/health-webhooks`, "List this owned site's signed health subscriptions and last delivery outcomes. Destination URLs are shown as public HTTPS hosts only; stored paths and signing material are never returned. Health is the VPN-side observation, not a test from the customer's LAN."),
+  tool("create_network_vpn_site_health_webhook", "POST", `${peer}/health-webhooks`, "Create a signed site health subscription. Supply a public HTTPS DNS endpoint on port 443 and a caller-generated X25519 PUBLIC reveal key; keep the private half outside MCP. The immediate 201 response contains the subscription and a one-time sealed_secret envelope, not a raw signing secret. Decrypt it outside MCP to configure the receiver. Verify timestamp, exact-body HMAC and event-ID deduplication at the receiver. After an uncertain outcome, list subscriptions before deciding whether to create another; this route has no idempotency key or operation ID.", { url: webhookUrl, reveal_public_key: publicKey }, {}),
+  tool("delete_network_vpn_site_health_webhook", "DELETE", `${peer}/health-webhooks/{subscription_id}`, "Remove this owned site's subscription and cancel pending deliveries. The immediate 200 result is {removed:true}; a missing subscription returns 404. Check the list after an uncertain outcome; this route has no operation ID.", {}, { destructive: true, bodyless: true }),
   tool("get_network_vpn_peer_recipe", "GET", `${peer}/recipe`, "Read backend-sourced router setup instructions for one owned IPsec IKEv2 site. Optional vendor, language, line selection and version/inputs preview use the backend recipe catalogue. The recipe contains a literal {{PSK}} placeholder, never the secret. Unsupported router/BGP/line combinations are refused, not replaced by a static recipe.", { vendor: ipsecVendor.optional(), lang: z.enum(["en", "lt"]).optional(), lines: z.enum(["all", "2"]).optional(), version: z.string().max(64).optional(), inputs: recipeInputs.optional() }, { query: ["vendor", "lang", "lines", "version", "inputs"] }),
   tool("save_network_vpn_router_setup", "PUT", `${peer}/router-setup`, "Save nonsecret backend-catalogue router version and local interface/zone fields for an IPsec site, optionally line 2. This changes saved setup guidance, not the tunnel. The backend validates vendor, version and fields.", { vendor: ipsecVendor, line: z.union([z.literal(1), z.literal(2)]).optional(), version: z.string().max(64).nullable().optional(), inputs: routerInputs.optional() }),
   tool("set_network_vpn_site_bgp", "PUT", `${peer}/bgp`, "Enable or change BGP over a supported single-line IPsec site's tunnel using the gateway generation. Set enabled=false to turn it off; when switching from any_private, supply remote_prefixes for static routing. A site with line 2 is static-only: preserve vpn_ipsec_lines_bgp from the backend. Follow bgp.applied and gateway state; no operation ID is promised.", bgpFields, { destructive: true, validate: validateBgp }),
@@ -308,7 +322,7 @@ export function networkingRequest(definition: NetworkingTool, args: Record<strin
   if (input.idempotencyKey !== undefined) headers["Idempotency-Key"] = String(input.idempotencyKey);
   if (input.quoteToken !== undefined) headers["X-Quote-Token"] = String(input.quoteToken);
   const excluded = new Set([...definition.pathFields, ...(definition.options.query ?? []), "idempotencyKey", "quoteToken", "acknowledge_charge", "acknowledge_one_time_pickup"]);
-  const body = definition.method === "GET" ? undefined : {
+  const body = definition.method === "GET" || definition.options.bodyless ? undefined : {
     ...Object.fromEntries(Object.entries(input).filter(([field, value]) => !excluded.has(field) && value !== undefined)),
     ...(definition.options.fixedBody ?? {}),
   };
@@ -372,6 +386,19 @@ export function safeVpnPayload(data: unknown, status: number): unknown {
           if (JSON.stringify(names) !== JSON.stringify(["ciphertext", "ephemeral_public_key", "nonce"])
               || names.some(name => typeof sealed[name] !== "string")) { out.sealed = "[invalid sealed material]"; continue; }
           out.sealed = { ephemeral_public_key: sealed.ephemeral_public_key, nonce: sealed.nonce, ciphertext: sealed.ciphertext };
+        } else if (field === "sealed_secret") {
+          if (!item || typeof item !== "object" || Array.isArray(item)) { out.sealed_secret = "[invalid sealed material]"; continue; }
+          const sealed = item as Record<string, unknown>;
+          const names = Object.keys(sealed).sort();
+          const valid = (value: unknown, bytes?: number) => typeof value === "string" && value.length > 0
+            && Buffer.from(value, "base64").toString("base64") === value
+            && (bytes === undefined || Buffer.from(value, "base64").length === bytes);
+          if (JSON.stringify(names) !== JSON.stringify(["ciphertext", "ephemeral_public_key", "nonce"])
+              || !valid(sealed.ephemeral_public_key, 32) || !valid(sealed.nonce, 24) || !valid(sealed.ciphertext)
+              || Buffer.from(sealed.ciphertext as string, "base64").length < 16) {
+            out.sealed_secret = "[invalid sealed material]"; continue;
+          }
+          out.sealed_secret = { ephemeral_public_key: sealed.ephemeral_public_key, nonce: sealed.nonce, ciphertext: sealed.ciphertext };
         } else if (normalized !== "psk_lost_hint" && normalized !== "psk_placeholder" && normalized !== "quote_token"
             && (/^(?:psk|pre_shared_key|private_key|secret|password|credential|token)(?:_|$)/.test(normalized)
               || /_(?:psk|pre_shared_key|private_key|secret|password|credential|token)$/.test(normalized)
@@ -388,6 +415,37 @@ export function safeVpnPayload(data: unknown, status: number): unknown {
     return value;
   };
   return project(data, 0);
+}
+
+/** Keep only the backend's public destination host, even if a future response adds a path. */
+export function safeVpnWebhookPayload(data: unknown, status: number): unknown {
+  const safe = safeVpnPayload(data, status);
+  if (status >= 400 || !safe || typeof safe !== "object" || Array.isArray(safe)) return safe;
+  const record = safe as Record<string, unknown>;
+  const pick = (source: Record<string, unknown>, fields: string[]) => Object.fromEntries(fields
+    .filter(field => source[field] !== undefined).map(field => [field, source[field]]));
+  const display = (subscription: unknown): Record<string, unknown> => {
+    if (!subscription || typeof subscription !== "object" || Array.isArray(subscription)) return {};
+    const item = subscription as Record<string, unknown>;
+    const shown = pick(item, ["id", "enabled", "created_at"]);
+    if (item.last_delivery === null) shown.last_delivery = null;
+    else if (item.last_delivery && typeof item.last_delivery === "object" && !Array.isArray(item.last_delivery)) {
+      shown.last_delivery = pick(item.last_delivery as Record<string, unknown>,
+        ["event_id", "transition", "occurred_at", "status", "http_status", "attempts", "next_attempt_at", "delivered_at"]);
+    }
+    try {
+      const url = new URL(typeof item.url === "string" ? item.url : "");
+      const host = url.hostname;
+      shown.url = url.protocol === "https:" && /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/.test(host)
+        ? `https://${host}` : "https://invalid.invalid";
+    } catch { shown.url = "https://invalid.invalid"; }
+    return shown;
+  };
+  if (Array.isArray(record.subscriptions)) return { subscriptions: record.subscriptions.map(display) };
+  if (record.subscription !== undefined) return { subscription: display(record.subscription),
+    ...(record.sealed_secret !== undefined ? { sealed_secret: record.sealed_secret } : {}) };
+  if (typeof record.removed === "boolean") return { removed: record.removed };
+  return {};
 }
 
 /** Read-only recovery targets. IDs are copied from validated inputs or owned API results, never guessed. */
@@ -459,7 +517,8 @@ export function registerNetworkingTools(server: McpServer): void {
     }, async args => {
       const request = networkingRequest(definition, args);
       const result = await apiRequest(request.method, request.path, request.body, request.headers, { readOnly: request.readOnly });
-      const safeData = definition.path.includes("/vpn-gateways") ? safeVpnPayload(result.data, result.status) : result.data;
+      const safeData = definition.path.includes("/health-webhooks") ? safeVpnWebhookPayload(result.data, result.status)
+        : definition.path.includes("/vpn-gateways") ? safeVpnPayload(result.data, result.status) : result.data;
       const reads = result.status < 400 ? networkingFollowUpReads(definition, args, safeData) : [];
       const progress = result.status < 400 ? networkingProgressHint(safeData) : null;
       return { content: [

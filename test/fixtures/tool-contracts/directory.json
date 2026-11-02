@@ -39,6 +39,7 @@
     "create_function",
     "create_network_security_group",
     "create_network_vpn_peer",
+    "create_network_vpn_site_health_webhook",
     "create_private_network",
     "create_service_directory",
     "create_ssh_key",
@@ -54,6 +55,7 @@
     "delete_network_public_binding",
     "delete_network_security_group",
     "delete_network_vpn_gateway",
+    "delete_network_vpn_site_health_webhook",
     "delete_private_network",
     "delete_service_files",
     "delete_snapshot",
@@ -171,6 +173,7 @@
     "list_network_public_addresses",
     "list_network_security_groups",
     "list_network_vpn_gateways",
+    "list_network_vpn_site_health_webhooks",
     "list_networking_operations",
     "list_private_network_ports",
     "list_private_networks",
@@ -1300,6 +1303,28 @@
         ]
       }
     },
+    "create_network_vpn_site_health_webhook": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "create_private_network": {
       "set": {
         "_meta": {
@@ -1706,6 +1731,28 @@
       }
     },
     "delete_network_vpn_gateway": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "delete_network_vpn_site_health_webhook": {
       "set": {
         "_meta": {
           "securitySchemes": [
@@ -5057,6 +5104,28 @@
       }
     },
     "list_network_vpn_gateways": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "list_network_vpn_site_health_webhooks": {
       "set": {
         "_meta": {
           "securitySchemes": [

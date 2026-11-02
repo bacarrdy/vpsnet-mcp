@@ -1,12 +1,12 @@
 # Reviewed tool contracts
 
-Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN site-to-site tools (2.4.0); updated 2026-10-26 for the `reinstall_os` credential contract (2.4.1: no `rootPassword` on the directory profile, `sshKey`/`rootPassword` mutually exclusive elsewhere); updated 2026-10-26 for the Managed Applications server-routes tools (2.5.0); updated 2026-11-02 for the pinned backend VPN completion. These are emitted server contracts, not a claim that a client or directory has refreshed or approved them.
+Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN site-to-site tools (2.4.0); updated 2026-10-26 for the `reinstall_os` credential contract (2.4.1: no `rootPassword` on the directory profile, `sshKey`/`rootPassword` mutually exclusive elsewhere); updated 2026-10-26 for the Managed Applications server-routes tools (2.5.0); updated 2026-11-02 for the pinned backend VPN completion and site health webhooks. These are emitted server contracts, not a claim that a client or directory has refreshed or approved them.
 
 | Fixture | Discovery context | Tool count |
 | --- | --- | ---: |
-| `stdio` | General local server, API-key transport | 348 |
-| `directory` | Remote profile, `services:read` | 269 |
-| `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 276 |
+| `stdio` | General local server, API-key transport | 351 |
+| `directory` | Remote profile, `services:read` | 272 |
+| `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 279 |
 
 OpenAI uses the remote directory contract; there is no separately implemented OpenAI profile. The HTTP gateway selects the orders profile only from the issuer's live ordering decision and actual granted order scopes. The fixture scope contexts are explicit because an orders-only subset or different VM scopes can affect discovery/security metadata. The counts above are not a universal client limit or a count observed in an authenticated Claude/OpenAI session.
 
