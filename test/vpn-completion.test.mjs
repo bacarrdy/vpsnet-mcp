@@ -96,7 +96,7 @@ test('VPN completion forwards exact methods, paths, bodies, generations and idem
     ['rebuild_network_vpn_gateway', {gateway_id, idempotencyKey}, 'POST', `${base}/rebuild`, {}],
     ['set_network_vpn_internet_exit', {gateway_id, mode: 'network_nat', idempotencyKey}, 'PUT', `${base}/internet-exit`, {mode: 'network_nat'}],
     ['rotate_network_vpn_ipsec_key', {gateway_id, peer_id, reveal_public_key, idempotencyKey}, 'POST', `${peer}/rotate-key`, {reveal_public_key}],
-    ['set_network_vpn_site_bgp', {gateway_id, peer_id, expected_generation: 9, peer_asn: 65001, local_asn: 64512, accept: 'listed'}, 'PUT', `${peer}/bgp`, {expected_generation: 9, peer_asn: 65001, local_asn: 64512, accept: 'listed'}],
+    ['set_network_vpn_site_bgp', {gateway_id, peer_id, expected_generation: 9, peer_asn: 65001, local_asn: 64512, accept: 'listed', inner: '169.254.100.0', keepalive_seconds: 10, hold_seconds: 30}, 'PUT', `${peer}/bgp`, {expected_generation: 9, peer_asn: 65001, local_asn: 64512, accept: 'listed', inner: '169.254.100.0', keepalive_seconds: 10, hold_seconds: 30}],
     ['set_network_vpn_site_bgp', {gateway_id, peer_id, expected_generation: 10, enabled: false, remote_prefixes: ['192.168.10.0/24']}, 'PUT', `${peer}/bgp`, {expected_generation: 10, enabled: false, remote_prefixes: ['192.168.10.0/24']}],
     ['add_network_vpn_site_line', {gateway_id, peer_id, expected_generation: 11, reveal_public_key, remote_address: '91.211.244.53', vendor: 'fortigate', dpd_seconds: 30, idempotencyKey}, 'POST', `${peer}/lines`, {expected_generation: 11, reveal_public_key, remote_address: '91.211.244.53', vendor: 'fortigate', dpd_seconds: 30}],
     ['set_network_vpn_site_main_line', {gateway_id, peer_id, line: 2, expected_generation: 12, idempotencyKey}, 'PUT', `${peer}/lines/main`, {line: 2, expected_generation: 12}],
@@ -124,6 +124,7 @@ test('invalid tenant identity, secret fields and mutation prerequisites stop bef
     ['rotate_network_vpn_ipsec_key', {gateway_id, peer_id, reveal_public_key, idempotencyKey, tenant_id: 2}],
     ['rotate_network_vpn_ipsec_key', {gateway_id, peer_id, reveal_public_key, idempotencyKey, psk: 'synthetic'}],
     ['add_network_vpn_site_line', {gateway_id, peer_id, expected_generation: 1, idempotencyKey, remote_address: null}],
+    ['add_network_vpn_site_line', {gateway_id, peer_id, expected_generation: 1, idempotencyKey, reveal_public_key, vendor: 'fortigate', independent_setup: true}],
     ['set_network_vpn_site_bgp', {gateway_id, peer_id, peer_asn: 65001}],
     ['set_network_vpn_site_bgp', {gateway_id, peer_id, expected_generation: 1, enabled: false, peer_asn: 65001}],
     ['set_network_vpn_site_options', {gateway_id}],
@@ -168,6 +169,55 @@ test('typed dual-line BGP refusal and tunnel test facts survive without fallback
   const probe = await call('get_network_vpn_tunnel_test', {gateway_id, peer_id, test_id});
   assert.equal(data(probe).test.next_check_seconds, 1);
   assert.equal(requests.length, 2);
+});
+
+test('gateway read preserves exact per-line HA and route facts without inferring active forwarding', async t => {
+  const route = (state, reason, selected, installed) => ({
+    state, reason, observer: 'vpsnet_gateway_frr', observed_at: '2026-11-02T19:00:00Z',
+    generation: 17, afi: 'ipv4_unicast', vrf: 'default',
+    accepted: selected, advertised: state === 'observed' ? ['10.80.0.0/24'] : [], selected,
+    installed: {state: installed, reason: installed === 'observed' ? null : 'kernel_readback_not_proved'},
+  });
+  const line1Routes = [{prefix: '192.168.10.0/24', next_hop: '169.254.100.1'}];
+  const line2Routes = [{prefix: '192.168.20.0/24', next_hop: '169.254.101.1'}];
+  const response = {vpn_gateway: {id: gateway_id, generation: 17,
+    capabilities: {site_ipsec_bgp_lines: {available: true, reason_code: null}},
+    peers: [{id: peer_id, site: {
+      bgp: {session: 'established', route_visibility: route('observed', null, line1Routes, 'observed')},
+      main_line: 2, lines: [
+        {line: 1, main: false, active: false, bgp: {session: 'established', route_visibility: route('observed', null, line1Routes, 'observed')}},
+        {line: 2, main: true, active: true, bgp: {session: 'established', route_visibility: route('observed', null, line2Routes, 'unknown')}},
+      ],
+    }}],
+  }};
+  const {call, requests} = await harness(t, () => ({status: 200, body: response}));
+  const result = data(await call('get_network_vpn_gateway', {gateway_id}));
+  assert.deepEqual(result, response);
+  assert.equal(requests[0].method, 'GET');
+  assert.equal(requests[0].path, base);
+  const site = result.vpn_gateway.peers[0].site;
+  assert.equal(site.lines[0].active, false, 'line 1 is not active even when FRR selected and installed its local route');
+  assert.equal(site.lines[1].active, true, 'line 2 active is the backend route-ownership fact');
+  assert.deepEqual(site.lines[1].bgp.route_visibility.selected, line2Routes);
+  assert.notDeepEqual(site.lines[1].bgp.route_visibility.selected, site.bgp.route_visibility.selected);
+  assert.equal(site.lines[1].bgp.route_visibility.installed.state, 'unknown');
+});
+
+test('gateway read preserves old-agent omission and distinct unknown or stale line evidence', async t => {
+  const {call} = await harness(t, req => ({status: 200, body: {vpn_gateway: {id: gateway_id,
+    peers: [{id: peer_id, site: {bgp: {session: 'idle'}, lines: [
+      {line: 1, active: null, bgp: {session: null, route_visibility: {state: 'unknown', reason: 'no_agent_snapshot', accepted: [], selected: [], advertised: []}}},
+      {line: 2, active: false, bgp: {session: 'idle', route_visibility: {state: 'stale', reason: 'observation_expired', accepted: [], selected: [], advertised: []}}},
+    ]}}],
+  }}}));
+  const result = data(await call('get_network_vpn_gateway', {gateway_id}));
+  assert.equal(Object.hasOwn(result.vpn_gateway, 'capabilities'), false);
+  const [first, second] = result.vpn_gateway.peers[0].site.lines;
+  assert.equal(first.bgp.route_visibility.state, 'unknown');
+  assert.equal(second.bgp.route_visibility.state, 'stale');
+  assert.notDeepEqual(first.bgp.route_visibility, second.bgp.route_visibility);
+  assert.equal(second.active, false);
+  assert.equal(Object.hasOwn(second.bgp, 'accepted'), false, 'legacy aggregate is not copied into a line');
 });
 
 test('VPN renewal quote token remains usable while secret-bearing fields are hidden', async t => {

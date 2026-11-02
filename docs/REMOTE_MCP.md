@@ -38,9 +38,17 @@ VPN reads and router recipes require `networking:read`; changes, tunnel tests,
 and one-time sealed configuration pickup require `networking:manage`. Tool
 discovery advertises the required scope, while each remote call checks the
 authenticated grant. Gateway and peer IDs are checked by the backend against
-that account. A two-line IPsec site uses static routes; the backend refuses BGP
-while line 2 exists. Router instructions and preview fields come from the
-backend's vendor catalogue, including an explicit `{{PSK}}` placeholder.
+that account. For two-line BGP, read the gateway's
+`capabilities.site_ipsec_bgp_lines` and the site's exact line facts. A current
+backend can accept listed prefixes with a qualified route-based line 2; its
+typed `vpn_ipsec_lines_bgp` refusal remains authoritative when unavailable.
+Older backends omit this capability. Each `site.lines[n].bgp` and `active` fact
+belongs to that line; the legacy `site.bgp` describes line 1 only. An FRR
+selected route does not prove active forwarding. `route_visibility` reports
+VPSnet gateway evidence: unknown or stale empty arrays do not prove absence,
+and `installed.observed` proves only exact local kernel routes, not customer
+reachability. Router instructions and preview fields come from the backend's
+vendor catalogue, including an explicit `{{PSK}}` placeholder.
 
 For IPsec site creation, key rotation, or line-2 creation, generate a fresh
 X25519 reveal key pair outside MCP. Supply only its public key to the mutation.
