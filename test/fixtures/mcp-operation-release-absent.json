@@ -1,0 +1,19 @@
+{
+  "vpn_gateway": {
+    "id": "2f186a34-88a3-49fc-93e8-71931b212867",
+    "image": {
+      "status": "recorded",
+      "display_name": null,
+      "version": null,
+      "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recorded_at": "2026-11-02T08:50:00Z",
+      "update": {
+        "status": "unknown",
+        "reason_code": "qualified_target_unavailable",
+        "target_version": null
+      }
+    },
+    "recent_operation": null
+  },
+  "stream_version": 1
+}

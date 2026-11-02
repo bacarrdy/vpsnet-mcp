@@ -1,0 +1,38 @@
+{
+  "vpn_gateway": {
+    "id": "2f186a34-88a3-49fc-93e8-71931b212867",
+    "image": {
+      "status": "recorded",
+      "display_name": null,
+      "version": null,
+      "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "recorded_at": "2026-11-02T08:50:00Z",
+      "update": {
+        "status": "available",
+        "reason_code": null,
+        "target_version": "vpn-gateway-0.5.0",
+        "public_release": {
+          "channel": "preview",
+          "notes": {
+            "en": "Selected target supports site routes and BGP on two configured IPsec lines. One route is used per prefix; ECMP and host HA are unavailable.",
+            "lt": "Pasirinkta versija palaiko padalinių maršrutus ir BGP dviejose sukonfigūruotose IPsec linijose. Vienam prefiksui naudojamas vienas maršrutas; ECMP ir mazgo HA nėra.",
+            "lv": "Izvēlētā versija atbalsta vietņu maršrutus un BGP divās konfigurētās IPsec līnijās. Katram prefiksam izmanto vienu maršrutu; ECMP un mezgla HA nav pieejami.",
+            "et": "Valitud versioon toetab asukoha marsruute ja BGP-d kahel seadistatud IPsec liinil. Iga prefiksi jaoks kasutatakse üht marsruuti; ECMP ja sõlme HA pole saadaval."
+          }
+        }
+      }
+    },
+    "recent_operation": {
+      "kind": "vpn_peer_create",
+      "state": "running",
+      "started_at": "2026-11-02T08:50:00Z",
+      "last_progress_at": "2026-11-02T08:52:00Z",
+      "last_observed_at": "2026-11-02T08:51:00Z",
+      "progress_stale": true,
+      "stage": "observed",
+      "outcome": null,
+      "finished_at": null
+    }
+  },
+  "stream_version": 1
+}
