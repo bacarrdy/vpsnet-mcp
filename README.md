@@ -1228,7 +1228,7 @@ feature gate.
 | `take_network_vpn_site_line_config` | Consume the second IPsec line's sealed key exactly once with line=2. | `networking:manage` | free |
 | `rotate_network_vpn_ipsec_key` | Rotate an IPsec site's pre-shared key. | `networking:manage` | free |
 | `save_network_vpn_router_setup` | Save nonsecret backend-catalogue router version and local interface/zone fields for an IPsec site, optionally line 2. | `networking:manage` | free |
-| `set_network_vpn_site_bgp` | Enable or change BGP over a supported single-line IPsec site's tunnel using the gateway generation. | `networking:manage` | free |
+| `set_network_vpn_site_bgp` | Enable or change BGP over an eligible IPsec site using the gateway generation. | `networking:manage` | free |
 | `add_network_vpn_site_line` | Add line 2 to an IPsec site using the gateway generation and an external X25519 public reveal key. | `networking:manage` | free |
 | `set_network_vpn_site_main_line` | Choose line 1 or 2 as the main IPsec line using the gateway generation; optional DPD applies to both. | `networking:manage` | free |
 | `remove_network_vpn_site_second_line` | Remove line 2 using the gateway generation. | `networking:manage` | free |
