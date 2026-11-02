@@ -1,5 +1,5 @@
 {
-  "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371",
+  "backend_commit": "a8d10fe4fc8ec4afccba97d14c879b478ff28c25",
   "audited_at": "2026-11-02",
   "routes": [
     {
@@ -677,6 +677,30 @@
       "action": "vpnPeerHistory",
       "spec": "appliances-v1.yml",
       "added": "2026-10-18 (backend 268ca39ab958d222df1337e0e3eb7d69c4d3848f)"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/health-webhooks",
+      "controller": "ApplianceController",
+      "action": "vpnSiteWebhookList",
+      "spec": "appliances-v1.yml",
+      "added": "2026-11-02 (backend a8d10fe4fc8ec4afccba97d14c879b478ff28c25)"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/health-webhooks",
+      "controller": "ApplianceController",
+      "action": "vpnSiteWebhookStore",
+      "spec": "appliances-v1.yml",
+      "added": "2026-11-02 (backend a8d10fe4fc8ec4afccba97d14c879b478ff28c25)"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/health-webhooks/{subscriptionId}",
+      "controller": "ApplianceController",
+      "action": "vpnSiteWebhookDestroy",
+      "spec": "appliances-v1.yml",
+      "added": "2026-11-02 (backend a8d10fe4fc8ec4afccba97d14c879b478ff28c25)"
     },
     {
       "method": "get",

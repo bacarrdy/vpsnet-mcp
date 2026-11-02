@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased source — 2026-11-02
+
+- Add three VPN site health webhook tools against backend `a8d10fe`: list with `networking:read`, create and delete with `networking:manage`. Existing tool names and inputs remain unchanged. API-key/OAuth creation requires an external X25519 public reveal key; MCP returns only the sealed signing envelope and public host display. Create and delete return immediate resources, with no operation polling or idempotency key. Prepared contract counts: stdio 351, directory 272, orders 279. This source change does not publish or deploy the new tools.
+
 ## 0.6.16 connector / 2.6.0 MCP server — 2026-10-30
 
 Contract reconciliation against backend `c506653d..779254fe25961acd2f3360770756647f5d689def` uses routes and implementations as well as changelogs; the backend root changelog did not record this interval's changes.

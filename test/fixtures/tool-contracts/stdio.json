@@ -3648,6 +3648,58 @@
       "name": "create_network_vpn_peer",
       "title": "Create network VPN peer"
     },
+    "create_network_vpn_site_health_webhook": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Create network VPN site health webhook"
+      },
+      "description": "Create a signed site health subscription. Supply a public HTTPS DNS endpoint on port 443 and a caller-generated X25519 PUBLIC reveal key; keep the private half outside MCP. The immediate 201 response contains the subscription and a one-time sealed_secret envelope, not a raw signing secret. Decrypt it outside MCP to configure the receiver. Verify timestamp, exact-body HMAC and event-ID deduplication at the receiver. After an uncertain outcome, list subscriptions before deciding whether to create another; this route has no idempotency key or operation ID. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "reveal_public_key": {
+            "description": "Customer-generated one-time X25519 PUBLIC key only. Keep its private key outside MCP; needed to decrypt the sealed configuration.",
+            "pattern": "^[A-Za-z0-9+/]{43}=$",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "url",
+          "reveal_public_key"
+        ],
+        "type": "object"
+      },
+      "name": "create_network_vpn_site_health_webhook",
+      "title": "Create network VPN site health webhook"
+    },
     "create_private_network": {
       "annotations": {
         "destructiveHint": false,
@@ -4485,6 +4537,54 @@
       },
       "name": "delete_network_vpn_gateway",
       "title": "Delete network VPN gateway"
+    },
+    "delete_network_vpn_site_health_webhook": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Delete network VPN site health webhook"
+      },
+      "description": "Remove this owned site's subscription and cancel pending deliveries. The immediate 200 result is {removed:true}; a missing subscription returns 404. Check the list after an uncertain outcome; this route has no operation ID. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "subscription_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "subscription_id"
+        ],
+        "type": "object"
+      },
+      "name": "delete_network_vpn_site_health_webhook",
+      "title": "Delete network VPN site health webhook"
     },
     "delete_private_network": {
       "annotations": {
@@ -10020,6 +10120,46 @@
       },
       "name": "list_network_vpn_gateways",
       "title": "List network VPN gateways"
+    },
+    "list_network_vpn_site_health_webhooks": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "List network VPN site health webhooks"
+      },
+      "description": "List this owned site's signed health subscriptions and last delivery outcomes. Destination URLs are shown as public HTTPS hosts only; stored paths and signing material are never returned. Health is the VPN-side observation, not a test from the customer's LAN. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id"
+        ],
+        "type": "object"
+      },
+      "name": "list_network_vpn_site_health_webhooks",
+      "title": "List network VPN site health webhooks"
     },
     "list_networking_operations": {
       "annotations": {

@@ -1105,8 +1105,16 @@ that broader authorization explicitly. Selected-server access uses
 `grant_scope=servers`; replacing grants without a scope also selects servers,
 so inspect and preserve the intended scope when editing an existing device.
 
-This release exposes no customer network rename, existing-port fixed-IP edit,
-or appliance restart/rebuild tools. Fixed DHCP
+Site health webhooks use `list_network_vpn_site_health_webhooks` with
+`networking:read` and `create_network_vpn_site_health_webhook` or
+`delete_network_vpn_site_health_webhook` with `networking:manage`. The list
+shows only the public destination host. Creation needs a caller-generated
+X25519 public reveal key and returns the signing secret only in a sealed
+envelope for external decryption. The subscription and removal are immediate
+resources, with no operation ID or idempotency key. After an uncertain create,
+list the site's subscriptions before deciding whether to create another.
+
+This release exposes no customer network rename or existing-port fixed-IP edit. Fixed DHCP
 addresses are selected at attach; removing/recreating an attachment requires
 separate approval and is not represented as an in-place edit. Legacy unpaid
 LB/VPN create routes, legacy stock-before-payment purchases and enabling
@@ -1179,6 +1187,9 @@ feature gate.
 | `get_network_vpn_peer_history` | Read a device's or connected location's traffic and handshake history (24 h raw, 7 d, 30 d, 13 months) | `networking:read` | free |
 | `set_network_vpn_site_options` | Switch hub-and-spoke between the locations connected to a VPN | `networking:manage` | free |
 | `set_network_vpn_site_alert` | Switch the office-down e-mail of one connected location | `networking:manage` | free |
+| `list_network_vpn_site_health_webhooks` | List a site's signed health subscriptions and last delivery outcomes; URLs show public hosts only | `networking:read` | free |
+| `create_network_vpn_site_health_webhook` | Create a signed site health subscription with an external X25519 reveal public key; returns sealed signing material | `networking:manage` | free |
+| `delete_network_vpn_site_health_webhook` | Remove a site's subscription and cancel pending deliveries | `networking:manage` | free |
 | `set_network_site_route_mode` | Choose DHCP routes or an internal router for a network's routes to connected locations | `networking:manage` | free |
 | `list_network_products` | Read current paid products, live tier names, prices and purchase capability; public proxy load balancer 3/5-node offerings must come from this catalog. | `networking:read` | free |
 | `list_network_product_periods` | Read owned product periods, renewal availability and lifecycle facts. | `networking:read` | free |
@@ -1225,9 +1236,6 @@ feature gate.
 | `get_network_vpn_tunnel_test` | Read one owned tunnel test by its returned ID; while running, poll no faster than the backend's one-second guidance. | `networking:read` | free |
 | `set_network_vpn_site_reach` | Set this site's load-balancer/floating-IP reach choice, or null to follow its VPN default. | `networking:manage` | free |
 
-### Not yet categorised
-| Tool | Description | Scope | Paid |
-|------|-------------|-------|------|
 | `rename_network_vpn_gateway` | Rename an owned VPN's customer label. | `networking:manage` | free |
 
 <!-- tool-reference:end -->
