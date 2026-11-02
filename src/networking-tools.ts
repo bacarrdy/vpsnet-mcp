@@ -87,11 +87,39 @@ const grantScope = z.enum(["servers", "network"])
 const publicKey = z.string().regex(/^[A-Za-z0-9+/]{43}=$/)
   .refine(value => Buffer.from(value, "base64").length === 32)
   .describe("Customer-generated one-time X25519 PUBLIC key only. Keep its private key outside MCP; needed to decrypt the sealed configuration.");
+const reach = z.object({ load_balancers: z.boolean(), floating_ips: z.boolean() }).strict();
+const routerInputs = z.record(z.union([z.string().max(256), z.number().int().safe()]))
+  .refine(values => Object.keys(values).length <= 32 && Object.keys(values).every(k => /^[a-z][a-z0-9_]{1,31}$/.test(k) && !/(?:secret|password|private|psk|token|key)/i.test(k)),
+    "Router inputs must contain only nonsecret catalogue fields");
+const recipeInputs = z.record(z.union([z.string().max(256), z.number().int().safe()]))
+  .refine(values => JSON.stringify(values).length <= 2048 && Object.keys(values).every(k =>
+    /^(?:line2\.)?[a-z][a-z0-9_]{1,31}$/.test(k) && !/(?:secret|password|private|psk|token|key)/i.test(k)),
+    "Recipe preview accepts only nonsecret backend catalogue fields, including line2 fields");
+const bgpFields = {
+  expected_generation: generation,
+  enabled: z.literal(false).optional(),
+  remote_prefixes: sitePeer.shape.remote_prefixes.optional(),
+  peer_asn: z.number().int().min(1).max(4294967294).optional(),
+  local_asn: z.number().int().min(1).max(4294967294).optional(),
+  accept: z.enum(["listed", "any_private"]).optional(),
+  inner: ipv4.optional(),
+  keepalive_seconds: z.number().int().min(3).max(60).optional(),
+  hold_seconds: z.number().int().min(9).max(180).optional(),
+};
+function validateBgp(input: Record<string, unknown>): void {
+  if (input.enabled === false && Object.keys(input).some(key => !["enabled", "remote_prefixes", "expected_generation", "gateway_id", "peer_id"].includes(key)))
+    throw new Error("Disabling BGP accepts only enabled=false, expected_generation and optional remote_prefixes.");
+  if (input.enabled !== false && input.peer_asn !== undefined && input.local_asn !== undefined && input.peer_asn === input.local_asn)
+    throw new Error("BGP peer and local ASN must differ.");
+  if (input.enabled !== false && input.keepalive_seconds !== undefined && input.hold_seconds !== undefined
+      && Number(input.hold_seconds) < 3 * Number(input.keepalive_seconds))
+    throw new Error("BGP hold_seconds must be at least three times keepalive_seconds.");
+}
 
 type Fields = z.ZodRawShape;
 type Options = {
   idempotent?: boolean; paid?: boolean; quote?: boolean; readOnly?: boolean;
-  query?: string[]; fixedBody?: Record<string, unknown>; destructive?: boolean;
+  query?: string[]; fixedQuery?: Record<string, string>; fixedBody?: Record<string, unknown>; destructive?: boolean;
   validate?: (input: Record<string, unknown>) => void;
 };
 export type NetworkingTool = {
@@ -207,17 +235,31 @@ export const networkingTools: NetworkingTool[] = [
   tool("remove_network_load_balancer_listener", "DELETE", `${lb}/listeners/{listener_id}`, "Remove a listener and its members; deleting the last listener is refused.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("list_network_vpn_gateways", "GET", `${A}/vpn-gateways`, "List owned VPN gateways, their device peers and safe status. No private keys or one-time configurations are retrieved."),
   tool("get_network_vpn_gateway", "GET", vpn, "Read one owned VPN gateway, current generation, peers, grant candidates and attachment capability. Read capabilities.site_ipsec and ipsec_profiles before requesting an IPsec site; availability depends on this gateway's advertised capabilities. Peer grant_scope distinguishes individual servers from network-wide access to current and future eligible servers. WireGuard peers carry rx_bytes / tx_bytes, last_handshake_at and current_endpoint (the outer address:port last observed; live only, null until learned). IPsec sites report SA/liveness and crypto facts: an old CHILD-SA rekey time is not a failed WireGuard handshake, and requested pqc is not observed post_quantum. site_options shows hub_and_spoke, hub_and_spoke_applied and route_mode while site-to-site is enabled. For traffic over time use get_network_vpn_peer_history."),
+  tool("rename_network_vpn_gateway", "PUT", `${vpn}/name`, "Rename an owned VPN's customer label. The backend checks label uniqueness; this does not change the tunnel or guest generation.", { name: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$/) }),
   tool("delete_network_vpn_gateway", "DELETE", vpn, "Request teardown of an owned VPN gateway; all devices lose connectivity. Paid time is not refunded by this operation.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("attach_network_vpn_gateway", "POST", `${vpn}/attach`, "Attach or move an account VPN to an owned network only when standalone attachment is advertised. This recreates the gateway and interrupts connections; confirm the interruption.", { network_id: uuid }, { idempotent: true, destructive: true }),
   tool("detach_network_vpn_gateway", "POST", `${vpn}/detach`, "Detach an account VPN from its network when supported; it keeps its paid period and devices but recreates the gateway. Confirm the interruption.", {}, { idempotent: true, destructive: true }),
   tool("set_vpn_server_access", "POST", `${vpn}/server-access`, "Choose accept or groups_only for the VPN's access to attached servers when this capability is available. The setting operation can already be succeeded while security-policy application is pending. Read the gateway network with get_private_network, then get_network_security_policy using its project_id and network_id; do not treat the setting operation as proof of firewall delivery.", { mode: z.enum(["accept", "groups_only"]) }, { idempotent: true, destructive: true }),
+  tool("restart_network_vpn_gateway", "POST", `${vpn}/restart`, "Restart the owned VPN VM in place. Connections are interrupted; inspect the returned operation and gateway. Backend spacing and busy refusals are authoritative.", {}, { idempotent: true, destructive: true }),
+  tool("rebuild_network_vpn_gateway", "POST", `${vpn}/rebuild`, "Rebuild the owned VPN VM with its existing address and devices. This interrupts connections for roughly one to two minutes; inspect the operation and gateway.", {}, { idempotent: true, destructive: true }),
+  tool("set_network_vpn_internet_exit", "PUT", `${vpn}/internet-exit`, "Choose none, the VPN's own IPv4, or its attached network NAT as Internet exit. The backend qualifies each mode and returns applying/applied state. Reusing the same idempotency key with the same mode is safe after uncertainty.", { mode: z.enum(["none", "own_ipv4", "network_nat"]) }, { idempotent: true, destructive: true }),
   tool("create_network_vpn_peer", "POST", `${vpn}/peers`, "Add a WireGuard device, or with kind=site_to_site a connected site, using an externally generated one-time PUBLIC reveal key. For individual access pass 0-16 owned grant-candidate IPv4 addresses: split-tunnel devices require at least one; full-tunnel devices may use an empty list; sites always require at least one. A device may instead use grant_scope=network with grants=[] for all eligible current and future servers of its network; obtain approval for that broader access. Devices must omit protocol, site and site_down_alert. Sites require site.remote_prefixes and may enable site_down_alert. Site protocol defaults to wireguard (endpoint/keepalive and optional router_model); ipsec_ikev2 uses remote_address, vendor and optional mutually exclusive pqc/legacy_compat instead. Before IPsec, read get_network_appliance_capabilities for offered vendors and get_network_vpn_gateway for capabilities.site_ipsec and ipsec_profiles; the gateway must advertise availability. Personal-device IPsec is unsupported. Keep the matching private key entirely outside MCP. The gateway generates the tunnel secret; wait for config_available before consuming the sealed configuration. For IPsec router instructions use get_network_vpn_peer_recipe; never send a raw PSK to MCP.", { name: name.max(64), grants: z.array(ipv4).max(16), reveal_public_key: publicKey, kind: z.enum(["road_warrior", "site_to_site"]).optional(), protocol: z.enum(["wireguard", "ipsec_ikev2"]).optional(), grant_scope: grantScope.optional(), site: z.union([sitePeer, ipsecSitePeer]).optional(), site_down_alert: z.boolean().optional() }, { idempotent: true, validate: validateVpnPeerCreation }),
-  tool("take_network_vpn_peer_config", "GET", `${peer}/config`, "Consume a device's or site's sealed configuration ONCE, including the sealed IPsec site material when applicable. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys or a raw PSK. Save and decrypt the returned sealed payload outside MCP; a second pickup is 410. Never retry automatically after an uncertain transport result.", { acknowledge_one_time_pickup: z.literal(true) }, { readOnly: false, destructive: true }),
+  tool("take_network_vpn_peer_config", "GET", `${peer}/config`, "Consume a device's or site's sealed configuration ONCE. For IPsec primary-key rotation pass line=1 explicitly: without it, a pending second-line envelope can be returned after the primary was consumed. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys or a raw PSK. A second pickup is 410. Never retry automatically after an uncertain transport result.", { acknowledge_one_time_pickup: z.literal(true), line: z.literal(1).optional() }, { readOnly: false, destructive: true, query: ["line"] }),
+  tool("take_network_vpn_site_line_config", "GET", `${peer}/config`, "Consume the second IPsec line's sealed key exactly once with line=2. Decrypt only outside MCP with the private key matching add_network_vpn_site_line's public reveal key. A second pickup is 410; never retry after an uncertain response.", { acknowledge_one_time_pickup: z.literal(true) }, { readOnly: false, destructive: true, fixedQuery: { line: "2" } }),
+  tool("rotate_network_vpn_ipsec_key", "POST", `${peer}/rotate-key`, "Rotate an IPsec site's pre-shared key. Supply a fresh customer-generated X25519 public reveal key, keep its private half outside MCP, then consume the new sealed material once with take_network_vpn_peer_config line=1. The old key stops authenticating new sessions after apply; inspect the operation. WireGuard peers are refused.", { reveal_public_key: publicKey }, { idempotent: true, destructive: true }),
   tool("revoke_network_vpn_peer", "DELETE", peer, "Revoke one device using the VPN GATEWAY generation. Its tunnel access ends after the next applied configuration.", { expected_generation: generation }, { idempotent: true, destructive: true }),
   tool("set_network_vpn_peer_grants", "PUT", `${peer}/grants`, "Replace the peer's complete server-access choice using the gateway generation. Read the gateway and current grant_scope first. Omitted grant_scope means servers: supply the full 0-16 address list; this also disables a device's previous network-wide access to future servers, even if today's list is unchanged. Empty grants removes a device's server access; a site still needs at least one grant. grant_scope=network is device-only: omit grants or send [] to allow every eligible current and future server of the network, subject to network security policy. Confirm that scope and its effects. Check routes_update for required customer router/client changes.", { expected_generation: generation, grants: z.array(ipv4).max(16).optional(), grant_scope: grantScope.optional() }, { idempotent: true, destructive: true, validate: validateVpnPeerGrants }),
   tool("get_network_vpn_peer_history", "GET", `${peer}/history`, "Read one device's or site's traffic and connection history, oldest point first: range 24h = raw 30-second samples (kept 24 h), 7d = 10-minute points and 30d = hourly points (from per-minute rows kept 30 days), 13m = daily UTC points (from hourly rows kept 13 months). rx = bytes the VPN received from the peer, tx = bytes sent to it. For WireGuard, connected means a handshake at most 180 s old in the step. For IPsec, connected means the SA was up at the sample; its CHILD-SA rekey timestamp is not the WireGuard liveness timer. A period the VPN did not observe has no point (unknown, never 0). The endpoint IP is live only on get_network_vpn_gateway and never part of the history.", { range: z.enum(["24h", "7d", "30d", "13m"]) }, { query: ["range"] }),
-  tool("get_network_vpn_peer_recipe", "GET", `${peer}/recipe`, "Read router setup instructions for one owned IPsec IKEv2 site. Optional vendor selects an advertised recipe; omit to use the site's saved vendor. Language defaults to en. The recipe contains the literal {{PSK}} placeholder, never the secret: replace it outside MCP using the customer's one-time sealed configuration. Devices, WireGuard sites and revoked sites are refused. Read current gateway capabilities; this tool does not enable IPsec or establish deployment/interoperability.", { vendor: ipsecVendor.optional(), lang: z.enum(["en", "lt"]).optional() }, { query: ["vendor", "lang"] }),
-  tool("set_network_vpn_site_options", "PUT", `${vpn}/site-options`, "Switch hub-and-spoke for the locations (offices) connected to this VPN: hub_and_spoke=true lets them reach each other through the VPN (each still reaches only its own granted servers); false (default) keeps them isolated. Recorded at once; the VPN's next generation carries it, possibly after one planned recreate of an older VPN image. Read get_network_vpn_gateway until site_options.hub_and_spoke_applied follows, then give each office router its routes_update line. 503 vpn_site_routing_unavailable while site-to-site is not enabled.", { hub_and_spoke: z.boolean() }, { destructive: true }),
+  tool("get_network_vpn_peer_recipe", "GET", `${peer}/recipe`, "Read backend-sourced router setup instructions for one owned IPsec IKEv2 site. Optional vendor, language, line selection and version/inputs preview use the backend recipe catalogue. The recipe contains a literal {{PSK}} placeholder, never the secret. Unsupported router/BGP/line combinations are refused, not replaced by a static recipe.", { vendor: ipsecVendor.optional(), lang: z.enum(["en", "lt"]).optional(), lines: z.enum(["all", "2"]).optional(), version: z.string().max(64).optional(), inputs: recipeInputs.optional() }, { query: ["vendor", "lang", "lines", "version", "inputs"] }),
+  tool("save_network_vpn_router_setup", "PUT", `${peer}/router-setup`, "Save nonsecret backend-catalogue router version and local interface/zone fields for an IPsec site, optionally line 2. This changes saved setup guidance, not the tunnel. The backend validates vendor, version and fields.", { vendor: ipsecVendor, line: z.union([z.literal(1), z.literal(2)]).optional(), version: z.string().max(64).nullable().optional(), inputs: routerInputs.optional() }),
+  tool("set_network_vpn_site_bgp", "PUT", `${peer}/bgp`, "Enable or change BGP over a supported single-line IPsec site's tunnel using the gateway generation. Set enabled=false to turn it off; when switching from any_private, supply remote_prefixes for static routing. A site with line 2 is static-only: preserve vpn_ipsec_lines_bgp from the backend. Follow bgp.applied and gateway state; no operation ID is promised.", bgpFields, { destructive: true, validate: validateBgp }),
+  tool("add_network_vpn_site_line", "POST", `${peer}/lines`, "Add line 2 to an IPsec site using the gateway generation and an external X25519 public reveal key. Keep its private key outside MCP; after config_available, take_network_vpn_site_line_config returns its sealed key exactly once. A two-line site uses static routes, not BGP.", { expected_generation: generation, reveal_public_key: publicKey, remote_address: ipv4.nullable().optional(), vendor: ipsecVendor.nullable().optional(), dpd_seconds: z.number().int().min(10).max(300).optional() }, { idempotent: true, destructive: true }),
+  tool("set_network_vpn_site_main_line", "PUT", `${peer}/lines/main`, "Choose line 1 or 2 as the main IPsec line using the gateway generation; optional DPD applies to both. Confirm routing interruption and inspect the returned peer/operation.", { line: z.union([z.literal(1), z.literal(2)]), expected_generation: generation, dpd_seconds: z.number().int().min(10).max(300).nullable().optional() }, { idempotent: true, destructive: true }),
+  tool("remove_network_vpn_site_second_line", "DELETE", `${peer}/lines/2`, "Remove line 2 using the gateway generation. The backend refuses removal while it is main; move main to line 1 first. Inspect the returned operation and peer.", { expected_generation: generation }, { idempotent: true, destructive: true }),
+  tool("start_network_vpn_tunnel_test", "POST", `${peer}/tests`, "Start a backend tunnel test for a site or supported WireGuard peer; optional line selects 1 or 2. A running test may be returned instead of a new probe. Read the returned test ID with get_network_vpn_tunnel_test; rate and capability refusals are authoritative.", { line: z.union([z.literal(1), z.literal(2)]).optional() }, { idempotent: true }),
+  tool("get_network_vpn_tunnel_test", "GET", `${peer}/tests/{test_id}`, "Read one owned tunnel test by its returned ID; while running, poll no faster than the backend's one-second guidance."),
+  tool("set_network_vpn_site_reach", "PUT", `${peer}/site-reach`, "Set this site's load-balancer/floating-IP reach choice, or null to follow its VPN default. This can expand access to services behind those addresses; the backend checks ownership and service locks. Inspect site_reach.state and reason_code.", { reach: reach.nullable() }, { destructive: true }),
+  tool("set_network_vpn_site_options", "PUT", `${vpn}/site-options`, "Set one or more VPN options: hub_and_spoke joins offices, site_reach sets the default load-balancer/floating-IP reach for sites, and device_mesh lets devices reach each other. Each can expand connectivity. The backend checks attached service locks and reports applied state; read get_network_vpn_gateway until it settles. 503 vpn_site_routing_unavailable while site routing is disabled.", { hub_and_spoke: z.boolean().optional(), site_reach: reach.optional(), device_mesh: z.boolean().optional() }, { destructive: true, validate: input => { if (!["hub_and_spoke", "site_reach", "device_mesh"].some(field => input[field] !== undefined)) throw new Error("Set at least one VPN site option."); } }),
   tool("set_network_vpn_site_alert", "PUT", `${peer}/site-alert`, "Switch the office-down e-mail of one connected location: enabled=true sends one e-mail to the account when the location's router has not reached the VPN for 5 minutes and one more when it is back. The first observation after switching it on only records the state (state null until then). Devices are refused (404 vpn_peer_not_found). 503 vpn_site_routing_unavailable while site-to-site is not enabled.", { enabled: z.boolean() }, {}),
   tool("set_network_site_route_mode", "PUT", `${A}/networks/{network_id}/site-route-mode`, "Choose how the servers of a network reach its VPN's connected locations: dhcp (default) = DHCP classless static routes, picked up at the next lease renewal (about 30 minutes) or a DHCP renew/restart, never by servers with a fixed address; router = an internal network router (no NAT, no external address, no price) carries the routes at once. Has no effect on a network with a NAT gateway. Every VPN of the network moves to a new route line at once. 409 while a server of the network is suspended for abuse.", { route_mode: z.enum(["dhcp", "router"]) }, { destructive: true }),
   tool("get_network_vpn_egress_options", "GET", `${vpn}/egress-options`, "Read supported VPN Internet exits and qualification. Ordinary VMs and remote connectors are not implied to be supported."),
@@ -258,8 +300,9 @@ export function networkingRequest(definition: NetworkingTool, args: Record<strin
   for (const field of definition.pathFields) path = path.replace(`{${field}}`, encodeURIComponent(String(input[field])));
   const query = new URLSearchParams();
   for (const field of definition.options.query ?? []) {
-    if (input[field] !== undefined) query.set(field, String(input[field]));
+    if (input[field] !== undefined) query.set(field, typeof input[field] === "object" ? JSON.stringify(input[field]) : String(input[field]));
   }
+  for (const [field, value] of Object.entries(definition.options.fixedQuery ?? {})) query.set(field, value);
   if (query.size) path += `?${query}`;
   const headers: Record<string, string> = {};
   if (input.idempotencyKey !== undefined) headers["Idempotency-Key"] = String(input.idempotencyKey);
@@ -294,6 +337,57 @@ export function networkingProgressHint(data: unknown): string | null {
     return `Operation ${operation.id ?? ""} failed (state=${operation.state}, reason_code=${reason}). Do not retry automatically; report the reason_code.`;
   }
   return `Operation ${operation.id ?? ""} finished (state=${operation.state}, reason_code=${reason}).`;
+}
+
+// VPN responses may carry one-time setup material. Keep ciphertext in its
+// reviewed envelope, but never hand plaintext keys or arbitrary error text to
+// an AI client, including when the backend adds a nested field in the future.
+export function safeVpnPayload(data: unknown, status: number): unknown {
+  if (status >= 400) {
+    const value = data && typeof data === "object" && !Array.isArray(data) ? data as Record<string, unknown> : {};
+    const safe: Record<string, unknown> = { http_status: status };
+    for (const field of ["reason_code", "code", "error", "field"]) {
+      if (typeof value[field] === "string" && /^[a-z][a-z0-9_.-]{0,127}$/.test(value[field])) safe[field] = value[field];
+    }
+    if (Number.isInteger(value.retry_after) && Number(value.retry_after) > 0) safe.retry_after = value.retry_after;
+    if (value.non_api_response === true) safe.non_api_response = true;
+    if (value.outcome_unknown === true) {
+      safe.outcome_unknown = true;
+      safe.message = "The request outcome is unknown. Inspect state before retrying with the same key and unchanged input.";
+    }
+    return safe;
+  }
+  const project = (value: unknown, depth: number): unknown => {
+    if (depth > 24) return "[omitted]";
+    if (Array.isArray(value)) return value.map(item => project(item, depth + 1));
+    if (value && typeof value === "object") {
+      const record = value as Record<string, unknown>;
+      const out: Record<string, unknown> = {};
+      for (const [field, item] of Object.entries(record)) {
+        const normalized = field.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+        if (field === "sealed") {
+          if (!item || typeof item !== "object" || Array.isArray(item)) { out.sealed = "[invalid sealed material]"; continue; }
+          const sealed = item as Record<string, unknown>;
+          const names = Object.keys(sealed).sort();
+          if (JSON.stringify(names) !== JSON.stringify(["ciphertext", "ephemeral_public_key", "nonce"])
+              || names.some(name => typeof sealed[name] !== "string")) { out.sealed = "[invalid sealed material]"; continue; }
+          out.sealed = { ephemeral_public_key: sealed.ephemeral_public_key, nonce: sealed.nonce, ciphertext: sealed.ciphertext };
+        } else if (normalized !== "psk_lost_hint" && normalized !== "psk_placeholder" && normalized !== "quote_token"
+            && (/^(?:psk|pre_shared_key|private_key|secret|password|credential|token)(?:_|$)/.test(normalized)
+              || /_(?:psk|pre_shared_key|private_key|secret|password|credential|token)$/.test(normalized)
+              || /^(?:config|configuration|ciphertext|raw_material)$/.test(normalized))) {
+          out[field] = "[redacted]";
+        } else out[field] = project(item, depth + 1);
+      }
+      return out;
+    }
+    if (typeof value === "string") return value
+      .replace(/-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----/gi, "[redacted]")
+      .replace(/\b(?:psk|pre[-_ ]?shared[-_ ]?key|private[-_ ]?key|password|secret)\s*[:=]\s*([^\s,;]+)/gi,
+        (match, material: string) => material === "{{PSK}}" ? match : "[redacted]");
+    return value;
+  };
+  return project(data, 0);
 }
 
 /** Read-only recovery targets. IDs are copied from validated inputs or owned API results, never guessed. */
@@ -365,10 +459,11 @@ export function registerNetworkingTools(server: McpServer): void {
     }, async args => {
       const request = networkingRequest(definition, args);
       const result = await apiRequest(request.method, request.path, request.body, request.headers, { readOnly: request.readOnly });
-      const reads = result.status < 400 ? networkingFollowUpReads(definition, args, result.data) : [];
-      const progress = result.status < 400 ? networkingProgressHint(result.data) : null;
+      const safeData = definition.path.includes("/vpn-gateways") ? safeVpnPayload(result.data, result.status) : result.data;
+      const reads = result.status < 400 ? networkingFollowUpReads(definition, args, safeData) : [];
+      const progress = result.status < 400 ? networkingProgressHint(safeData) : null;
       return { content: [
-        { type: "text" as const, text: formatJson(result.data) },
+        { type: "text" as const, text: formatJson(safeData) },
         ...(progress ? [{ type: "text" as const, text: progress }] : []),
         ...(reads.length ? [{ type: "text" as const, text: `Follow-up reads (do not repeat the change): ${JSON.stringify(reads)}` }] : []),
       ], ...(result.status >= 400 ? { isError: true } : {}) };

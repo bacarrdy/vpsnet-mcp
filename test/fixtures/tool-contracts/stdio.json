@@ -223,6 +223,105 @@
       "name": "add_network_load_balancer_member",
       "title": "Add network load balancer member"
     },
+    "add_network_vpn_site_line": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Add network VPN site line"
+      },
+      "description": "Add line 2 to an IPsec site using the gateway generation and an external X25519 public reveal key. Keep its private key outside MCP; after config_available, take_network_vpn_site_line_config returns its sealed key exactly once. A two-line site uses static routes, not BGP. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "dpd_seconds": {
+            "maximum": 300,
+            "minimum": 10,
+            "type": "integer"
+          },
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "remote_address": {
+            "anyOf": [
+              {
+                "format": "ipv4",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reveal_public_key": {
+            "description": "Customer-generated one-time X25519 PUBLIC key only. Keep its private key outside MCP; needed to decrypt the sealed configuration.",
+            "pattern": "^[A-Za-z0-9+/]{43}=$",
+            "type": "string"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog",
+                "enum": [
+                  "fortigate",
+                  "mikrotik",
+                  "pfsense",
+                  "opnsense",
+                  "cisco_ios_xe",
+                  "cisco_asa",
+                  "unifi",
+                  "junos_srx",
+                  "panos",
+                  "generic_strongswan",
+                  "generic_libreswan"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "expected_generation",
+          "reveal_public_key",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "add_network_vpn_site_line",
+      "title": "Add network VPN site line"
+    },
     "apply_dns_template": {
       "annotations": {
         "destructiveHint": true,
@@ -7257,7 +7356,7 @@
         "readOnlyHint": true,
         "title": "Get network VPN peer recipe"
       },
-      "description": "Read router setup instructions for one owned IPsec IKEv2 site. Optional vendor selects an advertised recipe; omit to use the site's saved vendor. Language defaults to en. The recipe contains the literal {{PSK}} placeholder, never the secret: replace it outside MCP using the customer's one-time sealed configuration. Devices, WireGuard sites and revoked sites are refused. Read current gateway capabilities; this tool does not enable IPsec or establish deployment/interoperability. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read backend-sourced router setup instructions for one owned IPsec IKEv2 site. Optional vendor, language, line selection and version/inputs preview use the backend recipe catalogue. The recipe contains a literal {{PSK}} placeholder, never the secret. Unsupported router/BGP/line combinations are refused, not replaced by a static recipe. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7272,10 +7371,33 @@
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
           },
+          "inputs": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object"
+          },
           "lang": {
             "enum": [
               "en",
               "lt"
+            ],
+            "type": "string"
+          },
+          "lines": {
+            "enum": [
+              "all",
+              "2"
             ],
             "type": "string"
           },
@@ -7301,6 +7423,10 @@
               "generic_strongswan",
               "generic_libreswan"
             ],
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 64,
             "type": "string"
           }
         },
@@ -7344,6 +7470,54 @@
       },
       "name": "get_network_vpn_summary",
       "title": "Get network VPN summary"
+    },
+    "get_network_vpn_tunnel_test": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get network VPN tunnel test"
+      },
+      "description": "Read one owned tunnel test by its returned ID; while running, poll no faster than the backend's one-second guidance. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "test_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "test_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_network_vpn_tunnel_test",
+      "title": "Get network VPN tunnel test"
     },
     "get_networking_capabilities": {
       "annotations": {
@@ -12731,6 +12905,44 @@
       "name": "reapply_dns_zone",
       "title": "Reapply DNS zone"
     },
+    "rebuild_network_vpn_gateway": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Rebuild network VPN gateway"
+      },
+      "description": "Rebuild the owned VPN VM with its existing address and devices. This interrupts connections for roughly one to two minutes; inspect the operation and gateway. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "rebuild_network_vpn_gateway",
+      "title": "Rebuild network VPN gateway"
+    },
     "recheck_certificate_validation": {
       "annotations": {
         "destructiveHint": false,
@@ -13269,6 +13481,95 @@
       },
       "name": "remove_network_load_balancer_member",
       "title": "Remove network load balancer member"
+    },
+    "remove_network_vpn_site_second_line": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Remove network VPN site second line"
+      },
+      "description": "Remove line 2 using the gateway generation. The backend refuses removal while it is main; move main to line 1 first. Inspect the returned operation and peer. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "expected_generation",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "remove_network_vpn_site_second_line",
+      "title": "Remove network VPN site second line"
+    },
+    "rename_network_vpn_gateway": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Rename network VPN gateway"
+      },
+      "description": "Rename an owned VPN's customer label. The backend checks label uniqueness; this does not change the tunnel or guest generation. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "name": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "rename_network_vpn_gateway",
+      "title": "Rename network VPN gateway"
     },
     "renew_free_certificate": {
       "annotations": {
@@ -13866,6 +14167,44 @@
       },
       "name": "restart_application",
       "title": "Restart application"
+    },
+    "restart_network_vpn_gateway": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Restart network VPN gateway"
+      },
+      "description": "Restart the owned VPN VM in place. Connections are interrupted; inspect the returned operation and gateway. Backend spacing and busy refusals are authoritative. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "restart_network_vpn_gateway",
+      "title": "Restart network VPN gateway"
     },
     "restart_service": {
       "annotations": {
@@ -14485,6 +14824,150 @@
       "name": "rollback_snapshot",
       "title": "Rollback snapshot"
     },
+    "rotate_network_vpn_ipsec_key": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Rotate network VPN ipsec key"
+      },
+      "description": "Rotate an IPsec site's pre-shared key. Supply a fresh customer-generated X25519 public reveal key, keep its private half outside MCP, then consume the new sealed material once with take_network_vpn_peer_config line=1. The old key stops authenticating new sessions after apply; inspect the operation. WireGuard peers are refused. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "reveal_public_key": {
+            "description": "Customer-generated one-time X25519 PUBLIC key only. Keep its private key outside MCP; needed to decrypt the sealed configuration.",
+            "pattern": "^[A-Za-z0-9+/]{43}=$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "reveal_public_key",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "rotate_network_vpn_ipsec_key",
+      "title": "Rotate network VPN ipsec key"
+    },
+    "save_network_vpn_router_setup": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Save network VPN router setup"
+      },
+      "description": "Save nonsecret backend-catalogue router version and local interface/zone fields for an IPsec site, optionally line 2. This changes saved setup guidance, not the tunnel. The backend validates vendor, version and fields. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "line": {
+            "enum": [
+              1,
+              2
+            ],
+            "type": "number"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "vendor": {
+            "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog",
+            "enum": [
+              "fortigate",
+              "mikrotik",
+              "pfsense",
+              "opnsense",
+              "cisco_ios_xe",
+              "cisco_asa",
+              "unifi",
+              "junos_srx",
+              "panos",
+              "generic_strongswan",
+              "generic_libreswan"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "vendor"
+        ],
+        "type": "object"
+      },
+      "name": "save_network_vpn_router_setup",
+      "title": "Save network VPN router setup"
+    },
     "search_service_files": {
       "annotations": {
         "destructiveHint": false,
@@ -14932,6 +15415,53 @@
       "name": "set_network_site_route_mode",
       "title": "Set network site route mode"
     },
+    "set_network_vpn_internet_exit": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network VPN internet exit"
+      },
+      "description": "Choose none, the VPN's own IPv4, or its attached network NAT as Internet exit. The backend qualifies each mode and returns applying/applied state. Reusing the same idempotency key with the same mode is safe after uncertainty. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "none",
+              "own_ipv4",
+              "network_nat"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "mode",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_vpn_internet_exit",
+      "title": "Set network VPN internet exit"
+    },
     "set_network_vpn_peer_egress": {
       "annotations": {
         "destructiveHint": true,
@@ -15147,6 +15677,169 @@
       "name": "set_network_vpn_site_alert",
       "title": "Set network VPN site alert"
     },
+    "set_network_vpn_site_bgp": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network VPN site bgp"
+      },
+      "description": "Enable or change BGP over a supported single-line IPsec site's tunnel using the gateway generation. Set enabled=false to turn it off; when switching from any_private, supply remote_prefixes for static routing. A site with line 2 is static-only: preserve vpn_ipsec_lines_bgp from the backend. Follow bgp.applied and gateway state; no operation ID is promised. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "accept": {
+            "enum": [
+              "listed",
+              "any_private"
+            ],
+            "type": "string"
+          },
+          "enabled": {
+            "const": false,
+            "type": "boolean"
+          },
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "hold_seconds": {
+            "maximum": 180,
+            "minimum": 9,
+            "type": "integer"
+          },
+          "inner": {
+            "format": "ipv4",
+            "type": "string"
+          },
+          "keepalive_seconds": {
+            "maximum": 60,
+            "minimum": 3,
+            "type": "integer"
+          },
+          "local_asn": {
+            "maximum": 4294967294,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "peer_asn": {
+            "maximum": 4294967294,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "remote_prefixes": {
+            "description": "The office's PRIVATE IPv4 networks (10/8, 172.16/12, 192.168/16 or 100.64/10), canonical and disjoint",
+            "items": {
+              "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}\\/(?:[0-9]|[12][0-9]|3[0-2])$",
+              "type": "string"
+            },
+            "maxItems": 16,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "expected_generation"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_vpn_site_bgp",
+      "title": "Set network VPN site bgp"
+    },
+    "set_network_vpn_site_main_line": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network VPN site main line"
+      },
+      "description": "Choose line 1 or 2 as the main IPsec line using the gateway generation; optional DPD applies to both. Confirm routing interruption and inspect the returned peer/operation. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "dpd_seconds": {
+            "anyOf": [
+              {
+                "maximum": 300,
+                "minimum": 10,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "line": {
+            "enum": [
+              1,
+              2
+            ],
+            "type": "number"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "line",
+          "expected_generation",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_vpn_site_main_line",
+      "title": "Set network VPN site main line"
+    },
     "set_network_vpn_site_options": {
       "annotations": {
         "destructiveHint": true,
@@ -15155,7 +15848,61 @@
         "readOnlyHint": false,
         "title": "Set network VPN site options"
       },
-      "description": "Switch hub-and-spoke for the locations (offices) connected to this VPN: hub_and_spoke=true lets them reach each other through the VPN (each still reaches only its own granted servers); false (default) keeps them isolated. Recorded at once; the VPN's next generation carries it, possibly after one planned recreate of an older VPN image. Read get_network_vpn_gateway until site_options.hub_and_spoke_applied follows, then give each office router its routes_update line. 503 vpn_site_routing_unavailable while site-to-site is not enabled. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Set one or more VPN options: hub_and_spoke joins offices, site_reach sets the default load-balancer/floating-IP reach for sites, and device_mesh lets devices reach each other. Each can expand connectivity. The backend checks attached service locks and reports applied state; read get_network_vpn_gateway until it settles. 503 vpn_site_routing_unavailable while site routing is disabled. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "device_mesh": {
+            "type": "boolean"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "hub_and_spoke": {
+            "type": "boolean"
+          },
+          "site_reach": {
+            "additionalProperties": false,
+            "properties": {
+              "floating_ips": {
+                "type": "boolean"
+              },
+              "load_balancers": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "load_balancers",
+              "floating_ips"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "gateway_id"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_vpn_site_options",
+      "title": "Set network VPN site options"
+    },
+    "set_network_vpn_site_reach": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network VPN site reach"
+      },
+      "description": "Set this site's load-balancer/floating-IP reach choice, or null to follow its VPN default. This can expand access to services behind those addresses; the backend checks ownership and service locks. Inspect site_reach.state and reason_code. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -15170,18 +15917,46 @@
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
           },
-          "hub_and_spoke": {
-            "type": "boolean"
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "reach": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "floating_ips": {
+                    "type": "boolean"
+                  },
+                  "load_balancers": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "load_balancers",
+                  "floating_ips"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "gateway_id",
-          "hub_and_spoke"
+          "peer_id",
+          "reach"
         ],
         "type": "object"
       },
-      "name": "set_network_vpn_site_options",
-      "title": "Set network VPN site options"
+      "name": "set_network_vpn_site_reach",
+      "title": "Set network VPN site reach"
     },
     "set_private_network_dns": {
       "annotations": {
@@ -15475,6 +16250,59 @@
       "name": "start_application",
       "title": "Start application"
     },
+    "start_network_vpn_tunnel_test": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Start network VPN tunnel test"
+      },
+      "description": "Start a backend tunnel test for a site or supported WireGuard peer; optional line selects 1 or 2. A running test may be returned instead of a new probe. Read the returned test ID with get_network_vpn_tunnel_test; rate and capability refusals are authoritative. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "line": {
+            "enum": [
+              1,
+              2
+            ],
+            "type": "number"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "start_network_vpn_tunnel_test",
+      "title": "Start network VPN tunnel test"
+    },
     "start_service": {
       "annotations": {
         "destructiveHint": false,
@@ -15680,7 +16508,56 @@
         "readOnlyHint": false,
         "title": "Take network VPN peer config"
       },
-      "description": "Consume a device's or site's sealed configuration ONCE, including the sealed IPsec site material when applicable. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys or a raw PSK. Save and decrypt the returned sealed payload outside MCP; a second pickup is 410. Never retry automatically after an uncertain transport result. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Consume a device's or site's sealed configuration ONCE. For IPsec primary-key rotation pass line=1 explicitly: without it, a pending second-line envelope can be returned after the primary was consumed. This is a management mutation despite GET. The ciphertext is decryptable only by the customer's matching external reveal private key; this tool never creates, requests or decrypts private keys or a raw PSK. A second pickup is 410. Never retry automatically after an uncertain transport result. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "acknowledge_one_time_pickup": {
+            "const": true,
+            "type": "boolean"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "line": {
+            "const": 1,
+            "type": "number"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "acknowledge_one_time_pickup"
+        ],
+        "type": "object"
+      },
+      "name": "take_network_vpn_peer_config",
+      "title": "Take network VPN peer config"
+    },
+    "take_network_vpn_site_line_config": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Take network VPN site line config"
+      },
+      "description": "Consume the second IPsec line's sealed key exactly once with line=2. Decrypt only outside MCP with the private key matching add_network_vpn_site_line's public reveal key. A second pickup is 410; never retry after an uncertain response. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -15714,8 +16591,8 @@
         ],
         "type": "object"
       },
-      "name": "take_network_vpn_peer_config",
-      "title": "Take network VPN peer config"
+      "name": "take_network_vpn_site_line_config",
+      "title": "Take network VPN site line config"
     },
     "toggle_extra_settings": {
       "annotations": {

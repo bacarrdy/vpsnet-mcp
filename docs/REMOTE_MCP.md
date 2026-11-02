@@ -32,6 +32,30 @@ Missing permissions return an OAuth scope challenge before an action runs.
 Clients that cannot request incremental consent must reconnect with the needed
 permissions. Consent never silently expands an existing grant.
 
+### VPN site management and one-time keys
+
+VPN reads and router recipes require `networking:read`; changes, tunnel tests,
+and one-time sealed configuration pickup require `networking:manage`. Tool
+discovery advertises the required scope, while each remote call checks the
+authenticated grant. Gateway and peer IDs are checked by the backend against
+that account. A two-line IPsec site uses static routes; the backend refuses BGP
+while line 2 exists. Router instructions and preview fields come from the
+backend's vendor catalogue, including an explicit `{{PSK}}` placeholder.
+
+For IPsec site creation, key rotation, or line-2 creation, generate a fresh
+X25519 reveal key pair outside MCP. Supply only its public key to the mutation.
+Keep the private key outside MCP, wait until the peer reports
+`config_available`, then deliberately call `take_network_vpn_peer_config`
+with `line=1` for the site's key or `take_network_vpn_site_line_config` for line 2. Each GET
+consumes its own sealed envelope once; decrypt the ciphertext outside MCP with
+the matching private key. A second pickup returns 410. After an uncertain
+transport response, inspect state and do not automatically repeat the GET.
+Neither tool returns a plaintext PSK, private key, or completed secret-bearing
+router configuration. A lost one-time IPsec site key needs an authorized
+rotation; line 2 can be removed and added again with a new reveal pair when
+appropriate. Changes requiring an Idempotency-Key must reuse the same key and
+unchanged body after uncertainty.
+
 `get_connected_account` reports the stored spending limits returned by the
 backend. When supplied, `function_monthly_limit_eur` is the grant's monthly
 Functions cap in EUR, alongside `function_daily_limit_eur`; it may be a number
