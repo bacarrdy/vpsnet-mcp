@@ -1,6 +1,6 @@
 {
-  "backend_commit": "a56bfe4a5e551db0ae41266958ce6ba2f1ea7bff",
-  "audited_at": "2026-10-08",
+  "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371",
+  "audited_at": "2026-11-02",
   "routes": [
     {
       "method": "get",
@@ -686,6 +686,110 @@
       "backend_commit": "779254fe25961acd2f3360770756647f5d689def",
       "audited_at": "2026-10-30",
       "source": "routes.php / app/Http/Controllers/User/ApplianceController.php / app/Services/Appliance/VpnPeerRepository.php"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/restart",
+      "controller": "ApplianceController",
+      "action": "vpnRestart",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/rebuild",
+      "controller": "ApplianceController",
+      "action": "vpnRebuild",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/internet-exit",
+      "controller": "ApplianceController",
+      "action": "vpnInternetExit",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/rotate-key",
+      "controller": "ApplianceController",
+      "action": "vpnPeerRotateKey",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/router-setup",
+      "controller": "ApplianceController",
+      "action": "vpnPeerRouterSetup",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/bgp",
+      "controller": "ApplianceController",
+      "action": "vpnPeerBgp",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/lines",
+      "controller": "ApplianceController",
+      "action": "vpnSiteLineStore",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/lines/main",
+      "controller": "ApplianceController",
+      "action": "vpnSiteLineMain",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "delete",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/lines/2",
+      "controller": "ApplianceController",
+      "action": "vpnSiteLineDestroy",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/tests",
+      "controller": "ApplianceController",
+      "action": "vpnSiteTestStore",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/tests/{testId}",
+      "controller": "ApplianceController",
+      "action": "vpnSiteTestShow",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/site-reach",
+      "controller": "ApplianceController",
+      "action": "vpnPeerSiteReach",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/name",
+      "controller": "ApplianceController",
+      "action": "vpnRename",
+      "spec": "backend routes.php",
+      "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
     }
   ],
   "excluded": [
@@ -733,6 +837,11 @@
       "method": "post",
       "path": "/account/networking/appliances/vpn-gateways",
       "reason": "Unpaid appliance create is permanently refused with public_product_quote_required; use common checkout."
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/my-address",
+      "reason": "Returns the MCP gateway egress address, not the end customer address; unsuitable as a remote router setup helper."
     }
   ]
 }

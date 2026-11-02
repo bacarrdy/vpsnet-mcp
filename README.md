@@ -1208,6 +1208,28 @@ feature gate.
 | `configure_network_public_forwarding` | Configure an existing reserved forwarding binding's TCP/UDP listeners | `networking:manage` | free |
 | `delete_network_public_binding` | Request deletion of an existing binding using its generation | `networking:manage` | free |
 
+### Not yet categorised
+| Tool | Description | Scope | Paid |
+|------|-------------|-------|------|
+| `restart_network_vpn_gateway` | Restart the owned VPN VM in place. | `networking:manage` | free |
+| `rebuild_network_vpn_gateway` | Rebuild the owned VPN VM with its existing address and devices. | `networking:manage` | free |
+| `set_network_vpn_internet_exit` | Choose none, the VPN's own IPv4, or its attached network NAT as Internet exit. | `networking:manage` | free |
+| `take_network_vpn_site_line_config` | Consume the second IPsec line's sealed key exactly once with line=2. | `networking:manage` | free |
+| `rotate_network_vpn_ipsec_key` | Rotate an IPsec site's pre-shared key. | `networking:manage` | free |
+| `save_network_vpn_router_setup` | Save nonsecret backend-catalogue router version and local interface/zone fields for an IPsec site, optionally line 2. | `networking:manage` | free |
+| `set_network_vpn_site_bgp` | Enable or change BGP over a supported single-line IPsec site's tunnel using the gateway generation. | `networking:manage` | free |
+| `add_network_vpn_site_line` | Add line 2 to an IPsec site using the gateway generation and an external X25519 public reveal key. | `networking:manage` | free |
+| `set_network_vpn_site_main_line` | Choose line 1 or 2 as the main IPsec line using the gateway generation; optional DPD applies to both. | `networking:manage` | free |
+| `remove_network_vpn_site_second_line` | Remove line 2 using the gateway generation. | `networking:manage` | free |
+| `start_network_vpn_tunnel_test` | Start a backend tunnel test for a site or supported WireGuard peer; optional line selects 1 or 2. | `networking:manage` | free |
+| `get_network_vpn_tunnel_test` | Read one owned tunnel test by its returned ID; while running, poll no faster than the backend's one-second guidance. | `networking:read` | free |
+| `set_network_vpn_site_reach` | Set this site's load-balancer/floating-IP reach choice, or null to follow its VPN default. | `networking:manage` | free |
+
+### Not yet categorised
+| Tool | Description | Scope | Paid |
+|------|-------------|-------|------|
+| `rename_network_vpn_gateway` | Rename an owned VPN's customer label. | `networking:manage` | free |
+
 <!-- tool-reference:end -->
 
 ## Worked examples
