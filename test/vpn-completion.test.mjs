@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer, request } from 'node:http';
 import { once } from 'node:events';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -35,6 +36,7 @@ async function harness(t, respond = () => ({status: 200, body: {accepted: true}}
   return {client, requests, call: (name, args) => client.callTool({name, arguments: args})};
 }
 const data = result => JSON.parse(result.content[0].text);
+const releaseFixture = name => JSON.parse(readFileSync(new URL(`./fixtures/mcp-operation-release-${name}.json`, import.meta.url), 'utf8'));
 
 async function discover(scopes) {
   const server = createVpsnetServer({remoteScopes: scopes});
@@ -218,6 +220,75 @@ test('gateway read preserves old-agent omission and distinct unknown or stale li
   assert.notDeepEqual(first.bgp.route_visibility, second.bgp.route_visibility);
   assert.equal(second.active, false);
   assert.equal(Object.hasOwn(second.bgp, 'accepted'), false, 'legacy aggregate is not copied into a line');
+});
+
+test('registered gateway read retains qualified F1 action and F2 release facts, omits absent metadata and redacts injected secrets', async t => {
+  const qualified = releaseFixture('qualified');
+  qualified.vpn_gateway.diagnostic = {private_key: 'synthetic-private-material', credential: 'synthetic-credential'};
+  const absent = releaseFixture('absent');
+  let reads = 0;
+  const {client, call, requests} = await harness(t, () => ({status: 200, body: reads++ === 0 ? qualified : absent}));
+  const tool = (await client.listTools()).tools.find(item => item.name === 'get_network_vpn_gateway');
+  assert.match(tool.description, /recent_operation/);
+  assert.match(tool.description, /image\.update\.public_release/);
+
+  const first = data(await call('get_network_vpn_gateway', {gateway_id}));
+  assert.deepEqual(first.vpn_gateway.recent_operation, qualified.vpn_gateway.recent_operation);
+  assert.equal(first.vpn_gateway.recent_operation.progress_stale, true);
+  assert.equal(Object.hasOwn(first.vpn_gateway.recent_operation, 'observation_stale'), false);
+  assert.deepEqual(first.vpn_gateway.image.update.public_release, qualified.vpn_gateway.image.update.public_release);
+  assert.deepEqual(Object.keys(first.vpn_gateway.image.update.public_release.notes).sort(), ['en', 'et', 'lt', 'lv']);
+  assert.deepEqual(first.vpn_gateway.diagnostic, {private_key: '[redacted]', credential: '[redacted]'});
+  assert.ok(!JSON.stringify(first).includes('synthetic-private-material'));
+  assert.ok(!JSON.stringify(first).includes('synthetic-credential'));
+
+  const second = data(await call('get_network_vpn_gateway', {gateway_id}));
+  assert.equal(second.vpn_gateway.recent_operation, null);
+  assert.equal(second.vpn_gateway.image.update.status, 'unknown');
+  assert.equal(Object.hasOwn(second.vpn_gateway.image.update, 'public_release'), false);
+  assert.deepEqual(requests.map(item => [item.method, item.path]), [['GET', base], ['GET', base]]);
+  assert.ok(requests.every(item => item.body === undefined));
+});
+
+test('qualified current target can carry channel alone without inventing release notes', async t => {
+  const current = releaseFixture('qualified');
+  current.vpn_gateway.image.update.status = 'current';
+  current.vpn_gateway.image.update.public_release = {channel: 'stable'};
+  const {call} = await harness(t, () => ({status: 200, body: current}));
+  assert.deepEqual(data(await call('get_network_vpn_gateway', {gateway_id})).vpn_gateway.image.update.public_release, {channel: 'stable'});
+});
+
+test('registered appliance operation read retains VPN telemetry and explains progress without a completion promise', async t => {
+  const operation = {id: test_id, kind: 'vpn_peer_create', state: 'running', in_progress: true,
+    reason_code: 'appliance_dispatch_pending', reason_kind: 'waiting', next_check_seconds: null,
+    started_at: '2026-11-02T08:50:00Z', last_progress_at: '2026-11-02T08:52:00Z',
+    last_observed_at: '2026-11-02T08:51:00Z', progress_stale: true, stage: 'observed',
+    outcome: null, finished_at: null};
+  const terminal = {...operation, state: 'succeeded', in_progress: false, reason_code: null,
+    reason_kind: null, stage: 'finished', progress_stale: null, outcome: 'succeeded', finished_at: '2026-11-02T09:00:00Z'};
+  let reads = 0;
+  const {client, call, requests} = await harness(t, () => ({status: 200, body: {operation: reads++ === 0 ? operation : terminal}}));
+  const tool = (await client.listTools()).tools.find(item => item.name === 'get_network_appliance_operation');
+  assert.match(tool.description, /progress_stale.*terminal state/);
+  assert.doesNotMatch(tool.description, /settles in a few seconds/);
+
+  const open = await call('get_network_appliance_operation', {operation_id: test_id});
+  assert.deepEqual(data(open).operation, operation);
+  assert.match(open.content[1].text, /Poll the follow-up read again after an interval/);
+  assert.match(open.content[1].text, /last_progress_at is durable action progress/);
+  assert.match(open.content[1].text, /progress_stale is age of action progress, not tunnel health/);
+  assert.match(open.content[1].text, /Receipt, observation, FRR selection and terminal success do not prove connectivity/);
+  assert.doesNotMatch(open.content[1].text, /few seconds/);
+
+  const done = await call('get_network_appliance_operation', {operation_id: test_id});
+  assert.deepEqual(data(done).operation, terminal);
+  assert.match(done.content[1].text, /finished \(state=succeeded/);
+  assert.match(done.content[1].text, /outcome and finished_at mark a terminal result/);
+  assert.deepEqual(requests.map(item => [item.method, item.path]), [
+    ['GET', `/account/networking/appliances/operations/${test_id}`],
+    ['GET', `/account/networking/appliances/operations/${test_id}`],
+  ]);
+  assert.ok(requests.every(item => item.body === undefined));
 });
 
 test('VPN renewal quote token remains usable while secret-bearing fields are hidden', async t => {
