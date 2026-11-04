@@ -2,6 +2,7 @@
 
 ## Unreleased source — 2026-11-02
 
+- `quote_domain_register`, `quote_domain_transfer`, `confirm_domain_register` and `confirm_domain_transfer` accept `registrant_extra`, the answers to what a TLD's registry requires. Without it an order for such a TLD could only be refused (`registrantRequirementMissing`, before any money moves). Values are forwarded and not stored. Existing calls are unchanged.
 - Add three VPN site health webhook tools against backend `a8d10fe`: list with `networking:read`, create and delete with `networking:manage`. Existing tool names and inputs remain unchanged. API-key/OAuth creation requires an external X25519 public reveal key; MCP returns only the sealed signing envelope and public host display. Create and delete return immediate resources, with no operation polling or idempotency key. Prepared contract counts: stdio 351, directory 272, orders 279. This source change does not publish or deploy the new tools.
 
 ## 0.6.16 connector / 2.6.0 MCP server — 2026-10-30
