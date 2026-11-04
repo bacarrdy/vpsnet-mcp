@@ -866,6 +866,11 @@
       "method": "get",
       "path": "/account/networking/appliances/vpn-gateways/my-address",
       "reason": "Returns the MCP gateway egress address, not the end customer address; unsuitable as a remote router setup helper."
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-bindings/{id}/forward",
+      "reason": "No customer object can use it: the forwarding address kind is no longer sold (409 public_address_sold_per_account), native_nlb has no product (503) and account public addresses are refused (public_address_use_address_actions). Tool removed 2026-11-04."
     }
   ]
 }

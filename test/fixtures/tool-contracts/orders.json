@@ -28,7 +28,6 @@
     "configure_application_access",
     "configure_application_resource_thresholds",
     "configure_application_server_routes",
-    "configure_network_public_forwarding",
     "confirm_application_compose_adoption",
     "confirm_domain_register",
     "confirm_service_order",
