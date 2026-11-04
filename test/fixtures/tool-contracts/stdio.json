@@ -2319,6 +2319,13 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "registrant_extra": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
+            "type": "object"
+          },
           "tech_contact_id": {
             "description": "Technical contact ID used in quote",
             "exclusiveMinimum": 0,
@@ -2579,6 +2586,13 @@
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "registrant_extra": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
+            "type": "object"
           },
           "tech_contact_id": {
             "description": "Technical contact ID used in quote",
@@ -13107,6 +13121,13 @@
             "maximum": 9007199254740991,
             "type": "integer"
           },
+          "registrant_extra": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
+            "type": "object"
+          },
           "tech_contact_id": {
             "description": "Technical contact ID",
             "exclusiveMinimum": 0,
@@ -13274,6 +13295,13 @@
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991,
             "type": "integer"
+          },
+          "registrant_extra": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
+            "type": "object"
           },
           "tech_contact_id": {
             "description": "Technical contact ID",
