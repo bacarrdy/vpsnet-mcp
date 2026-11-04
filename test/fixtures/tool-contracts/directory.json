@@ -28,7 +28,6 @@
     "configure_application_access",
     "configure_application_resource_thresholds",
     "configure_application_server_routes",
-    "configure_network_public_forwarding",
     "confirm_application_compose_adoption",
     "create_application_recipe",
     "create_application_recipe_revision",
@@ -943,28 +942,6 @@
           {
             "scopes": [
               "applications:manage"
-            ],
-            "type": "oauth2"
-          }
-        ]
-      }
-    },
-    "configure_network_public_forwarding": {
-      "set": {
-        "_meta": {
-          "securitySchemes": [
-            {
-              "scopes": [
-                "networking:manage"
-              ],
-              "type": "oauth2"
-            }
-          ]
-        },
-        "securitySchemes": [
-          {
-            "scopes": [
-              "networking:manage"
             ],
             "type": "oauth2"
           }

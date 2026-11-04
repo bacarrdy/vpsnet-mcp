@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased source — 2026-11-04
+
+- Remove `configure_network_public_forwarding`. It called `POST /account/networking/public-bindings/{id}/forward`, which no customer object can use today: the `forwarding` address kind is no longer sold (409 `public_address_sold_per_account`), `native_nlb` has no product (503), and an account's own public addresses are refused (`public_address_use_address_actions`). Every other networking tool, including `get_network_public_binding`, is unchanged. Prepared contract counts: stdio 350, directory 271, orders 278.
+
 ## Unreleased source — 2026-11-02
 
 - Add three VPN site health webhook tools against backend `a8d10fe`: list with `networking:read`, create and delete with `networking:manage`. Existing tool names and inputs remain unchanged. API-key/OAuth creation requires an external X25519 public reveal key; MCP returns only the sealed signing envelope and public host display. Create and delete return immediate resources, with no operation polling or idempotency key. Prepared contract counts: stdio 351, directory 272, orders 279. This source change does not publish or deploy the new tools.

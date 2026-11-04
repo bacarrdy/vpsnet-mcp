@@ -1216,7 +1216,6 @@ feature gate.
 | `get_network_public_binding` | Read one existing owned public binding's generation, state and assigned address | `networking:read` | free |
 | `bind_network_public_ip` | Bind an already reserved floating public binding to an owned private port when supported | `networking:manage` | free |
 | `move_network_public_ip` | Move a prepared floating public binding to another owned private port; confirm interruption to the old target. | `networking:manage` | free |
-| `configure_network_public_forwarding` | Configure an existing reserved forwarding binding's TCP/UDP listeners | `networking:manage` | free |
 | `delete_network_public_binding` | Request deletion of an existing binding using its generation | `networking:manage` | free |
 
 ### Not yet categorised

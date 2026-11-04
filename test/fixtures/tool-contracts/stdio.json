@@ -1935,106 +1935,6 @@
       "name": "configure_application_server_routes",
       "title": "Configure application server routes"
     },
-    "configure_network_public_forwarding": {
-      "annotations": {
-        "destructiveHint": true,
-        "idempotentHint": true,
-        "openWorldHint": true,
-        "readOnlyHint": false,
-        "title": "Configure network public forwarding"
-      },
-      "description": "Configure an existing reserved forwarding binding's TCP/UDP listeners. Forwarding uses one backend per listener; proxy load balancers use their own appliance authority and are refused here. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
-      "execution": {
-        "taskSupport": "forbidden"
-      },
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "binding_id": {
-            "description": "Exact lowercase UUID returned by an owned networking resource",
-            "maxLength": 36,
-            "minLength": 36,
-            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-            "type": "string"
-          },
-          "expected_generation": {
-            "maximum": 9007199254740991,
-            "minimum": 0,
-            "type": "integer"
-          },
-          "idempotencyKey": {
-            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$(?![\\s\\S])",
-            "type": "string"
-          },
-          "listeners": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "backends": {
-                  "items": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "port": {
-                        "maximum": 65535,
-                        "minimum": 1,
-                        "type": "integer"
-                      },
-                      "private_port_id": {
-                        "description": "Exact lowercase UUID returned by an owned networking resource",
-                        "maxLength": 36,
-                        "minLength": 36,
-                        "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "private_port_id",
-                      "port"
-                    ],
-                    "type": "object"
-                  },
-                  "maxItems": 64,
-                  "minItems": 1,
-                  "type": "array"
-                },
-                "port": {
-                  "maximum": 65535,
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                "protocol": {
-                  "enum": [
-                    "tcp",
-                    "udp"
-                  ],
-                  "type": "string"
-                }
-              },
-              "required": [
-                "protocol",
-                "port",
-                "backends"
-              ],
-              "type": "object"
-            },
-            "maxItems": 64,
-            "minItems": 1,
-            "type": "array"
-          }
-        },
-        "required": [
-          "binding_id",
-          "expected_generation",
-          "listeners",
-          "idempotencyKey"
-        ],
-        "type": "object"
-      },
-      "name": "configure_network_public_forwarding",
-      "title": "Configure network public forwarding"
-    },
     "confirm_application_compose_adoption": {
       "annotations": {
         "destructiveHint": true,
@@ -7238,7 +7138,7 @@
         "readOnlyHint": true,
         "title": "Get network public binding"
       },
-      "description": "Read one existing owned public binding's generation, state and assigned address. Poll this resource after bind, move, forward or delete; public-binding operation IDs are not accepted by get_networking_operation or get_network_appliance_operation. Existing bindings are distinct from purchasing an account public address. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read one existing owned public binding's generation, state and assigned address. Poll this resource after bind, move or delete; public-binding operation IDs are not accepted by get_networking_operation or get_network_appliance_operation. Existing bindings are distinct from purchasing an account public address. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
