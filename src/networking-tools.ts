@@ -8,7 +8,10 @@ const uuid = z.string().length(36).regex(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-
   .describe("Exact lowercase UUID returned by an owned networking resource");
 const generation = z.number().int().safe().min(1);
 const policyGeneration = z.number().int().safe().min(0);
-const ipv4 = z.string().ip({ version: "v4" });
+const ipv4 = z.ipv4();
+// Preserve v3 IP syntax for the existing max-64-character source allowlist.
+// In particular, scoped link-local IPv6 remains subject to backend eligibility.
+const sourceIpv6 = /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/;
 const port = z.number().int().min(1).max(65535);
 const key = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.:-]{15,189}$(?![\s\S])/)
   .describe("Stable Idempotency-Key for this exact intent; reuse unchanged on recovery, never generate a new key for an uncertain result");
@@ -127,15 +130,15 @@ const publicAccessServices = z.array(z.object({
   service: z.enum(["wireguard", "ipsec"]),
   allow_from: z.array(z.string().max(64).refine(value => {
     const [address, prefix, extra] = value.split("/");
-    if (extra !== undefined || !z.string().ip().safeParse(address).success) return false;
+    if (extra !== undefined || !(ipv4.safeParse(address).success || sourceIpv6.test(address))) return false;
     return prefix === undefined || (/^[0-9]{1,3}$/.test(prefix) && Number(prefix) >= 1 && Number(prefix) <= (address.includes(":") ? 128 : 32));
   }, "Use an IPv4/IPv6 address or canonical CIDR; backend validates eligible sources and host bits")).max(64),
 }).strict()).max(2).refine(items => new Set(items.map(item => item.service)).size === items.length,
   "Each VPN service may appear only once");
-const routerInputs = z.record(z.union([z.string().max(256), z.number().int().safe()]))
+const routerInputs = z.record(z.string(), z.union([z.string().max(256), z.number().int().safe()]))
   .refine(values => Object.keys(values).length <= 32 && Object.keys(values).every(k => /^[a-z][a-z0-9_]{1,31}$/.test(k) && !/(?:secret|password|private|psk|token|key)/i.test(k)),
     "Router inputs must contain only nonsecret catalogue fields");
-const recipeInputs = z.record(z.union([z.string().max(256), z.number().int().safe()]))
+const recipeInputs = z.record(z.string(), z.union([z.string().max(256), z.number().int().safe()]))
   .refine(values => JSON.stringify(values).length <= 2048 && Object.keys(values).every(k =>
     /^(?:line2\.)?[a-z][a-z0-9_]{1,31}$/.test(k) && !/(?:secret|password|private|psk|token|key)/i.test(k)),
     "Recipe preview accepts only nonsecret backend catalogue fields, including line2 fields");
@@ -160,7 +163,7 @@ function validateBgp(input: Record<string, unknown>): void {
     throw new Error("BGP hold_seconds must be at least three times keepalive_seconds.");
 }
 
-type Fields = z.ZodRawShape;
+type Fields = Record<string, z.ZodType>;
 type Options = {
   idempotent?: boolean; paid?: boolean; quote?: boolean; readOnly?: boolean;
   query?: string[]; fixedQuery?: Record<string, string>; fixedBody?: Record<string, unknown>; destructive?: boolean;
@@ -168,7 +171,7 @@ type Options = {
 };
 export type NetworkingTool = {
   name: string; method: string; path: string; description: string;
-  schema: z.ZodObject<Fields, "strict">; pathFields: string[]; options: Options;
+  schema: z.ZodObject<Fields, z.core.$strict>; pathFields: string[]; options: Options;
 };
 const N = "/account/networking";
 const A = `${N}/appliances`;

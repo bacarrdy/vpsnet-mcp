@@ -486,6 +486,7 @@
             },
             "privateNetworkId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "quoteToken": {
@@ -524,7 +525,7 @@
         "name": "confirm_service_order",
         "outputSchema": {
           "$schema": "http://json-schema.org/draft-07/schema#",
-          "additionalProperties": true,
+          "additionalProperties": {},
           "properties": {
             "follow_up": {
               "additionalProperties": false,
@@ -573,10 +574,12 @@
                           "additionalProperties": false,
                           "properties": {
                             "idempotencyKey": {
-                              "$ref": "#/properties/follow_up/properties/idempotency_key/anyOf/0"
+                              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+                              "type": "string"
                             },
                             "orderNo": {
-                              "$ref": "#/properties/follow_up/properties/order_no/anyOf/0"
+                              "pattern": "^[A-Za-z0-9-]{1,64}$",
+                              "type": "string"
                             }
                           },
                           "type": "object"
@@ -843,7 +846,7 @@
         "name": "get_purchase_result",
         "outputSchema": {
           "$schema": "http://json-schema.org/draft-07/schema#",
-          "additionalProperties": true,
+          "additionalProperties": {},
           "properties": {
             "follow_up": {
               "additionalProperties": false,
@@ -892,10 +895,12 @@
                           "additionalProperties": false,
                           "properties": {
                             "idempotencyKey": {
-                              "$ref": "#/properties/follow_up/properties/idempotency_key/anyOf/0"
+                              "pattern": "^[A-Za-z0-9._:-]{16,128}$",
+                              "type": "string"
                             },
                             "orderNo": {
-                              "$ref": "#/properties/follow_up/properties/order_no/anyOf/0"
+                              "pattern": "^[A-Za-z0-9-]{1,64}$",
+                              "type": "string"
                             }
                           },
                           "type": "object"
@@ -1157,6 +1162,7 @@
             },
             "privateNetworkId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "resources": {

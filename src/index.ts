@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { installToolInputSchemas } from "./tool-schema.js";
+import { installToolInputSchemas, unboundedInteger } from "./tool-schema.js";
 import { createDnsZoneDescription } from "./dns-zone-contract.js";
 import { registerOrderTools } from "./remote-orders.js";
 import { registerRemoteTools } from "./remote-tools.js";
@@ -358,7 +358,7 @@ const applicationOrderNoSchema = serviceOrderNoSchema;
 
 const applicationInstallationIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe("Managed application installation UUID");
 
 const applicationSlugSchema = z
@@ -765,7 +765,7 @@ server.registerTool(
       orderNo: serviceOrderNoSchema,
       rescue_session_id: z
         .string()
-        .uuid()
+        .guid()
         .describe("Exact current session UUID from get_service_rescue"),
       acknowledge_restart: z
         .literal(true)
@@ -1212,7 +1212,7 @@ server.registerTool("get_application_inspection", {
   inputSchema: {
     orderNo: applicationOrderNoSchema,
     installation_id: applicationInstallationIdSchema,
-    inspection_id: z.string().uuid(),
+    inspection_id: z.string().guid(),
     kind: z.enum(["health", "logs"]),
   },
   annotations: { title: "Get application inspection", readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -1228,7 +1228,7 @@ server.registerTool("get_application_inspection", {
 
 server.registerTool("get_application_recipe_validation", {
   description: "Poll the exact persisted customer recipe validation returned by validate_application_recipe or a pending recipe creation/revision. This GET does not resolve tags or create another validation. Retain the initial resolved_compose_yaml; after this ID succeeds with valid=true, resume creation using that exact pinned document and validation_id. Requires applications:read.",
-  inputSchema: { orderNo: applicationOrderNoSchema, validation_id: z.string().uuid() },
+  inputSchema: { orderNo: applicationOrderNoSchema, validation_id: z.string().guid() },
   annotations: { title: "Get application recipe validation", readOnlyHint: true, destructiveHint: false, idempotentHint: true },
 }, async ({ orderNo, validation_id }) => {
   const { status, data } = await apiRequest("GET", applicationPath(orderNo,
@@ -1241,7 +1241,7 @@ server.registerTool("get_application_recipe_validation", {
 
 server.registerTool("get_service_container_discovery", {
   description: "Poll the exact persisted service container discovery returned by discover_service_containers when it remains pending. This GET does not create another discovery and never returns environment values or mounts. Keep the service and discovery UUID until succeeded, failed or expired. Requires applications:read.",
-  inputSchema: { orderNo: applicationOrderNoSchema, discovery_id: z.string().uuid() },
+  inputSchema: { orderNo: applicationOrderNoSchema, discovery_id: z.string().guid() },
   annotations: { title: "Get service container discovery", readOnlyHint: true, destructiveHint: false, idempotentHint: true },
 }, async ({ orderNo, discovery_id }) => {
   const { status, data } = await apiRequest("GET", applicationPath(orderNo,
@@ -1646,7 +1646,7 @@ server.registerTool(
       orderNo: applicationOrderNoSchema,
       name: customProjectNameSchema,
       compose_yaml: customProjectComposeSchema,
-      validation_id: z.string().uuid().optional().describe("Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document"),
+      validation_id: z.string().guid().optional().describe("Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document"),
       env: customProjectEnvironmentSchema,
       secret_names: customProjectSecretNamesSchema,
       registry_credential_ids: customProjectRegistryCredentialIdsSchema,
@@ -1742,7 +1742,7 @@ server.registerTool(
       orderNo: applicationOrderNoSchema,
       project_id: customProjectIdSchema,
       compose_yaml: customProjectComposeSchema,
-      validation_id: z.string().uuid().optional().describe("Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document"),
+      validation_id: z.string().guid().optional().describe("Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document"),
       env: customProjectEnvironmentSchema,
       secret_names: customProjectSecretNamesSchema,
       registry_credential_ids: customProjectRegistryCredentialIdsSchema,
@@ -1970,7 +1970,7 @@ server.registerTool(
       "Prepare and poll a short-lived, read-only takeover candidate for one exact unmanaged Compose project from a fresh discovery. The worker verifies container identity, immutable image identity, restart policy, Compose safety, and exclusive local named-volume ownership. Returns only a scrubbed Compose file, variable names, and bounded counts; never variable values, source paths, commands, or unrestricted labels. This tool does not stop or replace containers. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
-      discovery_id: z.string().uuid().describe(
+      discovery_id: z.string().guid().describe(
         "Fresh discovery UUID returned by discover_service_containers"
       ),
       compose_project: composeProjectLabelSchema,
@@ -3681,7 +3681,7 @@ server.registerTool(
 
 const certificatePaymentSchema = z
   .object({
-    payment: z.number().int().positive().describe("Payment method ID; use 1 for account balance"),
+    payment: unboundedInteger().positive().describe("Payment method ID; use 1 for account balance"),
     successUrl: z.string().max(2048).describe("Approved VPSnet redirect URL, or an empty string"),
     cancelUrl: z.string().max(2048).describe("Approved VPSnet redirect URL, or an empty string"),
   })
@@ -6710,7 +6710,7 @@ server.registerTool(
       template: dnsTemplateIdSchema
         .describe("Template ID returned by list_dns_templates, e.g. web_service, null_mx, google_workspace, microsoft_365, mail_security, caa_letsencrypt"),
       parameters: z
-        .record(z.union([z.string(), z.number(), z.boolean()]))
+        .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
         .optional()
         .describe("Template parameters, e.g. { ipv4, ipv6, www, mx_target, ttl } depending on the template"),
       preview: z

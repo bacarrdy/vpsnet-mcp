@@ -24,7 +24,7 @@ const serviceRescueCapabilitySchema = z.object({
 }).strict();
 
 export const serviceRescueSessionSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   platform: z.enum(["firecracker", "vds"]),
   image: serviceRescueImageIdSchema,
   state: z.enum([

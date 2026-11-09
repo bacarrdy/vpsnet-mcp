@@ -2,12 +2,12 @@ import { z } from "zod";
 
 export const customProjectIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe("Customer-owned recipe project UUID returned by list_application_recipes");
 
 export const composeAdoptionIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe("Opaque Compose adoption UUID returned by the prepare operation");
 
 export const composeProjectLabelSchema = z
@@ -59,7 +59,7 @@ export const customProjectSecretNamesSchema = z
   .describe("Secret variable names only; definitions and exports never contain values");
 
 export const customProjectRegistryCredentialIdsSchema = z
-  .array(z.string().uuid())
+  .array(z.string().guid())
   .max(8)
   .refine((ids) => new Set(ids).size === ids.length, {
     message: "Registry credential IDs must be unique",

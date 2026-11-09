@@ -1453,6 +1453,7 @@
             },
             "sessionId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             }
           },
@@ -2537,7 +2538,7 @@
         "name": "get_connected_account",
         "outputSchema": {
           "$schema": "http://json-schema.org/draft-07/schema#",
-          "additionalProperties": true,
+          "additionalProperties": {},
           "properties": {
             "function_daily_limit_eur": {
               "anyOf": [
@@ -2559,7 +2560,23 @@
               ]
             },
             "function_monthly_limit_eur": {
-              "$ref": "#/properties/function_daily_limit_eur",
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "pattern": "^\\d+(?:\\.\\d+)?$",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Stored monthly Functions limit in EUR when supplied by the backend. Null or omitted means no explicit monthly cap is reported by this grant, not unlimited usage; account limits still apply. Read only: never infer a default or expand permissions."
             },
             "id": {
@@ -2570,10 +2587,42 @@
               "type": "string"
             },
             "order_daily_limit_eur": {
-              "$ref": "#/properties/function_daily_limit_eur"
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "pattern": "^\\d+(?:\\.\\d+)?$",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "order_monthly_limit_eur": {
-              "$ref": "#/properties/function_daily_limit_eur"
+              "anyOf": [
+                {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "pattern": "^\\d+(?:\\.\\d+)?$",
+                      "type": "string"
+                    }
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
             },
             "scopes": {
               "items": {
@@ -3997,6 +4046,9 @@
               "properties": {
                 "downstream_catalogs": {
                   "additionalProperties": {},
+                  "propertyNames": {
+                    "type": "string"
+                  },
                   "type": "object"
                 },
                 "npm_package_published": {
@@ -4083,7 +4135,28 @@
               "additionalProperties": false,
               "properties": {
                 "local_mcp": {
-                  "$ref": "#/properties/observed/properties/plugin"
+                  "additionalProperties": false,
+                  "properties": {
+                    "source": {
+                      "enum": [
+                        "caller_reported",
+                        "runtime",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "source"
+                  ],
+                  "type": "object"
                 },
                 "plugin": {
                   "additionalProperties": false,
@@ -4110,7 +4183,28 @@
                   "type": "object"
                 },
                 "server": {
-                  "$ref": "#/properties/observed/properties/plugin"
+                  "additionalProperties": false,
+                  "properties": {
+                    "source": {
+                      "enum": [
+                        "caller_reported",
+                        "runtime",
+                        "unknown"
+                      ],
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "version",
+                    "source"
+                  ],
+                  "type": "object"
                 }
               },
               "required": [
@@ -4126,9 +4220,6 @@
                   "additionalProperties": false,
                   "properties": {
                     "mcp": {
-                      "$ref": "#/properties/published/anyOf/0/properties/plugin"
-                    },
-                    "plugin": {
                       "additionalProperties": false,
                       "properties": {
                         "ci_conclusion": {
@@ -4138,7 +4229,6 @@
                         "ci_run": {
                           "exclusiveMinimum": 0,
                           "maximum": 9007199254740991,
-                          "minimum": -9007199254740991,
                           "type": "integer"
                         },
                         "sha256": {
@@ -4156,6 +4246,54 @@
                         "verified_at": {
                           "format": "date-time",
                           "maxLength": 40,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
+                          "type": "string"
+                        },
+                        "version": {
+                          "maxLength": 63,
+                          "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "version",
+                        "source_commit",
+                        "verified_at",
+                        "url",
+                        "sha256",
+                        "ci_run",
+                        "ci_conclusion"
+                      ],
+                      "type": "object"
+                    },
+                    "plugin": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "ci_conclusion": {
+                          "const": "success",
+                          "type": "string"
+                        },
+                        "ci_run": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991,
+                          "type": "integer"
+                        },
+                        "sha256": {
+                          "pattern": "^[0-9a-f]{64}$",
+                          "type": "string"
+                        },
+                        "source_commit": {
+                          "pattern": "^[0-9a-f]{40}$",
+                          "type": "string"
+                        },
+                        "url": {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        "verified_at": {
+                          "format": "date-time",
+                          "maxLength": 40,
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$",
                           "type": "string"
                         },
                         "version": {
@@ -4387,6 +4525,7 @@
             },
             "sessionId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             }
           },
@@ -5705,6 +5844,7 @@
             },
             "sessionId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "tailBytes": {
@@ -6638,6 +6778,7 @@
             },
             "sessionId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "timeoutMs": {
@@ -7805,6 +7946,7 @@
             },
             "sessionId": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             }
           },

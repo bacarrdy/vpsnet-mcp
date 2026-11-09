@@ -1,3 +1,4 @@
+import { unboundedInteger } from './tool-schema.js';
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { createHash, randomBytes } from "node:crypto";
@@ -87,7 +88,7 @@ type Run = (args: Record<string, any>, deps: ServiceFileDeps, context?: RunConte
 export type ServiceFileTool = {
   /** localOnly: reads or writes this machine's files or mints a URL bound to the caller's address; stdio only. */
   name: string; scope: "files:read" | "files:manage"; description: string; localOnly: boolean;
-  schema: z.ZodObject<z.ZodRawShape, "strict">; annotations: Annotations; run: Run;
+  schema: z.ZodObject<z.ZodRawShape, z.core.$strict>; annotations: Annotations; run: Run;
 };
 
 const READ: Annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
@@ -510,7 +511,7 @@ export const serviceFileTools: ServiceFileTool[] = [
     async (args, deps) => result(await deps.request("GET", `${files(args.orderNo)}/capabilities`))),
   fileTool("list_service_files", "files:read", "List one directory page inside a running server (lstat: a symlink is described itself), directories first. Page with offset=nextOffset while nextOffset is non-null; above 100,000 entries the listing is truncated (total null). Each entry's version is the compare-and-swap token for write_service_file and upload_service_file. " + SLOW, {
     path: guestPath.optional().describe("Absolute directory path; default /"),
-    offset: z.number().int().min(0).optional(), limit: z.number().int().min(1).max(1000).optional(),
+    offset: unboundedInteger().min(0).optional(), limit: z.number().int().min(1).max(1000).optional(),
     sort: z.enum(["name", "size", "mtime", "type"]).optional(), order: z.enum(["asc", "desc"]).optional(),
     filter: z.string().max(128).optional().describe("Case-insensitive name substring"), waitSeconds,
   }, READ, async (args, deps) => result(await readCall(deps, args, "list", { path: args.path, offset: args.offset, limit: args.limit, sort: args.sort, order: args.order, filter: args.filter }))),
@@ -518,7 +519,7 @@ export const serviceFileTools: ServiceFileTool[] = [
     path: guestPath, hash: z.boolean().optional(), follow: z.boolean().optional(), waitSeconds,
   }, READ, async (args, deps) => result(await readCall(deps, args, "stat", { path: args.path, hash: args.hash === undefined ? undefined : Number(args.hash), follow: args.follow === undefined ? undefined : Number(args.follow) }))),
   fileTool("read_service_file", "files:read", "View a file: UTF-8 text up to 1 MiB is returned as text, an image up to 4 MiB as an image, binary content as data null; a larger file answers 413 filesTooLargeToView and is download-only (download_service_file). offset/length read a window of at most 1 MiB of any file (partial true). sha256 and version are the compare-and-swap inputs of write_service_file. " + UNTRUSTED + " " + SLOW, {
-    path: guestPath, offset: z.number().int().min(0).optional(), length: z.number().int().min(1).max(1048576).optional(), waitSeconds,
+    path: guestPath, offset: unboundedInteger().min(0).optional(), length: z.number().int().min(1).max(1048576).optional(), waitSeconds,
   }, READ, async (args, deps) => {
     const res = await readCall(deps, args, "content", { path: args.path, offset: args.offset, length: args.length });
     const body = record(res.data);

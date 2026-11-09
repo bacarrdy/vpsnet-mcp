@@ -118,6 +118,7 @@
               "properties": {
                 "address": {
                   "format": "ipv4",
+                  "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                   "type": "string"
                 },
                 "port": {
@@ -184,6 +185,7 @@
         "properties": {
           "address": {
             "format": "ipv4",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
             "type": "string"
           },
           "idempotencyKey": {
@@ -272,6 +274,7 @@
             "anyOf": [
               {
                 "format": "ipv4",
+                "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                 "type": "string"
               },
               {
@@ -306,8 +309,7 @@
               {
                 "type": "null"
               }
-            ],
-            "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog"
+            ]
           }
         },
         "required": [
@@ -350,6 +352,9 @@
               ]
             },
             "description": "Template parameters, e.g. { ipv4, ipv6, www, mx_target, ttl } depending on the template",
+            "propertyNames": {
+              "type": "string"
+            },
             "type": "object"
           },
           "preview": {
@@ -448,6 +453,7 @@
           },
           "ipv4": {
             "format": "ipv4",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
             "type": "string"
           },
           "network_id": {
@@ -736,6 +742,7 @@
           "sourceBrowseId": {
             "description": "Browse id of the succeeded listing the directory entry came from. Omit to list the backup root.",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -814,6 +821,7 @@
           "action_id": {
             "description": "Exact action UUID from the current installation latest_action.id",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "idempotencyKey": {
@@ -826,6 +834,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -1444,7 +1453,7 @@
           "access": {
             "anyOf": [
               {
-                "anyOf": [
+                "oneOf": [
                   {
                     "additionalProperties": false,
                     "properties": {
@@ -1577,7 +1586,7 @@
                       "additionalProperties": false,
                       "properties": {
                         "access": {
-                          "anyOf": [
+                          "oneOf": [
                             {
                               "additionalProperties": false,
                               "properties": {
@@ -1753,6 +1762,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -1817,6 +1827,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "memory_mib": {
@@ -2031,6 +2042,7 @@
           "adoption_id": {
             "description": "Opaque Compose adoption UUID returned by the prepare operation",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "confirmed": {
@@ -2046,7 +2058,8 @@
             "default": {},
             "description": "Plain, non-secret environment values. Put secret values in the install tool's secrets field.",
             "propertyNames": {
-              "pattern": "^[A-Z][A-Z0-9_]{0,62}$"
+              "pattern": "^[A-Z][A-Z0-9_]{0,62}$",
+              "type": "string"
             },
             "type": "object"
           },
@@ -2074,6 +2087,7 @@
             "description": "Owned registry credential UUIDs from list_application_registry_credentials",
             "items": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "maxItems": 8,
@@ -2087,7 +2101,8 @@
             "default": {},
             "description": "Install-time secret values keyed by the exact declared names. Values are encrypted by VPSnet and omitted from tool results.",
             "propertyNames": {
-              "pattern": "^[A-Z][A-Z0-9_]{0,62}$"
+              "pattern": "^[A-Z][A-Z0-9_]{0,62}$",
+              "type": "string"
             },
             "type": "object"
           }
@@ -2153,7 +2168,7 @@
             "type": "array"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -2247,7 +2262,7 @@
             "type": "string"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -2324,7 +2339,7 @@
             "type": "string"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -2414,7 +2429,7 @@
             "type": "array"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -2537,7 +2552,8 @@
             "default": {},
             "description": "Plain, non-secret environment values. Put secret values in the install tool's secrets field.",
             "propertyNames": {
-              "pattern": "^[A-Z][A-Z0-9_]{0,62}$"
+              "pattern": "^[A-Z][A-Z0-9_]{0,62}$",
+              "type": "string"
             },
             "type": "object"
           },
@@ -2565,6 +2581,7 @@
             "description": "Owned registry credential UUIDs from list_application_registry_credentials",
             "items": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "maxItems": 8,
@@ -2583,6 +2600,7 @@
           "validation_id": {
             "description": "Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -2633,7 +2651,8 @@
             "default": {},
             "description": "Plain, non-secret environment values. Put secret values in the install tool's secrets field.",
             "propertyNames": {
-              "pattern": "^[A-Z][A-Z0-9_]{0,62}$"
+              "pattern": "^[A-Z][A-Z0-9_]{0,62}$",
+              "type": "string"
             },
             "type": "object"
           },
@@ -2654,6 +2673,7 @@
           "project_id": {
             "description": "Customer-owned recipe project UUID returned by list_application_recipes",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "registry_credential_ids": {
@@ -2661,6 +2681,7 @@
             "description": "Owned registry credential UUIDs from list_application_registry_credentials",
             "items": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "maxItems": 8,
@@ -2679,6 +2700,7 @@
           "validation_id": {
             "description": "Resume only the exact successful validation for this service and digest-pinned compose_yaml; retain the initial resolved document",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -2728,7 +2750,7 @@
             "type": "string"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -2926,6 +2948,7 @@
           "email": {
             "description": "Contact email",
             "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
             "type": "string"
           },
           "first_name": {
@@ -3097,7 +3120,6 @@
             "default": [],
             "description": "Optional unique lowercase DNS subject alternative names",
             "items": {
-              "description": "Primary lowercase DNS name; wildcards begin with *.",
               "maxLength": 253,
               "minLength": 3,
               "type": "string"
@@ -3452,6 +3474,7 @@
           "grants": {
             "items": {
               "format": "ipv4",
+              "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
               "type": "string"
             },
             "maxItems": 16,
@@ -3560,6 +3583,7 @@
                             "anyOf": [
                               {
                                 "format": "ipv4",
+                                "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                                 "type": "string"
                               },
                               {
@@ -3602,6 +3626,7 @@
                     "anyOf": [
                       {
                         "format": "ipv4",
+                        "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                         "type": "string"
                       },
                       {
@@ -3651,16 +3676,36 @@
                             "anyOf": [
                               {
                                 "items": {
-                                  "enum": [
-                                    19,
-                                    20,
-                                    21,
-                                    31,
-                                    15,
-                                    16,
-                                    14
-                                  ],
-                                  "type": "number"
+                                  "anyOf": [
+                                    {
+                                      "const": 19,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "const": 20,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "const": 21,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "const": 31,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "const": 15,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "const": 16,
+                                      "type": "number"
+                                    },
+                                    {
+                                      "const": 14,
+                                      "type": "number"
+                                    }
+                                  ]
                                 },
                                 "type": "array"
                               },
@@ -3880,10 +3925,12 @@
                 "properties": {
                   "end": {
                     "format": "ipv4",
+                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                     "type": "string"
                   },
                   "start": {
                     "format": "ipv4",
+                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                     "type": "string"
                   }
                 },
@@ -3907,6 +3954,7 @@
                   "properties": {
                     "ipv4": {
                       "format": "ipv4",
+                      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                       "type": "string"
                     },
                     "service": {
@@ -3926,6 +3974,7 @@
               "dns_resolvers": {
                 "items": {
                   "format": "ipv4",
+                  "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                   "type": "string"
                 },
                 "maxItems": 2,
@@ -3934,6 +3983,7 @@
               "dns_servers": {
                 "items": {
                   "format": "ipv4",
+                  "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                   "type": "string"
                 },
                 "maxItems": 3,
@@ -3958,6 +4008,7 @@
                   },
                   {
                     "format": "ipv4",
+                    "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                     "type": "string"
                   }
                 ]
@@ -3997,15 +4048,29 @@
             "type": "object"
           },
           "subnet_prefix_length": {
-            "description": "Size of the allocated subnet when subnet is omitted; default 26",
-            "enum": [
-              24,
-              25,
-              26,
-              27,
-              28
+            "anyOf": [
+              {
+                "const": 24,
+                "type": "number"
+              },
+              {
+                "const": 25,
+                "type": "number"
+              },
+              {
+                "const": 26,
+                "type": "number"
+              },
+              {
+                "const": 27,
+                "type": "number"
+              },
+              {
+                "const": 28,
+                "type": "number"
+              }
             ],
-            "type": "number"
+            "description": "Size of the allocated subnet when subnet is omitted; default 26"
           }
         },
         "required": [
@@ -5510,6 +5575,7 @@
                   "properties": {
                     "address": {
                       "format": "ipv4",
+                      "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                       "type": "string"
                     },
                     "port": {
@@ -5600,6 +5666,7 @@
           "rescue_session_id": {
             "description": "Exact current session UUID from get_service_rescue",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -5640,6 +5707,7 @@
           "project_id": {
             "description": "Customer-owned recipe project UUID returned by list_application_recipes",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "revision": {
@@ -5942,6 +6010,7 @@
           "adoption_id": {
             "description": "Opaque Compose adoption UUID returned by the prepare operation",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -5980,6 +6049,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -5992,6 +6062,7 @@
           "restore_id": {
             "description": "Opaque selective restore UUID returned by restore_application_data",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -6024,6 +6095,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -6062,6 +6134,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -6099,11 +6172,13 @@
         "properties": {
           "inspection_id": {
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "kind": {
@@ -6151,6 +6226,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -6189,6 +6265,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "max_bytes": {
@@ -6250,6 +6327,7 @@
           },
           "validation_id": {
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -7615,6 +7693,9 @@
                 }
               ]
             },
+            "propertyNames": {
+              "type": "string"
+            },
             "type": "object"
           },
           "lang": {
@@ -7626,8 +7707,8 @@
           },
           "lines": {
             "enum": [
-              "all",
-              "2"
+              "2",
+              "all"
             ],
             "type": "string"
           },
@@ -8230,6 +8311,7 @@
           "browse_id": {
             "description": "Browse UUID returned by browse_restore_files",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -8332,7 +8414,7 @@
       "name": "get_service",
       "outputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": true,
+        "additionalProperties": {},
         "properties": {
           "follow_up": {
             "additionalProperties": false,
@@ -8381,7 +8463,8 @@
                         "additionalProperties": false,
                         "properties": {
                           "orderNo": {
-                            "$ref": "#/properties/follow_up/properties/order_no/anyOf/0"
+                            "pattern": "^[A-Za-z0-9-]{1,64}$",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -8515,6 +8598,7 @@
         "properties": {
           "discovery_id": {
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -9015,7 +9099,8 @@
         "additionalProperties": false,
         "properties": {
           "access": {
-            "anyOf": [
+            "description": "Exact access request using a mode and fields advertised by the selected catalog entry. Omitting it accepts the platform default: public platform_https when VPSnet platform hostnames are available, otherwise private. private keeps the application reachable only from inside the server, so for an application the user will open in a browser prefer an advertised public mode such as platform_https.",
+            "oneOf": [
               {
                 "additionalProperties": false,
                 "properties": {
@@ -9138,8 +9223,7 @@
                 ],
                 "type": "object"
               }
-            ],
-            "description": "Exact access request using a mode and fields advertised by the selected catalog entry. Omitting it accepts the platform default: public platform_https when VPSnet platform hostnames are available, otherwise private. private keeps the application reachable only from inside the server, so for an application the user will open in a browser prefer an advertised public mode such as platform_https."
+            ]
           },
           "acknowledge_runtime_restart": {
             "const": true,
@@ -9195,7 +9279,8 @@
             },
             "description": "Configuration values keyed by the public variable names in the catalog. Values are submitted to VPSnet but never returned by this tool.",
             "propertyNames": {
-              "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+              "pattern": "^[A-Z][A-Z0-9_]{0,127}$",
+              "type": "string"
             },
             "type": "object"
           }
@@ -9259,6 +9344,7 @@
           "project_id": {
             "description": "Customer-owned recipe project UUID returned by list_application_recipes",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "revision": {
@@ -9275,7 +9361,8 @@
             "default": {},
             "description": "Install-time secret values keyed by the exact declared names. Values are encrypted by VPSnet and omitted from tool results.",
             "propertyNames": {
-              "pattern": "^[A-Z][A-Z0-9_]{0,62}$"
+              "pattern": "^[A-Z][A-Z0-9_]{0,62}$",
+              "type": "string"
             },
             "type": "object"
           }
@@ -9420,6 +9507,7 @@
           "project_id": {
             "description": "Customer-owned recipe project UUID returned by list_application_recipes",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           }
         },
@@ -9515,6 +9603,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -10825,6 +10914,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -10881,7 +10971,7 @@
             "type": "string"
           },
           "request": {
-            "anyOf": [
+            "oneOf": [
               {
                 "additionalProperties": false,
                 "properties": {
@@ -10993,7 +11083,7 @@
             "type": "string"
           },
           "request": {
-            "anyOf": [
+            "oneOf": [
               {
                 "additionalProperties": false,
                 "properties": {
@@ -11182,7 +11272,7 @@
             "type": "string"
           },
           "request": {
-            "anyOf": [
+            "oneOf": [
               {
                 "additionalProperties": false,
                 "properties": {
@@ -11201,8 +11291,7 @@
                       {
                         "type": "null"
                       }
-                    ],
-                    "description": "Customer-generated PEM PKCS#10 CSR. The private key must remain with the customer and must never be sent to VPSnet or an AI assistant."
+                    ]
                   }
                 },
                 "required": [
@@ -11674,7 +11763,6 @@
             "description": "Optional unique subject alternative names; pricing is returned by quote_certificate",
             "items": {
               "additionalProperties": false,
-              "description": "Primary certificate name and its validation method",
               "properties": {
                 "name": {
                   "maxLength": 253,
@@ -11864,10 +11952,12 @@
             "properties": {
               "payment": {
                 "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
                 "type": "integer"
               },
               "paymentid": {
                 "exclusiveMinimum": 0,
+                "maximum": 9007199254740991,
                 "type": "integer"
               }
             },
@@ -11970,7 +12060,7 @@
             "type": "integer"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -12063,7 +12153,6 @@
             "default": [],
             "description": "Optional unique lowercase DNS subject alternative names",
             "items": {
-              "description": "Primary lowercase DNS name; wildcards begin with *.",
               "maxLength": 253,
               "minLength": 3,
               "type": "string"
@@ -12139,6 +12228,7 @@
           "discovery_id": {
             "description": "Fresh discovery UUID returned by discover_service_containers",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -12226,6 +12316,7 @@
           "backup_point_id": {
             "description": "Opaque eligible backup-point UUID returned by list_application_restore_points",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "expected_revision": {
@@ -12244,6 +12335,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -12446,7 +12538,6 @@
             "description": "Optional unique subject alternative names; pricing is returned by quote_certificate",
             "items": {
               "additionalProperties": false,
-              "description": "Primary certificate name and its validation method",
               "properties": {
                 "name": {
                   "maxLength": 253,
@@ -13378,6 +13469,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -13916,8 +14008,7 @@
               {
                 "type": "null"
               }
-            ],
-            "description": "Customer-generated PEM PKCS#10 CSR. The private key must remain with the customer and must never be sent to VPSnet or an AI assistant."
+            ]
           },
           "free_certificate_request_id": {
             "description": "Customer-owned free-certificate request UUID returned by list_free_certificates",
@@ -14083,7 +14174,7 @@
             "type": "string"
           },
           "payment": {
-            "additionalProperties": true,
+            "additionalProperties": {},
             "description": "Payment object. For balance: { payment: 1, successUrl: '', cancelUrl: '' }",
             "properties": {
               "cancelUrl": {
@@ -14213,6 +14304,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -14460,6 +14552,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -14579,6 +14672,7 @@
           "backup_point_id": {
             "description": "Opaque eligible backup-point UUID returned by list_application_restore_points",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "expected_revision": {
@@ -14597,6 +14691,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -15037,6 +15132,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -15226,14 +15322,22 @@
                 }
               ]
             },
+            "propertyNames": {
+              "type": "string"
+            },
             "type": "object"
           },
           "line": {
-            "enum": [
-              1,
-              2
-            ],
-            "type": "number"
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "number"
+              },
+              {
+                "const": 2,
+                "type": "number"
+              }
+            ]
           },
           "peer_id": {
             "description": "Exact lowercase UUID returned by an owned networking resource",
@@ -15848,16 +15952,36 @@
                     "anyOf": [
                       {
                         "items": {
-                          "enum": [
-                            19,
-                            20,
-                            21,
-                            31,
-                            15,
-                            16,
-                            14
-                          ],
-                          "type": "number"
+                          "anyOf": [
+                            {
+                              "const": 19,
+                              "type": "number"
+                            },
+                            {
+                              "const": 20,
+                              "type": "number"
+                            },
+                            {
+                              "const": 21,
+                              "type": "number"
+                            },
+                            {
+                              "const": 31,
+                              "type": "number"
+                            },
+                            {
+                              "const": 15,
+                              "type": "number"
+                            },
+                            {
+                              "const": 16,
+                              "type": "number"
+                            },
+                            {
+                              "const": 14,
+                              "type": "number"
+                            }
+                          ]
                         },
                         "type": "array"
                       },
@@ -15983,6 +16107,7 @@
               "dns": {
                 "items": {
                   "format": "ipv4",
+                  "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                   "type": "string"
                 },
                 "maxItems": 8,
@@ -16000,8 +16125,7 @@
                   {
                     "type": "null"
                   }
-                ],
-                "description": "Exact lowercase UUID returned by an owned networking resource"
+                ]
               },
               "mode": {
                 "enum": [
@@ -16069,6 +16193,7 @@
           "grants": {
             "items": {
               "format": "ipv4",
+              "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
               "type": "string"
             },
             "maxItems": 16,
@@ -16266,6 +16391,7 @@
           },
           "inner": {
             "format": "ipv4",
+            "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
             "type": "string"
           },
           "keepalive_seconds": {
@@ -16357,11 +16483,16 @@
             "type": "string"
           },
           "line": {
-            "enum": [
-              1,
-              2
-            ],
-            "type": "number"
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "number"
+              },
+              {
+                "const": 2,
+                "type": "number"
+              }
+            ]
           },
           "peer_id": {
             "description": "Exact lowercase UUID returned by an owned networking resource",
@@ -16528,6 +16659,7 @@
           "dns_servers": {
             "items": {
               "format": "ipv4",
+              "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
               "type": "string"
             },
             "maxItems": 3,
@@ -16579,6 +16711,7 @@
               "properties": {
                 "ipv4": {
                   "format": "ipv4",
+                  "pattern": "^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$",
                   "type": "string"
                 },
                 "name": {
@@ -16772,6 +16905,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -16822,11 +16956,16 @@
             "type": "string"
           },
           "line": {
-            "enum": [
-              1,
-              2
-            ],
-            "type": "number"
+            "anyOf": [
+              {
+                "const": 1,
+                "type": "number"
+              },
+              {
+                "const": 2,
+                "type": "number"
+              }
+            ]
           },
           "peer_id": {
             "description": "Exact lowercase UUID returned by an owned networking resource",
@@ -16960,6 +17099,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -17256,6 +17396,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -17321,6 +17462,7 @@
           "installation_id": {
             "description": "Managed application installation UUID",
             "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
             "type": "string"
           },
           "orderNo": {
@@ -17466,6 +17608,7 @@
           "email": {
             "description": "Contact email",
             "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
             "type": "string"
           },
           "first_name": {
@@ -17985,6 +18128,7 @@
             "description": "Owned registry credential UUIDs from list_application_registry_credentials",
             "items": {
               "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
               "type": "string"
             },
             "maxItems": 8,

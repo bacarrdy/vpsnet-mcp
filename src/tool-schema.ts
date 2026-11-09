@@ -1,5 +1,12 @@
+import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+
+/** Zod 3 int() accepted every finite integral number; v4 int() adds safe bounds.
+ * Retain the existing input range where the contract never specified safe(). */
+export function unboundedInteger() {
+  return z.number().refine(Number.isInteger, "Expected integer").meta({ type: "integer" });
+}
 
 const MAX_DEPTH = 128;
 const MAX_NODES = 100_000;
@@ -9,7 +16,7 @@ const schemaArrays = new Set(['allOf', 'anyOf', 'oneOf', 'prefixItems']);
 const childSchemas = new Set(['items', 'additionalItems', 'additionalProperties', 'unevaluatedItems', 'unevaluatedProperties', 'propertyNames', 'contains', 'not', 'if', 'then', 'else', 'contentSchema']);
 
 /** Inline only references within this input schema, without changing validation. */
-export function inlineToolInputSchema(schema: unknown): unknown {
+export function inlineToolInputSchema(schema: unknown, preserveClosedObjects = false): unknown {
   let remaining = MAX_NODES;
   function child(key: string, value: unknown, depth: number, ancestors: ReadonlySet<string>): unknown {
     if (schemaMaps.has(key) && value !== null && typeof value === 'object' && !Array.isArray(value)) {
@@ -61,8 +68,15 @@ export function inlineToolInputSchema(schema: unknown): unknown {
         return Object.keys(siblings).length ? { allOf: [expanded, siblings] } : expanded;
       }
     }
-    return Object.fromEntries(Object.entries(object)
+    const result = Object.fromEntries(Object.entries(object)
       .map(([key, item]) => [key, child(key, item, depth + 1, ancestors)]));
+    // v3 advertised strip-mode objects as closed. Preserve the published input
+    // contract; explicit catchalls and empty argument schemas stay untouched.
+    if (preserveClosedObjects && result.type === 'object' && result.properties
+        && Object.keys(result.properties).length && result.additionalProperties === undefined) {
+      result.additionalProperties = false;
+    }
+    return result;
   }
   return visit(schema, 0, new Set());
 }
@@ -75,7 +89,7 @@ export function installToolInputSchemas(server: McpServer): void {
     return original(schema, async (...args: any[]) => {
       const response = await handler(...args);
       return { ...response, tools: response.tools.map((tool: Record<string, unknown>) => ({
-        ...tool, inputSchema: inlineToolInputSchema(tool.inputSchema),
+        ...tool, inputSchema: inlineToolInputSchema(tool.inputSchema, true),
       })) };
     });
   }) as typeof server.server.setRequestHandler;

@@ -87,7 +87,7 @@ export const updateInfoOutput = {
   compatibility: z.object({ status: z.literal('unknown'), reason: z.string() }),
   distribution_status: z.object({ source_release_published: z.boolean().nullable(), npm_package_published: z.boolean().nullable(),
     remote_deployment_status: z.literal('unknown'), official_registry: z.object({ status: z.literal('unknown'), version: z.null(), checked_at: z.null() }),
-    downstream_catalogs: z.record(z.unknown()),
+    downstream_catalogs: z.record(z.string(), z.unknown()),
   }),
   instructions: z.object({ reviewed_at: z.string(), source_urls: z.array(z.string()), steps: z.array(z.string()) }).nullable(),
   server_update: z.string(), advisory: z.literal(true), reason: z.string().nullable(),

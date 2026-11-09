@@ -1,3 +1,4 @@
+import { unboundedInteger } from './tool-schema.js';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { apiRequest, formatJson } from './api.js';
@@ -6,13 +7,13 @@ import { purchaseReadiness, purchaseResultOutput } from './service-readiness.js'
 
 const key = z.string().regex(/^[A-Za-z0-9._:-]{16,128}$/).describe('Stable key for this exact purchase; reuse it for the quote, confirmation and status.');
 const configuration = {
-  plan: z.number().int().positive(),
-  os: z.number().int().positive().optional(),
-  sshKey: z.number().int().positive().optional().describe('Existing public SSH key ID; mutually exclusive with rootPassword.'),
+  plan: unboundedInteger().positive(),
+  os: unboundedInteger().positive().optional(),
+  sshKey: unboundedInteger().positive().optional().describe('Existing public SSH key ID; mutually exclusive with rootPassword.'),
   rootPassword: z.string().min(6).max(40).optional().describe('Only when the selected OS requires a password; prefer an existing SSH key for Linux.'),
-  period: z.number().int().positive().optional(),
-  resources: z.array(z.number().int().positive()).optional(),
-  privateNetworkId: z.string().uuid().optional(),
+  period: unboundedInteger().positive().optional(),
+  resources: z.array(unboundedInteger().positive()).optional(),
+  privateNetworkId: z.string().guid().optional(),
   idempotencyKey: key,
 };
 const payment = { payment: 1, successUrl: '', cancelUrl: '' };
