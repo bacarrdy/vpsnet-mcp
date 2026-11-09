@@ -299,3 +299,14 @@ test('VPN renewal quote token remains usable while secret-bearing fields are hid
   assert.equal(data(quote).nested.privateKey, '[redacted]');
   assert.equal(data(quote).nested.psk_lost_hint, 'Rotate if the key is lost');
 });
+
+test('traffic-pack quote uses the current tier and original checkout key without charging or hiding the quote token', async t => {
+  const {call, requests} = await harness(t, () => ({status: 200, body: {quote: {quote_id: test_id, quote_token: 'fixture-quote', gross_amount: '2.42', currency: 'EUR'}, payment_flow: 'common'}}));
+  const result = await call('quote_network_vpn_traffic_pack', {gateway_id, tier: '1tb', idempotencyKey});
+  assert.notEqual(result.isError, true);
+  assert.deepEqual([requests[0].method, requests[0].path, requests[0].body, requests[0].headers['idempotency-key']],
+    ['POST', `${base}/traffic-packs/quote`, {tier: '1tb'}, idempotencyKey]);
+  assert.equal(data(result).quote.quote_token, 'fixture-quote');
+  assert.equal((await call('quote_network_vpn_traffic_pack', {gateway_id, tier: '1tb', idempotencyKey, acknowledge_charge: true})).isError, true);
+  assert.equal(requests.length, 1);
+});

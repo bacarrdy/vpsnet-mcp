@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased source — 2026-11-09
+
+- Reconcile VPN customer APIs against backend `dcad53b`: add reviewed image update, public-source restriction preview/replacement, advanced IPsec tuning and current-month traffic-pack quotes. The preview is read-only with `networking:read`; changes use `networking:manage` and preserve generation/idempotency fences. Traffic-pack quotes retain the existing local-only paid networking boundary. Public-source previews see the MCP gateway source address.
+- Align peer creation with supported IKEv2 devices, sites with empty or network-wide grants, optional creation-time BGP/tuning and site reach. Secrets remain one-time sealed envelopes for decryption outside MCP; no plaintext credentials or private key inputs are added. These source changes require a separate hosted deployment.
+
 ## Unreleased source — 2026-11-04
 
 - Remove `configure_network_public_forwarding`. It called `POST /account/networking/public-bindings/{id}/forward`, which no customer object can use today: the `forwarding` address kind is no longer sold (409 `public_address_sold_per_account`), `native_nlb` has no product (503), and an account's own public addresses are refused (`public_address_use_address_actions`). Every other networking tool, including `get_network_public_binding`, is unchanged. Prepared contract counts: stdio 350, directory 271, orders 278.

@@ -23,6 +23,7 @@
     "change_hostname",
     "change_rdns",
     "change_title",
+    "check_network_vpn_public_access",
     "clear_rdns",
     "clone_network_security_group",
     "configure_application_access",
@@ -238,8 +239,10 @@
     "set_network_routed_egress",
     "set_network_site_route_mode",
     "set_network_vpn_internet_exit",
+    "set_network_vpn_ipsec_tuning",
     "set_network_vpn_peer_egress",
     "set_network_vpn_peer_grants",
+    "set_network_vpn_public_access",
     "set_network_vpn_site_alert",
     "set_network_vpn_site_bgp",
     "set_network_vpn_site_main_line",
@@ -266,6 +269,7 @@
     "update_domain_contact",
     "update_function",
     "update_network_security_group",
+    "update_network_vpn_gateway_image",
     "upsert_dns_record",
     "validate_application_recipe",
     "verify_dns_zone",
@@ -825,6 +829,28 @@
           {
             "scopes": [
               "services:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "check_network_vpn_public_access": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
             ],
             "type": "oauth2"
           }
@@ -6854,6 +6880,28 @@
         ]
       }
     },
+    "set_network_vpn_ipsec_tuning": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "set_network_vpn_peer_egress": {
       "set": {
         "_meta": {
@@ -6877,6 +6925,28 @@
       }
     },
     "set_network_vpn_peer_grants": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "set_network_vpn_public_access": {
       "set": {
         "_meta": {
           "securitySchemes": [
@@ -7505,6 +7575,28 @@
       }
     },
     "update_network_security_group": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "update_network_vpn_gateway_image": {
       "set": {
         "_meta": {
           "securitySchemes": [

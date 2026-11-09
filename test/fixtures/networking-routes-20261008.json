@@ -1,6 +1,6 @@
 {
-  "backend_commit": "a8d10fe4fc8ec4afccba97d14c879b478ff28c25",
-  "audited_at": "2026-11-02",
+  "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3",
+  "audited_at": "2026-11-09",
   "routes": [
     {
       "method": "get",
@@ -814,6 +814,46 @@
       "action": "vpnRename",
       "spec": "backend routes.php",
       "backend_commit": "e7e4ccb18003a2cf04a5b1fae0f08824f20b4371"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/image-update",
+      "controller": "ApplianceController",
+      "action": "vpnImageUpdate",
+      "spec": "backend routes.php",
+      "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/public-access",
+      "controller": "ApplianceController",
+      "action": "vpnPublicAccess",
+      "spec": "backend routes.php",
+      "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/public-access/check",
+      "controller": "ApplianceController",
+      "action": "vpnPublicAccessCheck",
+      "spec": "backend routes.php",
+      "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/peers/{peerId}/ipsec-tuning",
+      "controller": "ApplianceController",
+      "action": "vpnSiteIpsecTuning",
+      "spec": "backend routes.php",
+      "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/traffic-packs/quote",
+      "controller": "PublicNetworkProductController",
+      "action": "vpnTrafficPackQuote",
+      "spec": "backend routes.php",
+      "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
     }
   ],
   "excluded": [

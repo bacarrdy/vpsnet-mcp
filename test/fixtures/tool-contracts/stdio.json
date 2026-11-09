@@ -1268,6 +1268,68 @@
       "name": "check_domain_availability",
       "title": "Check domain availability"
     },
+    "check_network_vpn_public_access": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Check network VPN public access"
+      },
+      "description": "Preview the complete VPN public-source lists without applying them. Read get_network_vpn_gateway public_access first. The backend reports affected connected clients; its own-address check sees the MCP gateway's API source, not the customer's computer. Omitted services and empty lists clear customer restrictions for that service; automatic fixed-site restrictions still apply. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "services": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "allow_from": {
+                  "items": {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  "maxItems": 64,
+                  "type": "array"
+                },
+                "service": {
+                  "enum": [
+                    "wireguard",
+                    "ipsec"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "service",
+                "allow_from"
+              ],
+              "type": "object"
+            },
+            "maxItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "services"
+        ],
+        "type": "object"
+      },
+      "name": "check_network_vpn_public_access",
+      "title": "Check network VPN public access"
+    },
     "clear_rdns": {
       "annotations": {
         "destructiveHint": true,
@@ -3364,7 +3426,7 @@
         "readOnlyHint": false,
         "title": "Create network VPN peer"
       },
-      "description": "Add a WireGuard device, or with kind=site_to_site a connected site, using an externally generated one-time PUBLIC reveal key. For individual access pass 0-16 owned grant-candidate IPv4 addresses: split-tunnel devices require at least one; full-tunnel devices may use an empty list; sites always require at least one. A device may instead use grant_scope=network with grants=[] for all eligible current and future servers of its network; obtain approval for that broader access. Devices must omit protocol, site and site_down_alert. Sites require site.remote_prefixes and may enable site_down_alert. Site protocol defaults to wireguard (endpoint/keepalive and optional router_model); ipsec_ikev2 uses remote_address, vendor and optional mutually exclusive pqc/legacy_compat instead. Before IPsec, read get_network_appliance_capabilities for offered vendors and get_network_vpn_gateway for capabilities.site_ipsec and ipsec_profiles; the gateway must advertise availability. Personal-device IPsec is unsupported. Keep the matching private key entirely outside MCP. The gateway generates the tunnel secret; wait for config_available before consuming the sealed configuration. For IPsec router instructions use get_network_vpn_peer_recipe; never send a raw PSK to MCP. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Add a device or, with kind=site_to_site, a connected location using a customer-generated one-time X25519 PUBLIC reveal key. Protocol defaults to wireguard; ipsec_ikev2 also supports built-in operating-system device clients when gateway capabilities.device_ikev2 advertises availability. Devices must omit site, site_down_alert and site_reach. Pass 0-16 explicit server grants, or grant_scope=network with grants=[] for all eligible current and future servers; approve broader access. Empty explicit grants gives no network-server access; backend checks whether anything remains reachable. Sites require protocol-specific site settings: WireGuard prefixes/endpoint/keepalive/router_model; IPsec remote_address/vendor, optional bgp/tuning and mutually exclusive pqc/legacy_compat. IPsec prefixes may be empty or omitted only with bgp.accept=any_private. Optional site_reach overrides the VPN default (null inherits). Read current gateway and appliance capabilities before choosing supported protocols, crypto and vendors. Keep the matching reveal private key entirely outside MCP. Wait for config_available and consume the sealed configuration once; decrypt only outside MCP. IPsec device passwords and site PSKs must never enter MCP. Router recipes contain placeholders only. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -3380,7 +3442,7 @@
             "type": "string"
           },
           "grant_scope": {
-            "description": "servers (default) chooses individual grants; network grants a device every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants and is unavailable for sites.",
+            "description": "servers (default) chooses individual grants; network grants this device or site every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants.",
             "enum": [
               "servers",
               "network"
@@ -3477,6 +3539,57 @@
               {
                 "additionalProperties": false,
                 "properties": {
+                  "bgp": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "accept": {
+                            "enum": [
+                              "listed",
+                              "any_private"
+                            ],
+                            "type": "string"
+                          },
+                          "hold_seconds": {
+                            "maximum": 180,
+                            "minimum": 9,
+                            "type": "integer"
+                          },
+                          "inner": {
+                            "anyOf": [
+                              {
+                                "format": "ipv4",
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "keepalive_seconds": {
+                            "maximum": 60,
+                            "minimum": 3,
+                            "type": "integer"
+                          },
+                          "local_asn": {
+                            "maximum": 4294967294,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "peer_asn": {
+                            "maximum": 4294967294,
+                            "minimum": 1,
+                            "type": "integer"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "legacy_compat": {
                     "description": "Request only when the gateway advertises legacy_compat in ipsec_profiles; cannot be true together with pqc",
                     "type": "boolean"
@@ -3498,14 +3611,111 @@
                     "description": "The site's canonical public IPv4 address; omit or null for a dynamic address. No port. The backend validates address and prefix eligibility."
                   },
                   "remote_prefixes": {
-                    "description": "The office's PRIVATE IPv4 networks (10/8, 172.16/12, 192.168/16 or 100.64/10), canonical and disjoint",
                     "items": {
                       "pattern": "^\\d{1,3}(?:\\.\\d{1,3}){3}\\/(?:[0-9]|[12][0-9]|3[0-2])$",
                       "type": "string"
                     },
                     "maxItems": 16,
-                    "minItems": 1,
                     "type": "array"
+                  },
+                  "tuning": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "esp_lifetime_seconds": {
+                            "anyOf": [
+                              {
+                                "maximum": 86400,
+                                "minimum": 300,
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "ike_lifetime_seconds": {
+                            "anyOf": [
+                              {
+                                "maximum": 172800,
+                                "minimum": 900,
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "ke_groups": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "enum": [
+                                    19,
+                                    20,
+                                    21,
+                                    31,
+                                    15,
+                                    16,
+                                    14
+                                  ],
+                                  "type": "number"
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "nat_traversal": {
+                            "enum": [
+                              "auto",
+                              "off",
+                              "forced"
+                            ],
+                            "type": "string"
+                          },
+                          "pfs": {
+                            "enum": [
+                              "auto",
+                              "on",
+                              "off"
+                            ],
+                            "type": "string"
+                          },
+                          "suites": {
+                            "anyOf": [
+                              {
+                                "items": {
+                                  "enum": [
+                                    "aes256gcm",
+                                    "chacha20poly1305",
+                                    "aes128gcm",
+                                    "aes256-sha512",
+                                    "aes256-sha384",
+                                    "aes256-sha256",
+                                    "aes128-sha512",
+                                    "aes128-sha384",
+                                    "aes128-sha256"
+                                  ],
+                                  "type": "string"
+                                },
+                                "type": "array"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "type": "object"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "vendor": {
                     "description": "Advertised router recipe vendor; omitted uses generic_strongswan",
@@ -3525,15 +3735,35 @@
                     "type": "string"
                   }
                 },
-                "required": [
-                  "remote_prefixes"
-                ],
                 "type": "object"
               }
             ]
           },
           "site_down_alert": {
             "type": "boolean"
+          },
+          "site_reach": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "floating_ips": {
+                    "type": "boolean"
+                  },
+                  "load_balancers": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "load_balancers",
+                  "floating_ips"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -12728,6 +12958,49 @@
       "name": "quote_network_public_address",
       "title": "Quote network public address"
     },
+    "quote_network_vpn_traffic_pack": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Quote network VPN traffic pack"
+      },
+      "description": "Quote a traffic pack for this owned VPN using an offered tier from get_network_vpn_gateway traffic. No charge occurs. Packs apply to the current UTC month; read the live quote terms and amount. Confirm only through order_network_product with the exact returned quote, token and ORIGINAL idempotency key after approval. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Stable Idempotency-Key for this exact intent; reuse unchanged on recovery, never generate a new key for an uncertain result",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{15,189}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "tier": {
+            "pattern": "^[a-z0-9][a-z0-9_]*$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "tier",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "quote_network_vpn_traffic_pack",
+      "title": "Quote network VPN traffic pack"
+    },
     "quote_public_address_renewal": {
       "annotations": {
         "destructiveHint": false,
@@ -15502,6 +15775,158 @@
       "name": "set_network_vpn_internet_exit",
       "title": "Set network VPN internet exit"
     },
+    "set_network_vpn_ipsec_tuning": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network VPN ipsec tuning"
+      },
+      "description": "Replace an IPsec site's advanced tunnel choices using the gateway generation. Read gateway ipsec_tuning for currently offered values and the site's crypto profile; pinned crypto conflicts with PQC or legacy compatibility. tuning=null restores automatic defaults; omitted members also become automatic. Changes can interrupt negotiation. Poll the operation and gateway until tuning_applied is true; never supply a PSK or private key. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "peer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "tuning": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "esp_lifetime_seconds": {
+                    "anyOf": [
+                      {
+                        "maximum": 86400,
+                        "minimum": 300,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ike_lifetime_seconds": {
+                    "anyOf": [
+                      {
+                        "maximum": 172800,
+                        "minimum": 900,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "ke_groups": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "enum": [
+                            19,
+                            20,
+                            21,
+                            31,
+                            15,
+                            16,
+                            14
+                          ],
+                          "type": "number"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "nat_traversal": {
+                    "enum": [
+                      "auto",
+                      "off",
+                      "forced"
+                    ],
+                    "type": "string"
+                  },
+                  "pfs": {
+                    "enum": [
+                      "auto",
+                      "on",
+                      "off"
+                    ],
+                    "type": "string"
+                  },
+                  "suites": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "enum": [
+                            "aes256gcm",
+                            "chacha20poly1305",
+                            "aes128gcm",
+                            "aes256-sha512",
+                            "aes256-sha384",
+                            "aes256-sha256",
+                            "aes128-sha512",
+                            "aes128-sha384",
+                            "aes128-sha256"
+                          ],
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "gateway_id",
+          "peer_id",
+          "expected_generation",
+          "tuning",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_vpn_ipsec_tuning",
+      "title": "Set network VPN ipsec tuning"
+    },
     "set_network_vpn_peer_egress": {
       "annotations": {
         "destructiveHint": true,
@@ -15613,7 +16038,7 @@
         "readOnlyHint": false,
         "title": "Set network VPN peer grants"
       },
-      "description": "Replace the peer's complete server-access choice using the gateway generation. Read the gateway and current grant_scope first. Omitted grant_scope means servers: supply the full 0-16 address list; this also disables a device's previous network-wide access to future servers, even if today's list is unchanged. Empty grants removes a device's server access; a site still needs at least one grant. grant_scope=network is device-only: omit grants or send [] to allow every eligible current and future server of the network, subject to network security policy. Confirm that scope and its effects. Check routes_update for required customer router/client changes. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Replace the peer's complete server-access choice using the gateway generation. Read the gateway and current grant_scope first. Omitted grant_scope means servers: supply the full 0-16 address list; this also disables a device's previous network-wide access to future servers, even if today's list is unchanged. Empty grants removes this peer's server access. Devices and sites support grant_scope=network: omit grants or send [] to allow every eligible current and future server of the network, subject to network security policy. Confirm that scope and its effects. Check routes_update for required customer router/client changes. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -15634,7 +16059,7 @@
             "type": "string"
           },
           "grant_scope": {
-            "description": "servers (default) chooses individual grants; network grants a device every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants and is unavailable for sites.",
+            "description": "servers (default) chooses individual grants; network grants this device or site every eligible current and future server of this network, subject to network security policy. Network scope requires empty grants.",
             "enum": [
               "servers",
               "network"
@@ -15672,6 +16097,84 @@
       },
       "name": "set_network_vpn_peer_grants",
       "title": "Set network VPN peer grants"
+    },
+    "set_network_vpn_public_access": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network VPN public access"
+      },
+      "description": "Replace the complete WireGuard/IPsec public-source lists at the VPN gateway generation. Preview the same services with check_network_vpn_public_access first. Omitted services and empty lists remove customer restrictions, potentially expanding access. Only set acknowledge_disconnect=true after approval to disconnect affected clients. Poll gateway public_access for actual applied evidence. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "acknowledge_disconnect": {
+            "const": true,
+            "type": "boolean"
+          },
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "services": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "allow_from": {
+                  "items": {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  "maxItems": 64,
+                  "type": "array"
+                },
+                "service": {
+                  "enum": [
+                    "wireguard",
+                    "ipsec"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "service",
+                "allow_from"
+              ],
+              "type": "object"
+            },
+            "maxItems": 2,
+            "type": "array"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "services",
+          "expected_generation",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_vpn_public_access",
+      "title": "Set network VPN public access"
     },
     "set_network_vpn_site_alert": {
       "annotations": {
@@ -17256,6 +17759,44 @@
       },
       "name": "update_network_security_group",
       "title": "Update network security group"
+    },
+    "update_network_vpn_gateway_image": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Update network VPN gateway image"
+      },
+      "description": "Apply the backend-qualified reviewed VPN image in place. Read get_network_vpn_gateway image.update first and approve the reboot interruption. Poll the operation and gateway; acceptance does not prove the new boot or connectivity. No caller-selected image or release is accepted. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "gateway_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "gateway_id",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "update_network_vpn_gateway_image",
+      "title": "Update network VPN gateway image"
     },
     "upload_service_file": {
       "annotations": {
