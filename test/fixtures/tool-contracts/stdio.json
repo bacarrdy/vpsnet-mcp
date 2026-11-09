@@ -485,7 +485,7 @@
         "readOnlyHint": false,
         "title": "Attach public address to network"
       },
-      "description": "Attach or move an already-paid address to an owned network's NAT. Uses NETWORK generation; moving it removes the prior target's use of this address. No purchase occurs. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Attach an already-paid address to an owned network's NAT using the NETWORK generation. Pass move=true only after approving removal from its previous target; omitted move preserves backend refusal of implicit movement. No purchase occurs. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -504,6 +504,9 @@
             "maximum": 9007199254740991,
             "minimum": 1,
             "type": "integer"
+          },
+          "move": {
+            "type": "boolean"
           },
           "network_id": {
             "description": "Exact lowercase UUID returned by an owned networking resource",
@@ -531,7 +534,7 @@
         "readOnlyHint": false,
         "title": "Attach public address to server"
       },
-      "description": "Attach or move an owned paid public address to an eligible zero-public-IP server's private port. Read server_target_enabled and candidate state; movement affects the previous target. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Attach an owned paid public address to exactly one target: private_port_id for an eligible zero-public-IP server's private port, or service_id for a qualified server's existing public interface. Read server_target_enabled for private ports or server_public_target_enabled for existing public interfaces, and the relevant candidates first. Pass move=true only after approving interruption of the previous target. The backend enforces ownership and service locks; inspect reach/applied state after acceptance. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -546,17 +549,23 @@
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
           },
+          "move": {
+            "type": "boolean"
+          },
           "private_port_id": {
             "description": "Exact lowercase UUID returned by an owned networking resource",
             "maxLength": 36,
             "minLength": 36,
             "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
             "type": "string"
+          },
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
           }
         },
         "required": [
-          "address_id",
-          "private_port_id"
+          "address_id"
         ],
         "type": "object"
       },
@@ -1267,6 +1276,38 @@
       },
       "name": "check_domain_availability",
       "title": "Check domain availability"
+    },
+    "check_network_public_address_reach": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Check network public address reach"
+      },
+      "description": "Queue another platform-side reach and reply-route check for this owned public address. It may repair reply routing; it does not move the attachment and is a management action. Poll get_network_public_address reach until the check finishes; a queued check is not connectivity proof. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "address_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address_id"
+        ],
+        "type": "object"
+      },
+      "name": "check_network_public_address_reach",
+      "title": "Check network public address reach"
     },
     "check_network_vpn_public_access": {
       "annotations": {
@@ -3299,7 +3340,7 @@
         "readOnlyHint": false,
         "title": "Create network security group"
       },
-      "description": "Create a named allow-rule set. If no egress rule is supplied, the backend adds an egress-any allow rule; updates instead keep exactly the rules supplied. Optional network_id scopes it to that network; otherwise it belongs to the project. IPv6 rules are unavailable. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Create a named allow-rule set. When capabilities advertise egress_policy, rules_only preserves exactly the supplied rules and allow adds unrestricted IPv4 egress. Omit egress_policy for legacy behavior: the backend adds egress-any only if no egress rule was supplied. Updates and clones preserve exact rules. Optional network_id scopes the group to that network; otherwise it belongs to the project. IPv6 rules are unavailable. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -3307,6 +3348,13 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "egress_policy": {
+            "enum": [
+              "allow",
+              "rules_only"
+            ],
+            "type": "string"
+          },
           "idempotencyKey": {
             "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
             "pattern": "^[A-Za-z0-9._-]{8,128}$(?![\\s\\S])",
@@ -3847,9 +3895,11 @@
         "additionalProperties": false,
         "properties": {
           "default_policy": {
+            "description": "Advertised creation policy; omission preserves the backend default. ingress_rules allows IPv4 egress while ingress follows rules/platform exceptions.",
             "enum": [
               "accept",
-              "deny"
+              "deny",
+              "ingress_rules"
             ],
             "type": "string"
           },
@@ -7296,6 +7346,38 @@
       "name": "get_network_payment_methods",
       "title": "Get network payment methods"
     },
+    "get_network_port_forwards": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get network port forwards"
+      },
+      "description": "Read the owned network NAT's complete TCP/UDP forwarding set, ROUTER generation, applied_generation, state, current capability and owned targets with eligible/unavailable_reason_code. Choose only an eligible returned private_port_id; a generic private_primary port flag does not qualify KVM. This generation differs from the network generation. Tool presence does not imply runtime-qualified availability; security groups still apply. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "network_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_network_port_forwards",
+      "title": "Get network port forwards"
+    },
     "get_network_product_order": {
       "annotations": {
         "destructiveHint": false,
@@ -10391,6 +10473,45 @@
       },
       "name": "list_private_networks",
       "title": "List private networks"
+    },
+    "list_public_address_server_targets": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "List public address server targets"
+      },
+      "description": "Read paginated owned server candidates for a public address on an existing public interface. Inspect eligible/reason and current server_public_target_enabled capability before attaching; a candidate is not readiness proof. Preserve the returned opaque next_cursor. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "limit": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "search": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_public_address_server_targets",
+      "title": "List public address server targets"
     },
     "list_restore_file_points": {
       "annotations": {
@@ -15570,7 +15691,7 @@
         "readOnlyHint": false,
         "title": "Set network default security policy"
       },
-      "description": "Change accept/deny for servers without custom groups. Explicit custom groups remain restrictive. Use policy generation and default-group revision from get_network_security_policy. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Change the policy for servers without custom groups using an advertised default_policy_values value: accept, deny, or ingress_rules (allow unrestricted IPv4 egress while ingress follows rules/platform exceptions). Explicit custom groups remain restrictive. Use policy generation and default-group revision from get_network_security_policy. Poll get_network_security_policy for each affected network (policies[].network_id); these receipts are not generic network operation IDs. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -15581,7 +15702,8 @@
           "default_policy": {
             "enum": [
               "accept",
-              "deny"
+              "deny",
+              "ingress_rules"
             ],
             "type": "string"
           },
@@ -15627,6 +15749,91 @@
       },
       "name": "set_network_default_security_policy",
       "title": "Set network default security policy"
+    },
+    "set_network_port_forwards": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network port forwards"
+      },
+      "description": "Replace the owned network NAT's complete TCP/UDP port-forward set at the ROUTER generation returned by get_network_port_forwards. rules=[] removes every forward. Maximum and target qualification come from capability; choose eligible private_port_id values from get_network_port_forwards targets; initially only eligible private-primary zero-public-IP Firecracker targets are supported. One target per protocol/external port; SMTP ports are refused. This exposes target services through the NAT address without bypassing security groups. Approve exact rules, retain the key/body and poll get_network_port_forwards until applied; never use generic network operation polling for this receipt. On a confirmed failed state, an explicitly approved retry must use the exact current desired rules and current router generation with a new key; changed rules are refused until that generation is observed. Transport uncertainty still requires the original key and unchanged request, never a new key. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "network_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "external_port": {
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "internal_port": {
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "private_port_id": {
+                  "description": "Exact lowercase UUID returned by an owned networking resource",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+                  "type": "string"
+                },
+                "protocol": {
+                  "enum": [
+                    "tcp",
+                    "udp"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "protocol",
+                "external_port",
+                "private_port_id",
+                "internal_port"
+              ],
+              "type": "object"
+            },
+            "maxItems": 64,
+            "type": "array"
+          }
+        },
+        "required": [
+          "network_id",
+          "expected_generation",
+          "rules",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_port_forwards",
+      "title": "Set network port forwards"
     },
     "set_network_routed_egress": {
       "annotations": {

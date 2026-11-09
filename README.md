@@ -1247,6 +1247,14 @@ feature gate.
 | `set_network_vpn_ipsec_tuning` | Replace an IPsec site's advanced tunnel choices using the gateway generation. | `networking:manage` | free |
 | `quote_network_vpn_traffic_pack` | Quote a traffic pack for this owned VPN using an offered tier from get_network_vpn_gateway traffic. | `networking:manage` | Quote: `networking:order` |
 
+### Not yet categorised
+| Tool | Description | Scope | Paid |
+|------|-------------|-------|------|
+| `list_public_address_server_targets` | Read paginated owned server candidates for a public address on an existing public interface. | `networking:read` | free |
+| `check_network_public_address_reach` | Queue another platform-side reach and reply-route check for this owned public address. | `networking:manage` | free |
+| `get_network_port_forwards` | Read the owned network NAT's complete TCP/UDP forwarding set, ROUTER generation, applied_generation, state and current capability. | `networking:read` | free |
+| `set_network_port_forwards` | Replace the owned network NAT's complete TCP/UDP port-forward set at the ROUTER generation returned by get_network_port_forwards. | `networking:manage` | free |
+
 <!-- tool-reference:end -->
 
 ## Worked examples
