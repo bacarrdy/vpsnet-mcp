@@ -893,7 +893,7 @@
       "controller": "PublicFirewallController",
       "action": "show",
       "spec": "public-firewall-v1.yml",
-      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+      "backend_commit": "87f3852f62249ab290a924646dd176b7d628eb04"
     },
     {
       "method": "put",
@@ -901,7 +901,7 @@
       "controller": "PublicFirewallController",
       "action": "update",
       "spec": "public-firewall-v1.yml",
-      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+      "backend_commit": "87f3852f62249ab290a924646dd176b7d628eb04"
     },
     {
       "method": "post",
@@ -909,7 +909,7 @@
       "controller": "PublicFirewallController",
       "action": "retry",
       "spec": "public-firewall-v1.yml",
-      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+      "backend_commit": "87f3852f62249ab290a924646dd176b7d628eb04"
     },
     {
       "method": "post",
@@ -917,7 +917,7 @@
       "controller": "PublicFirewallController",
       "action": "createGroup",
       "spec": "public-firewall-v1.yml",
-      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+      "backend_commit": "87f3852f62249ab290a924646dd176b7d628eb04"
     }
   ],
   "excluded": [
@@ -981,8 +981,9 @@
     "security_group_directional_defaults": "3b1b2ba25ecddbf95fb141fa3a6cdf26bebfca6d",
     "floating_ip_public_interface_api": "9667838f7a87632a81dd805f7100d400de8cc74f",
     "nat_port_forward": "9b91271e9092f1fa0d173fb7a22e2c50c05516e7",
-    "public_firewall_api": "804094845a077d931ad26831400b1ff5a939236c",
-    "managed_lb_tls": "6ef808425f94317901b39d59e5ef7bb3148dee47"
+    "public_firewall_api": "87f3852f62249ab290a924646dd176b7d628eb04",
+    "managed_lb_tls": "6ef808425f94317901b39d59e5ef7bb3148dee47",
+    "shared_group_public_impact": "87f3852f62249ab290a924646dd176b7d628eb04"
   },
   "deployment_dependencies": {
     "floating_ip_safety": "9a8c81cb78744a290c72a6fcd143e6b3a7ff76d2",

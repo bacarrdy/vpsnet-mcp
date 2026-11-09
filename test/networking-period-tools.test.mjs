@@ -14,8 +14,8 @@ const RESOURCE = "a22093d5-985a-443c-9a93-e0dcf6609d84";
 const KEY = "network-term-test-0001";
 const PREFIX = "/account/networking";
 const cases = [
-  ["quote_network_product", { network_id: NETWORK, kind: "vpn_gateway", tier: "wireguard" }, `${PREFIX}/networks/${NETWORK}/product-quotes`, { kind: "vpn_gateway", tier: "wireguard", prepare_after_payment: true }],
-  ["quote_account_vpn", { tier: "wireguard", network_id: NETWORK }, `${PREFIX}/vpn/product-quotes`, { tier: "wireguard", network_id: NETWORK, prepare_after_payment: true }],
+  ["quote_network_product", { network_id: NETWORK, kind: "vpn_gateway", tier: "standard" }, `${PREFIX}/networks/${NETWORK}/product-quotes`, { kind: "vpn_gateway", tier: "standard", prepare_after_payment: true }],
+  ["quote_account_vpn", { network_id: NETWORK }, `${PREFIX}/vpn/product-quotes`, { network_id: NETWORK, prepare_after_payment: true }],
   ["quote_network_product_renewal", { network_id: NETWORK, resource_id: RESOURCE }, `${PREFIX}/networks/${NETWORK}/product-periods/${RESOURCE}/quote`, {}],
   ["quote_vpn_period_renewal", { gateway_id: RESOURCE }, `${PREFIX}/appliances/vpn-gateways/${RESOURCE}/period/quote`, {}],
   ["quote_network_public_address", { network_id: NETWORK }, `${PREFIX}/public-addresses/quote`, { network_id: NETWORK, prepare_after_payment: true }],

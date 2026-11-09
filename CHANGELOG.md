@@ -2,6 +2,8 @@
 
 ## Unreleased additive source — 2026-11-09
 
+- Account VPN quotes now omit the optional compatibility tier for the one canonical product; deprecated VPN catalogue aliases are hidden as sellable duplicates. Existing quote/owned legacy proof, canonical order/renewal price lines and separately purchased traffic packs are preserved. Shared SG edits forward the revision/consumer-bound public-impact acknowledgement; safe public snapshot digests stay readable while private material remains redacted.
+
 - Preserve merged Zod4/dependency compatibility fixes. Managed TLS extends the existing LB listener API with hostname only; use current existing-LB eligibility, approve managed DNS certificate issuance/renewal, poll LB TLS state, and keep all private material outside MCP. This additive source requires a matching backend release and is excluded from the prepared VPN/dependency artifact.
 
 - Add MCP parity for explicitly implemented SDN contracts: SG `ingress_rules` and optional group creation `egress_policy`; public-IP server candidates, explicit movement, public-interface service targets and management reach checks; whole-set NAT TCP/UDP forwarding with its separate router generation. These depend on their corresponding backend releases and advertised capability; NAT forwarding remains unavailable until runtime qualification. No public-binding forwarding tool is restored. Four public-firewall operations now follow committed customer API7b41bd159: read, fenced assignment/removal, exact saved-intent retry, and explicit unbound group bootstrap. Removal requires a client acknowledgement; private assignments are not copied.

@@ -1195,7 +1195,7 @@ feature gate.
 | `list_network_products` | Read current paid products, live tier names, prices and purchase capability; public proxy load balancer 3/5-node offerings must come from this catalog. | `networking:read` | free |
 | `list_network_product_periods` | Read owned product periods, renewal availability and lifecycle facts. | `networking:read` | free |
 | `quote_network_product` | Create the network product's exact paid quote for COMMON CHECKOUT | `networking:manage` | Quote: `networking:order` |
-| `quote_account_vpn` | Create an account VPN quote for common checkout when vpn_account_order is advertised | `networking:manage` | Quote: `networking:order` |
+| `quote_account_vpn` | Quote the one canonical VPN product; omit compatibility tier code and purchase extra traffic separately | `networking:manage` | Quote: `networking:order` |
 | `order_network_product` | Confirm a common-checkout purchase from an approved exact quote | `networking:manage` | Paid: `networking:order` |
 | `get_network_product_order` | Read an owned common-checkout order's payment and fulfilment state | `networking:read` | free |
 | `find_network_product_order` | Recover an uncertain checkout by the ORIGINAL quote_id; order=null means no order was found, not proof to use a new payment key. | `networking:read` | free |

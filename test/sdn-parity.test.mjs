@@ -7,13 +7,13 @@ import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 const network_id = '2f186a34-88a3-49fc-93e8-71931b212867';
 const resource = 'a22093d5-985a-443c-9a93-e0dcf6609d84';
 const idempotencyKey = 'sdn-parity-contract-0001';
-async function harness(t, respond) {
+async function harness(t, respond, httpStatus = 200) {
   const requests = [];
   const api = createServer(async (req, res) => {
     const chunks = []; for await (const chunk of req) chunks.push(chunk);
     const raw = Buffer.concat(chunks).toString();
     requests.push({method: req.method, path: req.url, body: raw ? JSON.parse(raw) : undefined, key: req.headers['idempotency-key']});
-    res.writeHead(200, {'content-type': 'application/json'});
+    res.writeHead(httpStatus, {'content-type': 'application/json'});
     res.end(JSON.stringify(respond ? respond(requests.at(-1)) : req.url.endsWith('/port-forwards')
       ? req.method === 'PUT' ? {operation: {id: resource, action: 'port_forward'}}
         : {targets: [{private_port_id: resource, eligible: true, unavailable_reason_code: null},
@@ -109,4 +109,51 @@ test('managed LB TLS stays on existing listener API, preserves lifecycle facts a
   for (const hostname of ['App.example.com', '*.example.com', '203.0.113.1', 'https://app.example.com', 'app.example.com.', 'localhost', 'a'.repeat(64)+'.example.com']) assert.equal((await call('add_network_load_balancer_listener', {...args, tls: {hostname}})).isError, true);
   for (const bad of [{...args, protocol: 'http'}, {...args, tls: {...args.tls, private_key: 'synthetic'}}, {...args, expected_generation: 1}]) assert.equal((await call('add_network_load_balancer_listener', bad)).isError, true);
   assert.equal(requests.length, before);
+});
+
+test('one canonical VPN catalogue, omitted quote code, legacy proof recovery and separate traffic top-up keep backend prices', async t => {
+  const canonical = {product: 'vpn_gateway', tier: 'standard', periods: [{months: 12, gross_amount: '24.20'}], renew_periods: [{months: 12, gross_amount: '20.00'}]};
+  const alias = {...canonical, tier: 'full_exit', deprecated_alias: true, alias_of: 'standard'};
+  const lb = {product: 'load_balancer', tier: 'alb_proxy_3'};
+  const {requests, call} = await harness(t, req => req.method === 'GET'
+    ? {products: [canonical, alias, lb], currency: 'EUR'}
+    : {quote: {quote_id: resource, quote_token: 'fixture-quote', asked_tier: req.body.tier, gross_amount: '20.00'}});
+  const list = JSON.parse((await call('list_network_products', {})).content[0].text);
+  assert.deepEqual(list, {products: [canonical, lb], currency: 'EUR'});
+  await call('quote_account_vpn', {network_id, period_months: 12, idempotencyKey});
+  assert.deepEqual(requests.at(-1).body, {network_id, period_months: 12, prepare_after_payment: true});
+  const legacy = {network_id, tier: 'full_exit', period_months: 12, idempotencyKey: idempotencyKey+'-legacy'};
+  const receipt = JSON.parse((await call('quote_account_vpn', legacy)).content[0].text);
+  assert.equal(receipt.quote.asked_tier, 'full_exit', 'proof-chain evidence is not rewritten');
+  const original = requests.at(-1); await call('quote_account_vpn', legacy);
+  assert.deepEqual(requests.at(-1), original, 'legacy recovery retains exact original key and body');
+  await call('quote_network_vpn_traffic_pack', {gateway_id: resource, tier: '5tb', idempotencyKey});
+  assert.deepEqual(requests.at(-1), {method: 'POST', path: `/account/networking/appliances/vpn-gateways/${resource}/traffic-packs/quote`, body: {tier: '5tb'}, key: idempotencyKey});
+});
+
+test('shared SG impact acknowledgement is forwarded unchanged and never fabricated on private/name-only updates', async t => {
+  const {requests, call} = await harness(t);
+  const args = {project_id: network_id, group_id: resource, name: 'fixture', rules: [], expected_revision: 3, idempotencyKey};
+  await call('update_network_security_group', args);
+  assert.deepEqual(requests.at(-1).body, {name: 'fixture', rules: [], expected_revision: 3});
+  const ack = 'a'.repeat(64);
+  await call('update_network_security_group', {...args, public_impact_ack: ack});
+  assert.deepEqual(requests.at(-1).body, {name: 'fixture', rules: [], expected_revision: 3, public_impact_ack: ack});
+  const original = requests.at(-1); await call('update_network_security_group', {...args, public_impact_ack: ack});
+  assert.deepEqual(requests.at(-1), original, 'request-hash input and original key remain unchanged on recovery');
+  const before = requests.length;
+  assert.equal((await call('update_network_security_group', {...args, public_impact_ack: 'stale-not-a-token'})).isError, true);
+  assert.equal(requests.length, before);
+});
+
+
+test('stale shared-impact conflicts remain exact errors with no acknowledgement refresh or automatic retry', async t => {
+  const {requests, call} = await harness(t, () => ({reason_code: 'security_group_public_impact_conflict'}), 409);
+  const ack = 'c'.repeat(64);
+  const result = await call('update_network_security_group', {project_id: network_id, group_id: resource, name: 'fixture', rules: [], expected_revision: 2, public_impact_ack: ack, idempotencyKey});
+  assert.equal(result.isError, true);
+  assert.equal(JSON.parse(result.content[0].text).reason_code, 'security_group_public_impact_conflict');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].key, idempotencyKey);
+  assert.equal(requests[0].body.public_impact_ack, ack);
 });
