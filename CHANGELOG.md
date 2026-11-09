@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased source — 2026-11-09
+## Unreleased additive source — 2026-11-09
+
+- Preserve merged Zod4/dependency compatibility fixes. Managed TLS extends the existing LB listener API with hostname only; use current existing-LB eligibility, approve managed DNS certificate issuance/renewal, poll LB TLS state, and keep all private material outside MCP. This additive source requires a matching backend release and is excluded from the prepared VPN/dependency artifact.
+
+- Add MCP parity for explicitly implemented SDN contracts: SG `ingress_rules` and optional group creation `egress_policy`; public-IP server candidates, explicit movement, public-interface service targets and management reach checks; whole-set NAT TCP/UDP forwarding with its separate router generation. These depend on their corresponding backend releases and advertised capability; NAT forwarding remains unavailable until runtime qualification. No public-binding forwarding tool is restored. Four public-firewall operations now follow committed customer API7b41bd159: read, fenced assignment/removal, exact saved-intent retry, and explicit unbound group bootstrap. Removal requires a client acknowledgement; private assignments are not copied.
 
 - Reconcile VPN customer APIs against backend `dcad53b`: add reviewed image update, public-source restriction preview/replacement, advanced IPsec tuning and current-month traffic-pack quotes. The preview is read-only with `networking:read`; changes use `networking:manage` and preserve generation/idempotency fences. Traffic-pack quotes retain the existing local-only paid networking boundary. Public-source previews see the MCP gateway source address.
 - Align peer creation with supported IKEv2 devices, sites with empty or network-wide grants, optional creation-time BGP/tuning and site reach. Secrets remain one-time sealed envelopes for decryption outside MCP; no plaintext credentials or private key inputs are added. These source changes require a separate hosted deployment.

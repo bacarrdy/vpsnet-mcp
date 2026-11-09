@@ -23,6 +23,7 @@
     "change_hostname",
     "change_rdns",
     "change_title",
+    "check_network_public_address_reach",
     "check_network_vpn_public_access",
     "clear_rdns",
     "clone_network_security_group",
@@ -42,6 +43,7 @@
     "create_network_vpn_site_health_webhook",
     "create_private_network",
     "create_service_directory",
+    "create_service_public_firewall_group",
     "create_ssh_key",
     "create_vm_file",
     "delete_dns_record",
@@ -110,6 +112,7 @@
     "get_network_appliance_capabilities",
     "get_network_appliance_operation",
     "get_network_load_balancer",
+    "get_network_port_forwards",
     "get_network_public_address",
     "get_network_public_binding",
     "get_network_routed_egress",
@@ -137,6 +140,7 @@
     "get_service_file_operation",
     "get_service_graphs",
     "get_service_history",
+    "get_service_public_firewall",
     "get_service_rescue",
     "get_ssh_key",
     "get_system_status",
@@ -177,6 +181,7 @@
     "list_networking_operations",
     "list_private_network_ports",
     "list_private_networks",
+    "list_public_address_server_targets",
     "list_restore_file_points",
     "list_restore_points",
     "list_service_applications",
@@ -222,6 +227,7 @@
     "retry_network_security_policy",
     "retry_private_network",
     "retry_private_network_port",
+    "retry_service_public_firewall",
     "revoke_ddns_token",
     "revoke_free_certificate",
     "revoke_network_vpn_peer",
@@ -236,6 +242,7 @@
     "set_domain_nameservers",
     "set_guest_nameservers",
     "set_network_default_security_policy",
+    "set_network_port_forwards",
     "set_network_routed_egress",
     "set_network_site_route_mode",
     "set_network_vpn_internet_exit",
@@ -251,6 +258,7 @@
     "set_private_network_dns",
     "set_private_network_names",
     "set_private_port_security_groups",
+    "set_service_public_firewall",
     "set_vpn_server_access",
     "start_application",
     "start_network_vpn_tunnel_test",
@@ -835,6 +843,28 @@
         ]
       }
     },
+    "check_network_public_address_reach": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "check_network_vpn_public_access": {
       "set": {
         "_meta": {
@@ -1366,6 +1396,28 @@
           {
             "scopes": [
               "vm:files:write"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "create_service_public_firewall_group": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
             ],
             "type": "oauth2"
           }
@@ -3225,6 +3277,28 @@
         ]
       }
     },
+    "get_network_port_forwards": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "get_network_public_address": {
       "set": {
         "_meta": {
@@ -3855,6 +3929,28 @@
           {
             "scopes": [
               "services:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "get_service_public_firewall": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
             ],
             "type": "oauth2"
           }
@@ -5355,6 +5451,28 @@
         ]
       }
     },
+    "list_public_address_server_targets": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "list_restore_file_points": {
       "set": {
         "_meta": {
@@ -6555,6 +6673,28 @@
         ]
       }
     },
+    "retry_service_public_firewall": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "revoke_ddns_token": {
       "set": {
         "_meta": {
@@ -6955,6 +7095,28 @@
         ]
       }
     },
+    "set_network_port_forwards": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "set_network_routed_egress": {
       "set": {
         "_meta": {
@@ -7264,6 +7426,28 @@
       }
     },
     "set_private_port_security_groups": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "set_service_public_firewall": {
       "set": {
         "_meta": {
           "securitySchemes": [

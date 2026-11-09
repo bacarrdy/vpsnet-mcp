@@ -854,6 +854,70 @@
       "action": "vpnTrafficPackQuote",
       "spec": "backend routes.php",
       "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-addresses/server-targets",
+      "controller": "PublicAddressController",
+      "action": "serverTargets",
+      "spec": "backend routes.php",
+      "backend_commit": "9667838f7a87632a81dd805f7100d400de8cc74f"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/reach-check",
+      "controller": "PublicAddressController",
+      "action": "reachCheck",
+      "spec": "backend routes.php",
+      "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}/port-forwards",
+      "controller": "NetworkingController",
+      "action": "portForwards",
+      "spec": "backend routes.php",
+      "backend_commit": "9b91271e9092f1fa0d173fb7a22e2c50c05516e7"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/networks/{id}/port-forwards",
+      "controller": "NetworkingController",
+      "action": "replacePortForwards",
+      "spec": "backend routes.php",
+      "backend_commit": "9b91271e9092f1fa0d173fb7a22e2c50c05516e7"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/services/{service}/public-firewall",
+      "controller": "PublicFirewallController",
+      "action": "show",
+      "spec": "public-firewall-v1.yml",
+      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/services/{service}/public-firewall",
+      "controller": "PublicFirewallController",
+      "action": "update",
+      "spec": "public-firewall-v1.yml",
+      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/services/{service}/public-firewall/retry",
+      "controller": "PublicFirewallController",
+      "action": "retry",
+      "spec": "public-firewall-v1.yml",
+      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/services/{service}/public-firewall/groups",
+      "controller": "PublicFirewallController",
+      "action": "createGroup",
+      "spec": "public-firewall-v1.yml",
+      "backend_commit": "804094845a077d931ad26831400b1ff5a939236c"
     }
   ],
   "excluded": [
@@ -912,5 +976,17 @@
       "path": "/account/networking/public-bindings/{id}/forward",
       "reason": "No customer object can use it: the forwarding address kind is no longer sold (409 public_address_sold_per_account), native_nlb has no product (503) and account public addresses are refused (public_address_use_address_actions). Tool removed 2026-11-04."
     }
-  ]
+  ],
+  "schema_dependencies": {
+    "security_group_directional_defaults": "3b1b2ba25ecddbf95fb141fa3a6cdf26bebfca6d",
+    "floating_ip_public_interface_api": "9667838f7a87632a81dd805f7100d400de8cc74f",
+    "nat_port_forward": "9b91271e9092f1fa0d173fb7a22e2c50c05516e7",
+    "public_firewall_api": "804094845a077d931ad26831400b1ff5a939236c",
+    "managed_lb_tls": "6ef808425f94317901b39d59e5ef7bb3148dee47"
+  },
+  "deployment_dependencies": {
+    "floating_ip_safety": "9a8c81cb78744a290c72a6fcd143e6b3a7ff76d2",
+    "public_firewall_mutation": "811f61f2ea2dd30a2c6e0ceed4bafa6b283c779d",
+    "managed_lb_tls": "6ef808425f94317901b39d59e5ef7bb3148dee47; requires qualified matching NET/FC delivery"
+  }
 }

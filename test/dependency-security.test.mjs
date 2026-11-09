@@ -142,6 +142,6 @@ test('hosted HTTP rejects compressed trailing data and oversized tool collection
   assert.equal(oversized.body.result.isError, true);
   const healthy = await send('{"jsonrpc":"2.0","id":3,"method":"tools/list"}');
   assert.equal(healthy.status, 200);
-  assert.equal(healthy.body.result.tools.length, 275);
+  assert.equal(healthy.body.result.tools.length, 283);
   assert.equal(customerCalls, 0);
 });
