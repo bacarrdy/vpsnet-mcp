@@ -157,3 +157,15 @@ test('stale shared-impact conflicts remain exact errors with no acknowledgement 
   assert.equal(requests[0].key, idempotencyKey);
   assert.equal(requests[0].body.public_impact_ack, ack);
 });
+
+test('pending unissued TLS cancellation keeps existing DELETE fences and reads current LB state before a corrected add', async t => {
+  const {requests, call} = await harness(t, () => ({operation: {id: network_id, state: 'succeeded', in_progress: false}, load_balancer: {id: resource, generation: 3, managed_tls: {available: true, reason_code: null}, listeners: []}}));
+  const args = {load_balancer_id: resource, listener_id: network_id, expected_generation: 2, idempotencyKey};
+  const result = await call('remove_network_load_balancer_listener', args);
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(requests[0], {method: 'DELETE', path: `/account/networking/appliances/load-balancers/${resource}/listeners/${network_id}`, body: {expected_generation: 2}, key: idempotencyKey});
+  assert.match(JSON.stringify(result), /get_network_load_balancer/);
+  assert.equal(JSON.parse(result.content[0].text).load_balancer.generation, 3);
+  const original = requests[0]; await call('remove_network_load_balancer_listener', args);
+  assert.deepEqual(requests[1], original, 'cancellation recovery never changes its key or generation input');
+});
