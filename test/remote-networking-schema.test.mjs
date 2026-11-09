@@ -96,6 +96,6 @@ test('remote strict networking validation rejects unknown input before a backend
   });
   assert.equal(response.status, 200);
   assert.equal(response.body.result.isError, true);
-  assert.match(response.body.result.content[0].text, /Unrecognized key\(s\).*unexpected/);
+  assert.match(response.body.result.content[0].text, /Unrecognized key(?:\(s\)|s)?.*unexpected/);
   assert.equal(backendMutations, 0);
 });
