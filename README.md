@@ -1090,10 +1090,11 @@ requested or decrypted by these tools. Router recipes retain a literal PSK
 placeholder; fill it only in the customer's external configuration workflow. Never automatically
 repeat a pickup after an uncertain response.
 
-For personal devices use WireGuard; IPsec IKEv2 is a site-to-site option only.
-Read the selected gateway's `capabilities.site_ipsec` and `ipsec_profiles`
-before selecting the protocol, vendor or cipher mode. A listed tool does not
-prove an older gateway image supports IPsec. Read router recipes with
+Devices support WireGuard or the operating system's built-in IKEv2 client when
+`capabilities.device_ikev2` is available. Connected locations support WireGuard
+or IPsec IKEv2; read `capabilities.site_ipsec` and `ipsec_profiles` before choosing
+site protocol, vendor or cipher mode. A listed tool does not prove an older
+gateway image supports that protocol. Read router recipes with
 `get_network_vpn_peer_recipe`; don't use a different vendor profile than the
 one used to create the peer unless the returned API guidance supports it.
 For IPsec, connected means an established SA and the handshake timestamp is a
