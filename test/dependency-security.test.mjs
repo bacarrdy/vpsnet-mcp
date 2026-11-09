@@ -23,6 +23,50 @@ test('all registered tool validators use patched v4, including cached aliases', 
   }
 });
 
+test('registered default catalogue preserves all nested payment integer ranges', async () => {
+  const server = createVpsnetServer();
+  try {
+    const tools = Object.entries(server._registeredTools)
+      .filter(([, tool]) => tool.inputSchema?.shape?.payment);
+    assert.deepEqual(tools.map(([name]) => name).sort(), [
+      'confirm_domain_register', 'confirm_domain_renew', 'confirm_domain_restore', 'confirm_domain_transfer',
+      'create_backup', 'order_automatic_ssl_domain', 'order_automatic_ssl_subscription',
+      'order_certificate', 'order_network_product', 'order_service', 'renew_service',
+    ]);
+    const positiveIntegerTools = new Set([
+      'order_automatic_ssl_domain', 'order_automatic_ssl_subscription', 'order_certificate', 'order_network_product',
+    ]);
+    for (const [name, tool] of tools) {
+      const payment = tool.inputSchema.shape.payment;
+      const fields = payment.shape;
+      const valid = { payment: 1, ...(fields.successUrl ? { successUrl: '', cancelUrl: '' } : {}) };
+      assert.equal(payment.safeParse(valid).success, true, name);
+      for (const key of ['payment', 'paymentid'].filter(key => fields[key])) {
+        for (const value of [1, Number.MAX_SAFE_INTEGER, 2 ** 54]) {
+          const result = payment.safeParse({ ...valid, [key]: value });
+          assert.equal(result.success, true, `${name}.${key} accepts ${value}`);
+          assert.equal(result.data[key], value);
+        }
+        // The older service/domain payment schemas deliberately declare number,
+        // so do not introduce positive-integer constraints on those tools here.
+        for (const value of [0, -1, 1.5]) {
+          assert.equal(payment.safeParse({ ...valid, [key]: value }).success, !positiveIntegerTools.has(name),
+            `${name}.${key} retains its existing numeric constraints for ${value}`);
+        }
+        for (const value of ['1', null]) {
+          assert.equal(payment.safeParse({ ...valid, [key]: value }).success, false,
+            `${name}.${key} rejects ${String(value)}`);
+        }
+        const schema = z.toJSONSchema(fields[key], { target: 'draft-7', io: 'input' });
+        assert.equal(schema.type, positiveIntegerTools.has(name) ? 'integer' : 'number', `${name}.${key}`);
+        assert.equal(schema.maximum, undefined, `${name}.${key} must not advertise a new upper bound`);
+      }
+      if (fields.paymentid) assert.equal(payment.safeParse({ payment: 2 ** 54 }).success, true,
+        `${name}.paymentid remains optional`);
+    }
+  } finally { await server.close(); }
+});
+
 test('oversized constrained collections stop before validating elements', () => {
   let visits = 0;
   const schema = z.array(z.string().refine(() => { visits++; return true; })).max(16);

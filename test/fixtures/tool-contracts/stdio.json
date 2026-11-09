@@ -11952,12 +11952,10 @@
             "properties": {
               "payment": {
                 "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
                 "type": "integer"
               },
               "paymentid": {
                 "exclusiveMinimum": 0,
-                "maximum": 9007199254740991,
                 "type": "integer"
               }
             },
