@@ -1171,7 +1171,7 @@ feature gate.
 | `add_network_load_balancer_member` | Add an attached private server address to the selected listener; backend validates membership in this network. | `networking:manage` | free |
 | `remove_network_load_balancer_member` | Remove a member from rotation using the load balancer generation. | `networking:manage` | free |
 | `add_network_load_balancer_listener` | Add a listener and optional initial members using currently offered protocol capabilities | `networking:manage` | free |
-| `remove_network_load_balancer_listener` | Remove a listener and its members; deleting the last listener is refused. | `networking:manage` | free |
+| `remove_network_load_balancer_listener` | Remove a listener with its current generation and original cancel key; a sole pending/unissued managed TLS listener may be cancelled under backend checkpoint `72edf8eb5`, while issued replacement follows backend withdrawal eligibility. | `networking:manage` | free |
 | `list_network_vpn_gateways` | List owned VPN gateways, their device peers and safe status | `networking:read` | free |
 | `get_network_vpn_gateway` | Read one owned VPN gateway, protocol-specific peer status, IPsec capabilities/profiles, device grant scopes and site options | `networking:read` | free |
 | `delete_network_vpn_gateway` | Request teardown of an owned VPN gateway; all devices lose connectivity | `networking:manage` | free |
