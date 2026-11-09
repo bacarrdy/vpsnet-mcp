@@ -101,8 +101,6 @@ test("incompatible VPN intents and raw secrets are refused before any backend ca
   const device = { gateway_id: GATEWAY, name: "device", grants: [], reveal_public_key: REVEAL, idempotencyKey: KEY };
   const site = { ...device, kind: "site_to_site", protocol: "ipsec_ikev2", grants: ["100.64.0.10"], site: { remote_prefixes: ["192.168.50.0/24"] } };
   const cases = [
-    { ...device, protocol: "ipsec_ikev2" },
-    { ...device, protocol: "wireguard" },
     { ...device, site_down_alert: false },
     { ...device, site: site.site },
     { ...site, site: { ...site.site, endpoint: "91.225.104.20:51820" } },
@@ -110,8 +108,7 @@ test("incompatible VPN intents and raw secrets are refused before any backend ca
     { ...site, protocol: "wireguard", site: { ...site.site, remote_address: null } },
     { ...site, protocol: "wireguard", site: { ...site.site, vendor: "fortigate" } },
     { ...site, site: { ...site.site, pqc: true, legacy_compat: true } },
-    { ...site, grants: [] },
-    { ...site, grant_scope: "network" },
+    { ...device, site_reach: {load_balancers: true, floating_ips: false} },
     { ...device, grant_scope: "network", grants: ["100.64.0.10"] },
     { ...site, site: { ...site.site, psk: "synthetic-secret-must-not-reach-api" } },
     { ...site, private_key: "synthetic-secret-must-not-reach-api" },
@@ -120,6 +117,31 @@ test("incompatible VPN intents and raw secrets are refused before any backend ca
     assert.equal((await call("create_network_vpn_peer", args)).isError, true, `invalid intent ${index}`);
   }
   assert.equal(requests.length, 0);
+});
+
+test("devices and sites preserve supported IKEv2, empty/network grants and creation-time BGP/tuning/reach", async t => {
+  const {requests, call} = await harness(t, () => ({status: 202, body: {peer: {id: PEER}}}));
+  const base = {gateway_id: GATEWAY, name: 'fixture', grants: [], reveal_public_key: REVEAL, idempotencyKey: KEY};
+  const cases = [
+    {protocol: 'ipsec_ikev2'}, {protocol: 'wireguard'},
+    {kind: 'site_to_site', protocol: 'ipsec_ikev2', site: {remote_prefixes: ['192.168.50.0/24']}},
+    {kind: 'site_to_site', protocol: 'ipsec_ikev2', grant_scope: 'network', site_reach: null,
+      site: {bgp: {accept: 'any_private', peer_asn: 65001}, tuning: {nat_traversal: 'forced'}}},
+    {kind: 'site_to_site', protocol: 'wireguard', grant_scope: 'network',
+      site: {remote_prefixes: ['192.168.50.0/24']}, site_reach: {load_balancers: true, floating_ips: false}},
+  ];
+  for (const extra of cases) {
+    assert.notEqual((await call('create_network_vpn_peer', {...base, ...extra})).isError, true);
+    assert.deepEqual(requests.at(-1).body, {name: base.name, grants: [], reveal_public_key: REVEAL, ...extra});
+  }
+  const bad = [
+    {site: {bgp: {accept: 'listed'}}},
+    {site: {remote_prefixes: [], bgp: {accept: 'any_private', peer_asn: 64512}}},
+    {site: {bgp: {accept: 'any_private', keepalive_seconds: 20}}},
+    {site: {bgp: {accept: 'any_private'}, tuning: {pfs: 'on'}, pqc: true}},
+  ];
+  for (const extra of bad) assert.equal((await call('create_network_vpn_peer', {...base, kind: 'site_to_site', protocol: 'ipsec_ikev2', ...extra})).isError, true);
+  assert.equal(requests.length, cases.length);
 });
 
 test("network-wide device grants preserve scope and do not silently fill individual lists", async t => {

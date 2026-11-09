@@ -1,3 +1,4 @@
+import { unboundedInteger } from './tool-schema.js';
 import { z } from "zod";
 
 export const applicationLogTailLinesSchema = z
@@ -45,7 +46,7 @@ export type ApplicationLifecycleAction = z.infer<
 
 export const applicationActionIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe(
     "Exact action UUID from the current installation latest_action.id"
   );
@@ -107,7 +108,7 @@ const externalHttpsUrlSchema = z.string().max(500).refine((value) => {
  * app-additional-addresses-design-1005 section 2.3.
  */
 export const applicationAdditionalAddressSchema = z.object({
-  zone_id: z.number().int().min(1),
+  zone_id: unboundedInteger().min(1),
   name: z
     .string()
     .max(190)
@@ -125,7 +126,7 @@ export const applicationSingleAccessSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("external_https"), url: externalHttpsUrlSchema }).strict(),
   z.object({
     mode: z.literal("managed_https"),
-    zone_id: z.number().int().positive(),
+    zone_id: unboundedInteger().positive(),
     subdomain: z
       .string()
       .max(190)
@@ -247,14 +248,14 @@ export function applicationResourceThresholdRequestBody(input: {
 
 export const applicationDataRestorePointIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe(
     "Opaque eligible backup-point UUID returned by list_application_restore_points"
   );
 
 export const applicationDataRestoreIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe(
     "Opaque selective restore UUID returned by restore_application_data"
   );

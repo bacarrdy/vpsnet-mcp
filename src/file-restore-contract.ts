@@ -29,7 +29,7 @@ export const fileBrowsePointIdSchema = z
 
 export const fileBrowseIdSchema = z
   .string()
-  .uuid()
+  .guid()
   .describe("Browse UUID returned by browse_restore_files");
 
 export const fileBrowseDirectoryEntryIdSchema = z

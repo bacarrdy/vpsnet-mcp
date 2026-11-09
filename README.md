@@ -1090,10 +1090,11 @@ requested or decrypted by these tools. Router recipes retain a literal PSK
 placeholder; fill it only in the customer's external configuration workflow. Never automatically
 repeat a pickup after an uncertain response.
 
-For personal devices use WireGuard; IPsec IKEv2 is a site-to-site option only.
-Read the selected gateway's `capabilities.site_ipsec` and `ipsec_profiles`
-before selecting the protocol, vendor or cipher mode. A listed tool does not
-prove an older gateway image supports IPsec. Read router recipes with
+Devices support WireGuard or the operating system's built-in IKEv2 client when
+`capabilities.device_ikev2` is available. Connected locations support WireGuard
+or IPsec IKEv2; read `capabilities.site_ipsec` and `ipsec_profiles` before choosing
+site protocol, vendor or cipher mode. A listed tool does not prove an older
+gateway image supports that protocol. Read router recipes with
 `get_network_vpn_peer_recipe`; don't use a different vendor profile than the
 one used to create the peer unless the returned API guidance supports it.
 For IPsec, connected means an established SA and the handshake timestamp is a
@@ -1180,7 +1181,7 @@ feature gate.
 | `create_network_vpn_peer` | Add a device, or a connected location (site-to-site office router), with an externally generated one-time PUBLIC reveal key | `networking:manage` | free |
 | `take_network_vpn_peer_config` | Consume the device's sealed configuration ONCE | `networking:manage` | free |
 | `revoke_network_vpn_peer` | Revoke one device using the VPN GATEWAY generation | `networking:manage` | free |
-| `set_network_vpn_peer_grants` | Replace the device's complete reachable-server list when standalone VPN is available | `networking:manage` | free |
+| `set_network_vpn_peer_grants` | Replace a device or site's complete individual-server or network-wide access choice | `networking:manage` | free |
 | `get_network_vpn_egress_options` | Read supported VPN Internet exits and qualification | `networking:read` | free |
 | `set_network_vpn_peer_egress` | Set a device's private-only, inherited NAT, or advertised chosen exit policy | `networking:manage` | free |
 | `get_network_vpn_peer_recipe` | Read public IPsec router instructions with a PSK placeholder; no secret retrieval | `networking:read` | free |
@@ -1236,6 +1237,15 @@ feature gate.
 | `set_network_vpn_site_reach` | Set this site's load-balancer/floating-IP reach choice, or null to follow its VPN default. | `networking:manage` | free |
 
 | `rename_network_vpn_gateway` | Rename an owned VPN's customer label. | `networking:manage` | free |
+
+### Not yet categorised
+| Tool | Description | Scope | Paid |
+|------|-------------|-------|------|
+| `update_network_vpn_gateway_image` | Apply the backend-qualified reviewed VPN image in place. | `networking:manage` | free |
+| `check_network_vpn_public_access` | Preview the complete VPN public-source lists without applying them. | `networking:read` | free |
+| `set_network_vpn_public_access` | Replace the complete WireGuard/IPsec public-source lists at the VPN gateway generation. | `networking:manage` | free |
+| `set_network_vpn_ipsec_tuning` | Replace an IPsec site's advanced tunnel choices using the gateway generation. | `networking:manage` | free |
+| `quote_network_vpn_traffic_pack` | Quote a traffic pack for this owned VPN using an offered tier from get_network_vpn_gateway traffic. | `networking:manage` | Quote: `networking:order` |
 
 <!-- tool-reference:end -->
 

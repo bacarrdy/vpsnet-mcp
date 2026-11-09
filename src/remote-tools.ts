@@ -5,7 +5,7 @@ import { apiRequest, resolveApiBase } from './api.js';
 import { getUpdateInfo, updateInfoOutput } from './update-info.js';
 
 const resource = { orderNo: z.string().regex(/^[A-Za-z0-9-]{1,64}$/), sessionBinding: z.string().regex(/^[a-f0-9]{32}$/, 'sessionBinding must contain exactly 32 lowercase hexadecimal characters (0-9, a-f), without hyphens. For a new open_vm_session call, omit it so VPSnet creates it; otherwise reuse the returned sessionBinding.').describe('Exactly 32 lowercase hexadecimal characters (0-9, a-f), without hyphens. Copy sessionBinding from open_vm_session and reuse it for every operation and reconnect. Not a credential.') };
-const session = { ...resource, sessionId: z.string().uuid() };
+const session = { ...resource, sessionId: z.string().guid() };
 const idempotencyKey = z.string().regex(/^[A-Za-z0-9_-]{16,128}$/).describe('Stable key for this exact operation. Reuse after a lost response; never automatically replace.');
 const result = (data: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(data) }] });
 
