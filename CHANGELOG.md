@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.7.0 MCP server (source, not published) — 2026-11-10
+
+Contract check against backend `master` (`472d7d235`): every networking tool names a route of `spec/*.yml` with the scope the route enforces; `test/backend-spec-routes.test.mjs` now fails otherwise (regenerate its fixture with `scripts/sync-backend-spec-routes.py`). Only what production serves after the next backend release is described. This version also carries the unreleased source entries below (VPN completion, health webhooks, dependency fixes).
+
+- Security-group default modes: `create_private_network` and `set_network_default_security_policy` accept `ingress_rules` (IPv4 egress allowed, ingress follows the rules); `create_network_security_group` takes `egress_policy` (`rules_only` keeps exactly the supplied rules, `allow` adds unrestricted egress). `get_security_group_capabilities` reports which values the backend offers.
+- `list_network_product_periods` takes `resource_id` for one product and reports `incomplete` when the account has more than 100 products or one period could not be read.
+- One VPN product: the sellable catalogue omits the retired `full_exit` alias row; `quote_account_vpn` needs no `tier` (a legacy code is still forwarded unchanged for recovery); additional traffic is bought separately with `quote_network_vpn_traffic_pack`.
+- `attach_public_address_to_server` and `attach_public_address_to_network` accept `move=true` after the customer approved interrupting the previous target; without it the backend refuses an implicit move.
+- A refusal because a server's two-factor lock is on keeps its typed reason (including `transferNeedsLockOff` for a service transfer).
+- The load balancer listener text now says an https listener is passed through to the members and the balancer does not terminate TLS.
+- Deliberately not included, because the feature is not live in production: NAT port forwarding, an additional address on a server's own public interface (server targets, reach check, `service_id` on attach), the public firewall tools, managed TLS on load balancer listeners, public-address reverse DNS tools, and the shared-group public-impact acknowledgement. They stay on their own branches for the release that switches them on. Tool count is unchanged (stdio 355).
+
 ## Unreleased source — 2026-11-09
 
 - Reconcile VPN customer APIs against backend `dcad53b`: add reviewed image update, public-source restriction preview/replacement, advanced IPsec tuning and current-month traffic-pack quotes. The preview is read-only with `networking:read`; changes use `networking:manage` and preserve generation/idempotency fences. Traffic-pack quotes retain the existing local-only paid networking boundary. Public-source previews see the MCP gateway source address.
