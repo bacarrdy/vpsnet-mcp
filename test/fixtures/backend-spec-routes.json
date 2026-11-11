@@ -1,0 +1,1531 @@
+{
+ "backend_commit": "abc88dc5dd9c133c8ba5942d71071cd83312a279",
+ "routes": {
+  "DELETE /account/networking/appliances/load-balancers/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/appliances/load-balancers/{}/listeners/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/appliances/load-balancers/{}/members/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/appliances/vpn-gateways/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/appliances/vpn-gateways/{}/peers/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/appliances/vpn-gateways/{}/peers/{}/health-webhooks/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "DELETE /account/networking/appliances/vpn-gateways/{}/peers/{}/lines/2": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/networks/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/networks/{}/ports/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_generation",
+    "restart"
+   ]
+  },
+  "DELETE /account/networking/projects/{}/networks/{}/security-policy": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "DELETE /account/networking/projects/{}/security-groups/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_revision"
+   ]
+  },
+  "DELETE /account/networking/public-bindings/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "GET /account/networking/appliances": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/billing": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/capabilities": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/load-balancers": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/load-balancers/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/operations/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/my-address": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/egress-options": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/peers/{}/config": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [
+    "line"
+   ],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/peers/{}/health-webhooks": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/peers/{}/history": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "range"
+   ],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/peers/{}/recipe": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "inputs",
+    "lang",
+    "lines",
+    "vendor",
+    "version"
+   ],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/peers/{}/tests/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/capabilities": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/features": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/networks": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/networks/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/networks/{}/attachment-candidates": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "after",
+    "service_id"
+   ],
+   "body": []
+  },
+  "GET /account/networking/networks/{}/port-forwards": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/networks/{}/ports": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "include_reservations"
+   ],
+   "body": []
+  },
+  "GET /account/networking/networks/{}/routed-egress": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/networks/{}/vpn": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/operations": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/operations/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/overview": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/product-orders": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [
+    "quote_id"
+   ],
+   "body": []
+  },
+  "GET /account/networking/product-orders/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/product-orders/{}/payment-receipt": {
+   "scopes": [
+    "networking:manage",
+    "payments:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/product-periods": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "resource_id"
+   ],
+   "body": []
+  },
+  "GET /account/networking/products": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "network_id"
+   ],
+   "body": []
+  },
+  "GET /account/networking/projects/{}/networks/{}/security-policy": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/projects/{}/security-groups": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/public-addresses": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/public-addresses/server-targets": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "cursor",
+    "limit",
+    "search",
+    "service_id"
+   ],
+   "body": []
+  },
+  "GET /account/networking/public-addresses/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/public-bindings/{}": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/security-groups/capabilities": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/services/{}/ports": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/topology": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "metrics"
+   ],
+   "body": []
+  },
+  "POST /account/networking/appliances/load-balancers": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/load-balancers/quote": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "health_monitor",
+    "listener",
+    "name",
+    "network_id",
+    "placement",
+    "pool",
+    "provider",
+    "public_vip"
+   ]
+  },
+  "POST /account/networking/appliances/load-balancers/{}/listeners": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "members",
+    "port",
+    "protocol"
+   ]
+  },
+  "POST /account/networking/appliances/load-balancers/{}/members": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "address",
+    "listener_id",
+    "port"
+   ]
+  },
+  "POST /account/networking/appliances/load-balancers/{}/rebuild": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/vpn-gateways": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/attach": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "network_id"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/auto-renew": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "state"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/detach": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/image-update": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/peers": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "grant_scope",
+    "grants",
+    "kind",
+    "name",
+    "protocol",
+    "reveal_public_key",
+    "site",
+    "site_down_alert",
+    "site_reach"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/peers/{}/health-webhooks": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "reveal_public_key",
+    "url"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/peers/{}/lines": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "dpd_seconds",
+    "expected_generation",
+    "remote_address",
+    "reveal_public_key",
+    "vendor"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/peers/{}/rotate-key": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "reveal_public_key"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/peers/{}/tests": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "line"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/period/quote": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "period_months"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/period/renew": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "quote_id"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/public-access/check": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "full",
+    "read"
+   ],
+   "query": [],
+   "body": [
+    "services"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/rebuild": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/restart": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/server-access": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "mode"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/traffic-packs/quote": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "tier"
+   ]
+  },
+  "POST /account/networking/networks": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "default_policy",
+    "name",
+    "settings",
+    "subnet"
+   ]
+  },
+  "POST /account/networking/networks/{}/dns": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "dns_mode",
+    "dns_servers"
+   ]
+  },
+  "POST /account/networking/networks/{}/ports": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "ipv4",
+    "restart",
+    "service_id"
+   ]
+  },
+  "POST /account/networking/networks/{}/ports/{}/retry": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_generation",
+    "restart"
+   ]
+  },
+  "POST /account/networking/networks/{}/product-periods/{}/auto-renew": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "state"
+   ]
+  },
+  "POST /account/networking/networks/{}/product-periods/{}/quote": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "period_months"
+   ]
+  },
+  "POST /account/networking/networks/{}/product-periods/{}/renew": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "quote_id"
+   ]
+  },
+  "POST /account/networking/networks/{}/product-quotes": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "defer_preparation",
+    "kind",
+    "period_months",
+    "prepare_after_payment",
+    "tier"
+   ]
+  },
+  "POST /account/networking/networks/{}/product-quotes/{}/prepare": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/networks/{}/product-quotes/{}/purchase-private-lb": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/networks/{}/product-quotes/{}/purchase-vpn": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/networks/{}/public-bindings": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "kind",
+    "quote_id"
+   ]
+  },
+  "POST /account/networking/networks/{}/retry": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_generation"
+   ]
+  },
+  "POST /account/networking/networks/{}/routed-egress": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "internet_access",
+    "move",
+    "public_address_id"
+   ]
+  },
+  "POST /account/networking/product-orders": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "name",
+    "payment",
+    "quote_id",
+    "target"
+   ]
+  },
+  "POST /account/networking/projects/{}/networks/{}/security-policy/retry": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/projects/{}/security-groups": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "egress_policy",
+    "name",
+    "network_id",
+    "rules"
+   ]
+  },
+  "POST /account/networking/projects/{}/security-groups/{}/clone": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_revision",
+    "name"
+   ]
+  },
+  "POST /account/networking/public-addresses": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "quote_id"
+   ]
+  },
+  "POST /account/networking/public-addresses/quote": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "network_id",
+    "period_months",
+    "prepare_after_payment"
+   ]
+  },
+  "POST /account/networking/public-addresses/{}/attach": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "move",
+    "network_id",
+    "private_port_id",
+    "service_id"
+   ]
+  },
+  "POST /account/networking/public-addresses/{}/auto-renew": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "state"
+   ]
+  },
+  "POST /account/networking/public-addresses/{}/detach": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/public-addresses/{}/reach-check": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/public-addresses/{}/renew": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "quote_id"
+   ]
+  },
+  "POST /account/networking/public-addresses/{}/renewal-quote": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "period_months"
+   ]
+  },
+  "POST /account/networking/public-bindings/{}/bind": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "private_port_id"
+   ]
+  },
+  "POST /account/networking/public-bindings/{}/forward": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "listeners"
+   ]
+  },
+  "POST /account/networking/public-bindings/{}/move": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "private_port_id"
+   ]
+  },
+  "POST /account/networking/vpn/product-quotes": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "defer_preparation",
+    "network_id",
+    "period_months",
+    "prepare_after_payment",
+    "tier"
+   ]
+  },
+  "POST /account/networking/vpn/product-quotes/{}/prepare": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "POST /account/networking/vpn/product-quotes/{}/purchase": {
+   "scopes": [
+    "networking:manage",
+    "networking:order"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "PUT /account/networking/appliances/networks/{}/site-route-mode": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "route_mode"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/internet-exit": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "mode"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/name": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "name"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/bgp": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "accept",
+    "enabled",
+    "expected_generation",
+    "hold_seconds",
+    "inner",
+    "keepalive_seconds",
+    "local_asn",
+    "peer_asn",
+    "remote_prefixes"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/egress-policy": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "policy"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/grants": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "grant_scope",
+    "grants"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/ipsec-tuning": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "tuning"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/lines/main": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "dpd_seconds",
+    "expected_generation",
+    "line"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/router-setup": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "inputs",
+    "line",
+    "vendor",
+    "version"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/site-alert": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "enabled"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/site-reach": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "reach"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/public-access": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "acknowledge_disconnect",
+    "expected_generation",
+    "services"
+   ]
+  },
+  "PUT /account/networking/appliances/vpn-gateways/{}/site-options": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "device_mesh",
+    "hub_and_spoke",
+    "site_reach"
+   ]
+  },
+  "PUT /account/networking/networks/{}/names": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "aliases",
+    "zone_label"
+   ]
+  },
+  "PUT /account/networking/networks/{}/port-forwards": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "rules"
+   ]
+  },
+  "PUT /account/networking/projects/{}/networks/{}/ports/{}/security-groups": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_generation",
+    "expected_port_generation",
+    "group_ids"
+   ]
+  },
+  "PUT /account/networking/projects/{}/networks/{}/security-policy": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "default_policy",
+    "expected_default_revision",
+    "expected_generation"
+   ]
+  },
+  "PUT /account/networking/projects/{}/security-groups/{}": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "expected_revision",
+    "name",
+    "rules"
+   ]
+  }
+ }
+}
