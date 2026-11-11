@@ -359,3 +359,9 @@ test("the hosted OAuth connector does not offer App Cloud tools (no OAuth scope 
   const names = Object.keys(server._registeredTools);
   assert.equal(names.some(name => /app_cloud/.test(name)), false);
 });
+
+test("a Git or upload call on a project of another source kind carries an explanation", async () => {
+  const res = await tool("deploy_app_cloud_git_source").run({ project_id: 7, confirmed: true }, mock(() => ({ status: 422, data: { success: false, source_kind_unsupported: true, error_detail: { code: "source_kind_unsupported" }, http_status: 422 } })).deps);
+  assert.equal(res.isError, true);
+  assert.match(res.content[1].text, /another source kind/);
+});

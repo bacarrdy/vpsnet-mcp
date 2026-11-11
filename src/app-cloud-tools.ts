@@ -114,6 +114,7 @@ const hints: Record<string, string> = {
   name_taken: "That project name is taken platform-wide (possibly by this account's own project). Check check_app_cloud_project_name and choose another; do not retry the same name.",
   image_digest_required: "Pin the image by digest (registry/repository[:tag]@sha256:<64 hex>).",
   embedded_database_hosted: "The project hosts an embedded database; project data is never deleted with a project. The database must be moved to its own server or deleted in the panel first.",
+  source_kind_unsupported: "This project was created with another source kind, or the kind is not offered. Git sources work only on a project created with source_kind git, uploads only on source_kind upload; read get_app_cloud_options source_kinds and get_app_cloud_project source.kind. Create a new project of the right kind rather than switching.",
   reveal_closed: "The one-time reveal is closed. Only a password reset shows a password again (in the panel).",
   reveal_expired: "The reveal window (10 minutes) has passed. Only a password reset shows a password again (in the panel).",
 };
