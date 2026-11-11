@@ -45,6 +45,12 @@ export async function serviceFileTools() {
   return module.serviceFileTools;
 }
 
+export async function appCloudTools() {
+  process.env.VPSNET_API_KEY ||= "vpsnet_" + "x".repeat(43);
+  const module = await import(new URL("build/app-cloud-tools.js", root));
+  return module.appCloudTools;
+}
+
 const ticks = (text) => text.replace(SCOPE_TOKEN, (token) => `\`${token}\``);
 export const scopeCell = (scopes) =>
   scopes.length === 0 ? "none" : scopes.map((scope) => scope.split(" or ").map((x) => `\`${x}\``).join(" or ")).join(" + ");
@@ -77,6 +83,9 @@ export async function expectedTools() {
   }
   for (const tool of await serviceFileTools()) {
     result.set(tool.name, { scopes: [tool.scope], paid: "", code: tool.description, kind: "files" });
+  }
+  for (const tool of await appCloudTools()) {
+    result.set(tool.name, { scopes: tool.scopes, paid: tool.paid === "free" ? "" : tool.paid, code: tool.description, kind: "app-cloud" });
   }
   return { tools: result, metadata };
 }

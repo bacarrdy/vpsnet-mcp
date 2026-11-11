@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased source: App Cloud project tools (hold: merge and publish only when App Cloud is live) — 2026-11-11
+
+26 stdio-only tools for App Cloud projects and project databases (a different product from Managed Applications). They need the explicit API-key grants `projects:read`, `projects:manage`, `projectdb:read` and `projectdb:manage` (an unrestricted key does not hold them; changes need a full-access key) and are not offered by the hosted OAuth connector, which has no scope for them. Source: the published API description (frontend `public/openapi-v1.yml`, tag Projects); `test/fixtures/app-cloud-openapi-routes.json` is its route list and `test/app-cloud-tools.test.mjs` checks every tool's method, path, scope, body fields and query against it.
+
+- Reads: `get_app_cloud_availability` (answers either way), `get_app_cloud_options`, `check_app_cloud_project_name`, `list_app_cloud_projects`, `get_app_cloud_project`, `list_app_cloud_deployments`, `get_app_cloud_build_log`, `get_app_cloud_logs`, `list_app_cloud_env` (secret values are never returned), `list_app_cloud_github_installations`, `get_app_cloud_database_options`, `list_app_cloud_databases`.
+- Projects: `create_app_cloud_project` (hourly billing from creation: needs `confirmed` and `acknowledge_hourly_billing`), `connect_app_cloud_git_source` and `deploy_app_cloud_git_source`, `upload_app_cloud_source` (local archive, chunked), `deploy_app_cloud_project` (image pinned by digest), `rollback_app_cloud_project`, `set_app_cloud_env`, `stop_app_cloud_project`, `start_app_cloud_project`, `delete_app_cloud_project` (exact name and `acknowledge_data_loss`).
+- Databases: `create_app_cloud_database` (hourly billing), `attach_app_cloud_database`, `reveal_app_cloud_database_credentials` (the API's reveal-once path: receipt, password in clear once, 10 minutes to repeat with the same receipt) and `acknowledge_app_cloud_database_credentials`.
+- While App Cloud is switched off for the account every tool answers `reason_code app_cloud_not_available` ("not available on this account yet"; nothing created, changed or charged) instead of a bare 404.
+- No tool accepts a Git or registry token or a database password as input, and no read returns a secret. The backend has no idempotency key on these routes, so none is sent: a project name is unique platform-wide, and the creating database and deploy tools say to read the list before any retry.
+
 ## 2.7.0 MCP server (source, not yet published) — 2026-11-11
 
 Contract check against the backend API description at `abc88dc5` (the release in production): every networking tool names a route of `spec/*.yml` with the scope the route enforces, only sends body fields and query parameters the route declares, and `test/backend-spec-routes.test.mjs` fails otherwise (regenerate its fixture with `scripts/sync-backend-spec-routes.py`). Only what production serves is described. This version also carries the unreleased source entries below (VPN completion, health webhooks, dependency fixes).

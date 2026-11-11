@@ -16,6 +16,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { registerNetworkingTools } from "./networking-tools.js";
 import { registerServiceFileTools } from "./service-files.js";
+import { registerAppCloudTools } from "./app-cloud-tools.js";
 import { isIP } from "node:net";
 import { z } from "zod";
 import { apiRequest, formatJson, initializeStdioApi } from "./api.js";
@@ -281,6 +282,7 @@ if (options.remoteScopes) installRemotePolicy(server, options.remoteScopes, opti
 registerNetworkingTools(server);
 // Local-path transfers and address-bound download URLs stay on stdio; the hosted connector gets the API-only file tools.
 registerServiceFileTools(server, undefined, options.remoteScopes ? "remote" : "stdio");
+registerAppCloudTools(server, undefined, options.remoteScopes ? "remote" : "stdio");
 
 // Helper to build service settings path
 const svc = (orderNo: string, action: string) =>

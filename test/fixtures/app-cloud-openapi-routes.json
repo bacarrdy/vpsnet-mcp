@@ -1,0 +1,831 @@
+{
+ "source": "vpsnet_frontend public/openapi-v1.yml (tag Projects)",
+ "frontend_commit": "b083cde4258c792ff6ea74af7331ee13d8c065db",
+ "routes": [
+  {
+   "method": "GET",
+   "path": "/account/projects",
+   "operationId": "listAppCloudApps",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects",
+   "operationId": "createAppCloudApp",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "auto_deploy",
+    "commit",
+    "env",
+    "health_path",
+    "instance_count",
+    "name",
+    "plan_id",
+    "port",
+    "source"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/options",
+   "operationId": "getAppCloudAppOptions",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/availability",
+   "operationId": "getAppCloudAvailability",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/github",
+   "operationId": "getAppCloudGithubApp",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/github/installations",
+   "operationId": "linkAppCloudGithubInstallations",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "code",
+    "state"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/github/installations/{installationId}/repositories",
+   "operationId": "listAppCloudGithubRepositories",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/name-availability",
+   "operationId": "checkAppCloudAppName",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": [
+    "name"
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}",
+   "operationId": "getAppCloudApp",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}",
+   "operationId": "updateAppCloudApp",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "auto_deploy",
+    "health_path",
+    "instance_count",
+    "plan_id",
+    "port"
+   ],
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/projects/{id}",
+   "operationId": "deleteAppCloudApp",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "confirm_name"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/actions/{action}",
+   "operationId": "runAppCloudAppAction",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/processes",
+   "operationId": "listAppCloudProcesses",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "PUT",
+   "path": "/account/projects/{id}/processes",
+   "operationId": "replaceAppCloudProcesses",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "processes",
+    "procfile"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/processes/{name}/run",
+   "operationId": "runAppCloudProcess",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/runs",
+   "operationId": "listAppCloudRuns",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": [
+    "kind",
+    "process",
+    "limit"
+   ]
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/runs",
+   "operationId": "startAppCloudRun",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "command",
+    "timeout_seconds"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/runs/{runId}",
+   "operationId": "getAppCloudRun",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/deploys",
+   "operationId": "listAppCloudDeployments",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/deploys",
+   "operationId": "createAppCloudDeployment",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "commit",
+    "image",
+    "mode"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/deploys/{deploymentId}/rollback",
+   "operationId": "rollbackAppCloudApp",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/deploys/{deploymentId}/preview-link",
+   "operationId": "previewLinkAppCloudDeployment",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "ttl_minutes"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/deploys/{deploymentId}/promote",
+   "operationId": "promoteAppCloudDeployment",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "drain_minutes"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/deploys/{deploymentId}/discard",
+   "operationId": "discardAppCloudDeployment",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/deploys/{deploymentId}/release-metrics",
+   "operationId": "releaseMetricsAppCloudDeployment",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/deploys/{deploymentId}/build-log",
+   "operationId": "getAppCloudDeploymentBuildLog",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/sources/git",
+   "operationId": "getAppCloudGitSource",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "PUT",
+   "path": "/account/projects/{id}/sources/git",
+   "operationId": "connectAppCloudGitSource",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "base_url",
+    "branch",
+    "installation_id",
+    "private_address",
+    "private_network_id",
+    "provider",
+    "repository",
+    "root",
+    "rotate_push_token",
+    "rotate_webhook_secret",
+    "tls_verify",
+    "token"
+   ],
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/projects/{id}/sources/git",
+   "operationId": "disconnectAppCloudGitSource",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/sources/git/deploys",
+   "operationId": "deployAppCloudGitSource",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "commit_sha"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/sources/upload",
+   "operationId": "createAppCloudSourceUpload",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "filename",
+    "sha256",
+    "size"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/sources/upload/{uploadId}",
+   "operationId": "getAppCloudSourceUpload",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/projects/{id}/sources/upload/{uploadId}",
+   "operationId": "abortAppCloudSourceUpload",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "PUT",
+   "path": "/account/projects/{id}/sources/upload/{uploadId}/chunk",
+   "operationId": "putAppCloudSourceUploadChunk",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/sources/upload/{uploadId}/complete",
+   "operationId": "completeAppCloudSourceUpload",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "message"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/env",
+   "operationId": "listAppCloudEnv",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/env",
+   "operationId": "setAppCloudEnv",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "variables"
+   ],
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/projects/{id}/env/{name}",
+   "operationId": "deleteAppCloudEnv",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/domains",
+   "operationId": "listAppCloudDomains",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/domains",
+   "operationId": "addAppCloudDomain",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": [
+    "hostname"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/projects/{id}/domains/{domainId}/verify",
+   "operationId": "verifyAppCloudDomain",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/projects/{id}/domains/{domainId}",
+   "operationId": "removeAppCloudDomain",
+   "scopes": [
+    "projects:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/logs",
+   "operationId": "getAppCloudLogs",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": [
+    "lines",
+    "instance",
+    "since"
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/logs/stream",
+   "operationId": "streamAppCloudLogs",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": [
+    "instance"
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/account/projects/{id}/metrics",
+   "operationId": "getAppCloudMetrics",
+   "scopes": [
+    "projects:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": [
+    "range",
+    "instance"
+   ]
+  },
+  {
+   "method": "GET",
+   "path": "/account/project-databases",
+   "operationId": "listAppCloudDatabases",
+   "scopes": [
+    "projectdb:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases",
+   "operationId": "createAppCloudDatabase",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "app_id",
+    "cluster_size",
+    "disk_gb",
+    "engine",
+    "env_name",
+    "name",
+    "plan_id",
+    "topology",
+    "version"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/project-databases/options",
+   "operationId": "getAppCloudDatabaseOptions",
+   "scopes": [
+    "projectdb:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/project-databases/{id}",
+   "operationId": "getAppCloudDatabase",
+   "scopes": [
+    "projectdb:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}",
+   "operationId": "updateAppCloudDatabase",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "plan_id"
+   ],
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/project-databases/{id}",
+   "operationId": "deleteAppCloudDatabase",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "confirm_name",
+    "keep_last_backup"
+   ],
+   "query": []
+  },
+  {
+   "method": "GET",
+   "path": "/account/project-databases/{id}/backups",
+   "operationId": "listAppCloudDatabaseBackups",
+   "scopes": [
+    "projectdb:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}/backups/{backupId}/restore",
+   "operationId": "restoreAppCloudDatabaseBackup",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "name",
+    "plan_id"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}/credentials/reveal",
+   "operationId": "revealAppCloudDatabaseCredentials",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "receipt"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}/credentials/acknowledge",
+   "operationId": "acknowledgeAppCloudDatabaseCredentials",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "receipt"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}/credentials/reset",
+   "operationId": "resetAppCloudDatabaseCredentials",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}/topology",
+   "operationId": "moveAppCloudDatabaseToNode",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "plan_id",
+    "topology"
+   ],
+   "query": []
+  },
+  {
+   "method": "POST",
+   "path": "/account/project-databases/{id}/bindings",
+   "operationId": "attachAppCloudDatabase",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": [
+    "app_id",
+    "env_name",
+    "project_id"
+   ],
+   "query": []
+  },
+  {
+   "method": "DELETE",
+   "path": "/account/project-databases/{id}/bindings/{bindingId}",
+   "operationId": "detachAppCloudDatabase",
+   "scopes": [
+    "projectdb:manage"
+   ],
+   "access": "full",
+   "body": null,
+   "query": []
+  }
+ ]
+}

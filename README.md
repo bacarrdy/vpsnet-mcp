@@ -656,7 +656,7 @@ key; `a + b` = both; `a or b` = either, depending on the object). **Paid**:
 above; `Quote: x` creates a price quote without charging but is gated the same
 way; `Paid` alone charges the balance with a `full`-access key and no separate
 paid scope; `Needs paid scope: x` is a read that exposes balance or price data;
-`Billed while kept` means free for an initial window, then metered; `free` is
+`Billed while kept` means free for an initial window, then metered; `Usage-billed hourly` means billed per hour from creation, never more than the monthly price, with no paid scope; `free` is
 everything else.
 
 <!-- tool-reference:start -->
@@ -800,6 +800,38 @@ everything else.
 | `list_restore_file_points` | List browsable backup points and whether folder search is available (free) | `services:read` | free |
 | `browse_restore_files` | Queue a backup directory listing job without restoring files | `services:read` | free |
 | `get_restore_file_browse` | Poll a queued backup directory listing (free, read-only) | `services:read` | free |
+
+### App Cloud projects
+App Cloud runs the customer's own code (an image, a Git repository or an uploaded archive) in VPSnet Firecracker microVMs behind a shared HTTPS edge. It is not the Managed Applications catalogue above. Every tool answers `app_cloud_not_available` while App Cloud is switched off for the account; `projects:read`, `projects:manage`, `projectdb:read` and `projectdb:manage` are explicit grants (an empty permission list does not include them) and changes need a `full`-access key. Projects and databases are billed by the hour from creation (`Billed hourly`: no paid scope or idempotency key; the backend refuses a repeated project name instead of creating it twice). These tools are available over stdio with an API key; the hosted OAuth connector does not offer them.
+
+| Tool | Description | Scope | Paid |
+|------|-------------|-------|------|
+| `get_app_cloud_availability` | Tell whether App Cloud is offered to this account now (answers either way) | `projects:read` | free |
+| `get_app_cloud_options` | Read sizes with hourly prices, quota, region, code sources and upload limits for new projects | `projects:read` | free |
+| `check_app_cloud_project_name` | Check whether a project name is free | `projects:read` | free |
+| `list_app_cloud_projects` | List projects with status, price and this month's usage | `projects:read` | free |
+| `get_app_cloud_project` | Read one project: deployments, addresses, attached databases, instances, activity | `projects:read` | free |
+| `create_app_cloud_project` | **Billed hourly from creation:** create a project from an image, an upload or a Git repository | `projects:manage` | Usage-billed hourly |
+| `connect_app_cloud_git_source` | Connect a GitHub or GitLab repository, or VPSnet's own push remote; the webhook secret or push token is shown once | `projects:manage` | free |
+| `list_app_cloud_github_installations` | List GitHub App installations linked to the account and the install links | `projects:read` | free |
+| `deploy_app_cloud_git_source` | Deploy the branch head or one commit of the connected repository | `projects:manage` | free |
+| `upload_app_cloud_source` | Deploy a local .zip or .tar.gz archive: chunked, resumable upload, then build | `projects:manage` | free |
+| `deploy_app_cloud_project` | Deploy an image pinned by digest, or run the current release again | `projects:manage` | free |
+| `list_app_cloud_deployments` | List deployments with state and whether rollback is allowed | `projects:read` | free |
+| `get_app_cloud_build_log` | Read the masked end of a source build's output | `projects:read` | free |
+| `get_app_cloud_logs` | Read the latest runtime log lines | `projects:read` | free |
+| `rollback_app_cloud_project` | **Switches automatic deploy off:** run an earlier release again without a rebuild | `projects:manage` | free |
+| `list_app_cloud_env` | List environment variable names and kinds; secret values are never returned | `projects:read` | free |
+| `set_app_cloud_env` | Set environment variables (redeploys a running app); secrets can never be read back | `projects:manage` | free |
+| `stop_app_cloud_project` | Stop a project: the instance charge ends, data and settings are kept | `projects:manage` | free |
+| `start_app_cloud_project` | **Billed hourly:** start a stopped project | `projects:manage` | Usage-billed hourly |
+| `delete_app_cloud_project` | **Destructive:** permanently delete a project, its releases, variables, domains and logs (name and data-loss acknowledgement required) | `projects:manage` | free |
+| `get_app_cloud_database_options` | Read engines, topologies, sizes and prices for new project databases | `projectdb:read` | free |
+| `list_app_cloud_databases` | List project databases and the projects they are attached to; no passwords | `projectdb:read` | free |
+| `create_app_cloud_database` | **Billed hourly from creation:** create a PostgreSQL, MariaDB, Valkey or FerretDB database | `projectdb:manage` | Usage-billed hourly |
+| `attach_app_cloud_database` | Attach a database to a project (the project redeploys) | `projectdb:manage` + `projects:manage` | free |
+| `reveal_app_cloud_database_credentials` | Show a database password once, in clear (reveal-once with a receipt) | `projectdb:manage` | free |
+| `acknowledge_app_cloud_database_credentials` | Close the one-time password reveal | `projectdb:manage` | free |
 
 ### Service files
 Firecracker servers need the updated guest agent and Cloud VPS (KVM) the VDS file-manager switch; `files:read` / `files:manage` are explicit grants (an empty permission list does not include them).

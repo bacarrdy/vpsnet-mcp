@@ -7,10 +7,12 @@ const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 
 const networkingSource = readFileSync(new URL("../src/networking-tools.ts", import.meta.url), "utf8");
 const serviceFilesSource = readFileSync(new URL("../src/service-files.ts", import.meta.url), "utf8");
+const appCloudSource = readFileSync(new URL("../src/app-cloud-tools.ts", import.meta.url), "utf8");
 const registeredTools = [
   ...[...source.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)].map(match => match[1]),
   ...[...networkingSource.matchAll(/^  tool\("([^"]+)"/gm)].map(match => match[1]),
   ...[...serviceFilesSource.matchAll(/^  fileTool\("([^"]+)"/gm)].map(match => match[1]),
+  ...[...appCloudSource.matchAll(/^  appTool\("([^"]+)"/gm)].map(match => match[1]),
 ];
 
 const toolsStart = readme.indexOf("## Tools\n");
