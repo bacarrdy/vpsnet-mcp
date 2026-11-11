@@ -575,6 +575,46 @@
       "name": "attach_public_address_to_server",
       "title": "Attach public address to server"
     },
+    "attach_public_address_to_server_interface": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Attach public address to server interface"
+      },
+      "description": "Attach an owned paid public address directly to the public interface of a server that has its own public IPv4 (service_id from list_public_address_server_targets with eligible true). The address is added next to the server's own address; that address, its IP rows and reverse DNS are never touched; no network, router or NAT is involved and no purchase occurs. Offered only while get_networking_capabilities reports public_address_server_public true: this tool reads it first and refuses without any change otherwise. Pass move=true only after approving that the address leaves its previous target; a move away from such a server completes only after the server's node confirmed the address withdrawn (pending_target until then). The attach is accepted before it is applied: read get_network_public_address (target.kind server_public; carrier.node_state pending, routed, withdrawn or refused; carrier.guest_state pending, applied, customer_managed, agent_unavailable or unsupported). When guest_state is customer_managed, agent_unavailable or unsupported, nothing was written inside the server and carrier.instruction (one_liner, file_path, file_text) is what the customer runs there. check_network_public_address_reach asks again. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "address_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "move": {
+            "type": "boolean"
+          },
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address_id",
+          "service_id"
+        ],
+        "type": "object"
+      },
+      "name": "attach_public_address_to_server_interface",
+      "title": "Attach public address to server interface"
+    },
     "attach_service_dns_record": {
       "annotations": {
         "destructiveHint": true,
@@ -1282,6 +1322,38 @@
       },
       "name": "check_domain_availability",
       "title": "Check domain availability"
+    },
+    "check_network_public_address_reach": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Check network public address reach"
+      },
+      "description": "Ask again whether an owned public address attached to a server's public interface is reachable from the internet, and ask the server's own step again (for example after the server agent was started). It answers at once with reach (state reachable, misrouted, no_answer, checking or unknown, with reason_code and checked_at) while a platform-side check runs; read get_network_public_address afterwards. no_answer can simply mean the server's firewall blocks ping: test a port of the customer's own service. Never changes the attachment and never gates anything. At most one check a minute per address and 10 per 10 minutes per account (429 with retry_after in seconds); 409 public_address_reach_unavailable when the address is not on such a server. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "address_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address_id"
+        ],
+        "type": "object"
+      },
+      "name": "check_network_public_address_reach",
+      "title": "Check network public address reach"
     },
     "check_network_vpn_public_access": {
       "annotations": {
@@ -3671,7 +3743,8 @@
                               {
                                 "type": "null"
                               }
-                            ]
+                            ],
+                            "description": "Phase 2 lifetime in seconds. 300-86400 is the outer limit; the gateway's ipsec_tuning.esp_lifetime {min, max} is the range offered now. null or omitted is Automatic."
                           },
                           "ike_lifetime_seconds": {
                             "anyOf": [
@@ -3683,7 +3756,8 @@
                               {
                                 "type": "null"
                               }
-                            ]
+                            ],
+                            "description": "Phase 1 lifetime in seconds. 900-172800 is the outer limit; the gateway's ipsec_tuning.ike_lifetime {min, max} is the range offered now. null or omitted is Automatic."
                           },
                           "ke_groups": {
                             "anyOf": [
@@ -3725,7 +3799,8 @@
                               {
                                 "type": "null"
                               }
-                            ]
+                            ],
+                            "description": "Key exchange group IDs, exactly these. These seven are the most the platform can ever accept; the VPN's gateway ipsec_tuning.ke_groups lists the ones offered now (the backend refuses others with vpn_ipsec_tuning_not_allowed). null or omitted is Automatic."
                           },
                           "nat_traversal": {
                             "enum": [
@@ -7389,6 +7464,38 @@
       "name": "get_network_payment_methods",
       "title": "Get network payment methods"
     },
+    "get_network_port_forwards": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get network port forwards"
+      },
+      "description": "Read the NAT port forwarding rules of an owned private network: applied rules (protocol, external_port on the network's NAT public address, the target server's private_port_id and its internal_port), the router generation to send to set_network_port_forwards (not the network generation), state (empty, pending, active, failed), per-rule exposure (open_to_internet is true when the server's security groups admit that port from every IPv4 address), targets with eligible and unavailable_reason_code, capability (available, limit, protocols), last_change (a refused change with its nat_port_forward_refused_* reason_code) and suspended (rules kept while the network has no NAT address; they are on no router). active is the router's committed state, not a packet test. The network needs its NAT public address (see get_network_routed_egress); capability.available false means new rules are not accepted for this account now, rules already there can still be removed. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "network_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "network_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_network_port_forwards",
+      "title": "Get network port forwards"
+    },
     "get_network_product_order": {
       "annotations": {
         "destructiveHint": false,
@@ -7853,7 +7960,7 @@
         "readOnlyHint": true,
         "title": "Get networking capabilities"
       },
-      "description": "Read account networking availability, quota, creation options and new-server order eligibility. private_network.available/reason_code and order_availability describe selecting an already applied network during a NEW server order; when no such network exists they can be false without denying private-network creation or attachment of existing services. For existing servers, list or create a network and use list_network_attachment_candidates for each service. A refusal from the create, candidate or attach endpoint remains authoritative. Never infer support from tool presence. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read account networking availability, quota, creation options and new-server order eligibility. private_network.available/reason_code and order_availability describe selecting an already applied network during a NEW server order; when no such network exists they can be false without denying private-network creation or attachment of existing services. For existing servers, list or create a network and use list_network_attachment_candidates for each service. A refusal from the create, candidate or attach endpoint remains authoritative. Never infer support from tool presence. nat_port_forwarding (available, limit, protocols) gates new NAT port forwarding rules; public_address_server_public, present and true only while an owned public address can be attached directly to a server's public interface, gates attach_public_address_to_server_interface. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -10297,7 +10404,7 @@
         "readOnlyHint": true,
         "title": "List network public addresses"
       },
-      "description": "Read owned paid public addresses, account limits, target support and purchase availability. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read owned paid public addresses, account limits, target support and purchase availability. A target is a network (NAT), a server's private port, or - only while server_public_target_enabled is true - the public interface of a server that has its own public IPv4 (target.kind server_public, with server and carrier details). Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -10503,6 +10610,47 @@
       },
       "name": "list_private_networks",
       "title": "List private networks"
+    },
+    "list_public_address_server_targets": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "List public address server targets"
+      },
+      "description": "Search and page the account's servers as targets for attach_public_address_to_server_interface. Each item has service_id, name, platform, own_ipv4 and the backend's own verdict: eligible, and when false a reason (for example public_address_server_without_own_ipv4, public_address_server_address_limit when a VPS already has 16 additional addresses, public_address_server_type_not_available); do not filter by yourself. The page is empty while the platform does not offer this (get_networking_capabilities public_address_server_public). Pass next_cursor as cursor with an unchanged search to continue; service_id resolves one exact server. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "limit": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "search": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "list_public_address_server_targets",
+      "title": "List public address server targets"
     },
     "list_restore_file_points": {
       "annotations": {
@@ -15754,6 +15902,91 @@
       "name": "set_network_default_security_policy",
       "title": "Set network default security policy"
     },
+    "set_network_port_forwards": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set network port forwards"
+      },
+      "description": "Replace the COMPLETE NAT port forwarding rule set of an owned network (rules: [] withdraws all of them) at the router generation read from get_network_port_forwards. Each rule forwards TCP or UDP from the network's NAT public address (external_port) to a server's private port (private_port_id, internal_port). Targets are Firecracker servers without a public IPv4 of their own that use this network as primary interface; Cloud VPS servers are not accepted. Security groups still decide whether the server takes the traffic: this never opens a security group and never buys an address. Mail ports 25, 465, 587 and 2525 are refused for every rule (nat_port_forward_smtp_refused) and a new or changed rule on a port the platform refuses is refused with nat_port_forward_port_refused; a refusal of one rule names it in context.rule_index. At most capability.limit rules (64 at most). A set equal to the applied one answers 200 outcome unchanged; otherwise 202, with outcome queued when an earlier change is still being applied and retried when the identical failed set is sent again. A request that only removes rules is never stopped by a service two-factor or abuse lock. Poll get_network_port_forwards until applied_generation equals generation and state is active or empty; last_change names a change the router refused (the applied rules are unchanged then). Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "network_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "external_port": {
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "internal_port": {
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "private_port_id": {
+                  "description": "Exact lowercase UUID returned by an owned networking resource",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+                  "type": "string"
+                },
+                "protocol": {
+                  "enum": [
+                    "tcp",
+                    "udp"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "protocol",
+                "external_port",
+                "private_port_id",
+                "internal_port"
+              ],
+              "type": "object"
+            },
+            "maxItems": 64,
+            "type": "array"
+          }
+        },
+        "required": [
+          "network_id",
+          "expected_generation",
+          "rules",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_network_port_forwards",
+      "title": "Set network port forwards"
+    },
     "set_network_routed_egress": {
       "annotations": {
         "destructiveHint": true,
@@ -15909,7 +16142,7 @@
         "readOnlyHint": false,
         "title": "Set network VPN ipsec tuning"
       },
-      "description": "Replace an IPsec site's advanced tunnel choices using the gateway generation. Read gateway ipsec_tuning for currently offered values and the site's crypto profile; pinned crypto conflicts with PQC or legacy compatibility. tuning=null restores automatic defaults; omitted members also become automatic. Changes can interrupt negotiation. Poll the operation and gateway until tuning_applied is true; never supply a PSK or private key. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Replace an IPsec site's advanced tunnel choices using the gateway generation. Read gateway ipsec_tuning for currently offered values and the site's crypto profile; pinned crypto conflicts with PQC or legacy compatibility. tuning=null or an empty object restores automatic defaults; omitted members also become automatic. The numeric bounds in the schema are the platform's outer limits, not the offered set: the gateway's ipsec_tuning lists the key exchange groups, suites and lifetime ranges offered now, and the backend refuses others with vpn_ipsec_tuning_not_allowed. Changes can interrupt negotiation. Poll the operation and gateway until tuning_applied is true; never supply a PSK or private key. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -15956,7 +16189,8 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "Phase 2 lifetime in seconds. 300-86400 is the outer limit; the gateway's ipsec_tuning.esp_lifetime {min, max} is the range offered now. null or omitted is Automatic."
                   },
                   "ike_lifetime_seconds": {
                     "anyOf": [
@@ -15968,7 +16202,8 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "Phase 1 lifetime in seconds. 900-172800 is the outer limit; the gateway's ipsec_tuning.ike_lifetime {min, max} is the range offered now. null or omitted is Automatic."
                   },
                   "ke_groups": {
                     "anyOf": [
@@ -16010,7 +16245,8 @@
                       {
                         "type": "null"
                       }
-                    ]
+                    ],
+                    "description": "Key exchange group IDs, exactly these. These seven are the most the platform can ever accept; the VPN's gateway ipsec_tuning.ke_groups lists the ones offered now (the backend refuses others with vpn_ipsec_tuning_not_allowed). null or omitted is Automatic."
                   },
                   "nat_traversal": {
                     "enum": [

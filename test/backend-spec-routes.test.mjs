@@ -29,19 +29,40 @@ test('tool scope, access level and query parameters match what the spec route en
   }
 });
 
+test('request body fields of every changing tool are properties of the spec route body', () => {
+  const sent = new Set(['idempotencyKey', 'quoteToken', 'acknowledge_charge', 'acknowledge_one_time_pickup']);
+  // Fields the backend accepts (checked in its source) that its spec does not list yet: listed here so a new gap cannot hide.
+  const specGaps = { create_private_network: ['subnet_prefix_length'] };
+  for (const tool of customer.filter(tool => tool.method !== 'GET' && !tool.options.bodyless)) {
+    const route = fixture.routes[operation(tool)];
+    if (!route.body.length) continue;
+    const fields = Object.keys(tool.schema.shape).filter(field => !tool.pathFields.includes(field) && !(tool.options.query ?? []).includes(field) && !sent.has(field));
+    for (const field of [...fields, ...Object.keys(tool.options.fixedBody ?? {})]) {
+      assert.ok(route.body.includes(field) || (specGaps[tool.name] ?? []).includes(field), `${tool.name}: body field ${field} is not in the spec (${route.body})`);
+    }
+  }
+});
+
+test('features that are live in production are registered with the spec shape', () => {
+  const names = new Set(networkingTools.map(tool => tool.name));
+  for (const name of ['get_network_port_forwards', 'set_network_port_forwards', 'list_public_address_server_targets',
+    'attach_public_address_to_server_interface', 'check_network_public_address_reach']) assert.ok(names.has(name), name);
+  const attach = networkingTools.find(tool => tool.name === 'attach_public_address_to_server_interface');
+  assert.equal(attach.options.requiresCapability, 'public_address_server_public');
+});
+
 test('features that are switched off in production are not registered or described', () => {
   const names = new Set(networkingTools.map(tool => tool.name));
-  for (const name of ['get_network_port_forwards', 'set_network_port_forwards', 'get_service_public_firewall', 'set_service_public_firewall',
-    'retry_service_public_firewall', 'create_service_public_firewall_group', 'list_public_address_server_targets', 'check_network_public_address_reach']) {
+  for (const name of ['get_service_public_firewall', 'set_service_public_firewall', 'retry_service_public_firewall', 'create_service_public_firewall_group']) {
     assert.ok(!names.has(name), `${name} must stay out until its feature is on in production`);
   }
   for (const tool of networkingTools) {
-    assert.doesNotMatch(tool.path, /port-forwards|public-firewall|server-targets|reach-check|\/rdns/, tool.name);
-    assert.doesNotMatch(tool.name, /rdns|port_forward|public_firewall/, tool.name);
+    assert.doesNotMatch(tool.path, /public-firewall|\/rdns/, tool.name);
+    assert.doesNotMatch(tool.name, /rdns|public_firewall/, tool.name);
   }
   const field = (name, key) => networkingTools.find(tool => tool.name === name).schema.shape[key];
   assert.equal(field('add_network_load_balancer_listener', 'tls'), undefined, 'managed TLS is not live');
-  assert.equal(field('attach_public_address_to_server', 'service_id'), undefined, 'an address on a server public interface is not live');
+  assert.equal(field('attach_public_address_to_server', 'service_id'), undefined, 'the private-port attach keeps its own shape');
   assert.equal(field('update_network_security_group', 'public_impact_ack'), undefined, 'shared public edit impact is not live');
   assert.match(networkingTools.find(tool => tool.name === 'add_network_load_balancer_listener').description, /does not terminate TLS/);
 });

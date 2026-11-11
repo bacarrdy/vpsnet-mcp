@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.7.0 MCP server (source, not published) — 2026-11-10
+## 2.7.0 MCP server (source, not yet published) — 2026-11-11
 
-Contract check against backend `master` (`472d7d235`): every networking tool names a route of `spec/*.yml` with the scope the route enforces; `test/backend-spec-routes.test.mjs` now fails otherwise (regenerate its fixture with `scripts/sync-backend-spec-routes.py`). Only what production serves after the next backend release is described. This version also carries the unreleased source entries below (VPN completion, health webhooks, dependency fixes).
+Contract check against the backend API description at `abc88dc5` (the release in production): every networking tool names a route of `spec/*.yml` with the scope the route enforces, only sends body fields and query parameters the route declares, and `test/backend-spec-routes.test.mjs` fails otherwise (regenerate its fixture with `scripts/sync-backend-spec-routes.py`). Only what production serves is described. This version also carries the unreleased source entries below (VPN completion, health webhooks, dependency fixes).
 
 - Security-group default modes: `create_private_network` and `set_network_default_security_policy` accept `ingress_rules` (IPv4 egress allowed, ingress follows the rules); `create_network_security_group` takes `egress_policy` (`rules_only` keeps exactly the supplied rules, `allow` adds unrestricted egress). `get_security_group_capabilities` reports which values the backend offers.
 - `list_network_product_periods` takes `resource_id` for one product and reports `incomplete` when the account has more than 100 products or one period could not be read.
@@ -10,7 +10,11 @@ Contract check against backend `master` (`472d7d235`): every networking tool nam
 - `attach_public_address_to_server` and `attach_public_address_to_network` accept `move=true` after the customer approved interrupting the previous target; without it the backend refuses an implicit move.
 - A refusal because a server's two-factor lock is on keeps its typed reason (including `transferNeedsLockOff` for a service transfer).
 - The load balancer listener text now says an https listener is passed through to the members and the balancer does not terminate TLS.
-- Deliberately not included, because the feature is not live in production: NAT port forwarding, an additional address on a server's own public interface (server targets, reach check, `service_id` on attach), the public firewall tools, managed TLS on load balancer listeners, public-address reverse DNS tools, and the shared-group public-impact acknowledgement. They stay on their own branches for the release that switches them on. Tool count is unchanged (stdio 355).
+- NAT port forwarding: `get_network_port_forwards` reads the rules, router generation, per-rule exposure, eligible targets, the last refused change and rules kept while the network has no NAT address; `set_network_port_forwards` replaces the complete rule set (an empty list withdraws all) with `expected_generation` from that read and an `Idempotency-Key`. Mail ports and operator-refused ports are refused by the backend with `nat_port_forward_*` reason codes naming the rule (`context.rule_index`).
+- An owned public address on the public interface of a server that has its own public IPv4: `list_public_address_server_targets` (the backend's eligibility verdict per server), `attach_public_address_to_server_interface` (`service_id`, optional `move`) and `check_network_public_address_reach`. The attach reads `get_networking_capabilities` first and refuses without any change unless `public_address_server_public` is true. `list_network_public_addresses` and `get_networking_capabilities` descriptions name the new target kind and the two new capability flags.
+- IPsec tuning: the key exchange group and lifetime bounds in `set_network_vpn_ipsec_tuning` are documented as the platform's outer limits (the same as the backend's); the offered set comes from the gateway's `ipsec_tuning` and the backend refuses others with `vpn_ipsec_tuning_not_allowed`. `tuning` null and `{}` both restore Automatic.
+- `test/backend-spec-routes.test.mjs` also checks that every body field of a changing tool is a property of the route's request body in the spec. One field the backend accepts but its spec does not list yet (`subnet_prefix_length` on network creation) is named in the test.
+- Deliberately not included, because the feature is not live in production: the public firewall tools, managed TLS on load balancer listeners, public-address reverse DNS, the shared-group public-impact acknowledgement, VPN internal DNS, VPN node-failure recovery and App Cloud projects.
 
 ## Unreleased source — 2026-11-09
 

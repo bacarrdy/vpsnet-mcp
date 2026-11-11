@@ -29,6 +29,20 @@ def resolve(ref, current):
     return node
 
 
+def body_properties(schema, current, depth=0):
+    """Union of the property names a request body schema can carry (oneOf/anyOf/allOf merged)."""
+    if not isinstance(schema, dict) or depth > 8:
+        return set()
+    if '$ref' in schema:
+        file = schema['$ref'].partition('#')[0]
+        return body_properties(resolve(schema['$ref'], current), Path(file).name or current, depth + 1)
+    names = set((schema.get('properties') or {}).keys())
+    for key in ('allOf', 'oneOf', 'anyOf'):
+        for part in schema.get(key) or []:
+            names |= body_properties(part, current, depth + 1)
+    return names
+
+
 routes = {}
 for name, doc in docs.items():
     for path, item in (doc.get('paths') or {}).items():
@@ -49,8 +63,12 @@ for name, doc in docs.items():
                 if isinstance(param, dict) and param.get('in') == 'query':
                     query.append(param['name'])
             key = method.upper() + ' ' + re.sub(r'\{[^}]+\}', '{}', path)
+            request_body = op.get('requestBody')
+            if isinstance(request_body, dict) and '$ref' in request_body:
+                request_body = resolve(request_body['$ref'], home)
+            body = sorted(body_properties((((request_body or {}).get('content') or {}).get('application/json') or {}).get('schema'), home))
             routes[key] = {'scopes': op.get('x-api-key-scopes') or [], 'access': op.get('x-api-key-access') or [],
-                           'query': sorted(set(query))}
+                           'query': sorted(set(query)), 'body': body}
 out = Path(__file__).resolve().parents[1] / 'test/fixtures/backend-spec-routes.json'
 out.write_text(json.dumps({'backend_commit': commit, 'routes': dict(sorted(routes.items()))}, indent=1) + '\n')
 print(f'{len(routes)} networking routes from backend {commit[:9]}')

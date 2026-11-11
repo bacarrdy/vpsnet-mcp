@@ -1115,6 +1115,20 @@ envelope for external decryption. The subscription and removal are immediate
 resources, with no operation ID or idempotency key. After an uncertain create,
 list the site's subscriptions before deciding whether to create another.
 
+NAT port forwarding publishes TCP or UDP ports of a private network's NAT public address on
+servers of that network. Read `get_network_port_forwards` first (rules, the router generation, per-rule
+exposure and eligible targets); `set_network_port_forwards` replaces the complete rule set at that
+generation, and an empty list withdraws every rule. Security groups still decide what a server accepts.
+Poll the rules resource until `applied_generation` equals `generation`.
+
+An owned public address can also go directly onto the public interface of a server that has its own
+public IPv4 (`attach_public_address_to_server_interface`), only while `get_networking_capabilities`
+reports `public_address_server_public` as true; the tool reads that first and refuses without a change
+otherwise. Pick the server from `list_public_address_server_targets`, then follow the attachment on
+`get_network_public_address` (`target.kind=server_public`,
+`carrier.node_state`, `carrier.guest_state`, `carrier.instruction`). When the server agent is off the
+instruction is what the customer runs inside the server; `check_network_public_address_reach` asks again.
+
 This release exposes no customer network rename or existing-port fixed-IP edit. Fixed DHCP
 addresses are selected at attach; removing/recreating an attachment requires
 separate approval and is not represented as an in-place edit. Legacy unpaid
@@ -1149,6 +1163,8 @@ feature gate.
 | `get_network_vpn_summary` | Read the network's VPN summary, including truthful absence; connected locations are managed on the gateway | `networking:read` | free |
 | `get_network_routed_egress` | Read this network's NAT/internet access, public address and qualification state. | `networking:read` | free |
 | `set_network_routed_egress` | Request the currently supported NAT transition for an owned network; the backend may refuse mode changes | `networking:manage` | free |
+| `get_network_port_forwards` | Read the NAT port forwarding rules of an owned private network: applied rules (protocol, external_port on the network's NAT public address, the target server's private_port_id and its internal_port), the router generation to send to set_network_port_forwards (not the network generation), state (empty, pending, active, failed), per-rule exposure (open_to_internet is true when the server's security groups admit that port from every IPv4 address), targets with eligible and unavailable_reason_code, capability (available, limit, protocols), last_change (a refused change with its nat_port_forward_refused_* reason_code) and suspended (rules kept while the network has no NAT address; they are on no router). | `networking:read` | free |
+| `set_network_port_forwards` | Replace the COMPLETE NAT port forwarding rule set of an owned network (rules: [] withdraws all of them) at the router generation read from get_network_port_forwards. | `networking:manage` | free |
 | `get_security_group_capabilities` | Read security-group availability and whether the network default policy can be changed. | `networking:read` | free |
 | `list_network_security_groups` | List groups in the owned project | `networking:read` | free |
 | `create_network_security_group` | Create a named allow-rule set | `networking:manage` | free |
@@ -1210,6 +1226,9 @@ feature gate.
 | `quote_network_public_address` | Quote a new paid public address for common checkout; no charge | `networking:manage` | Quote: `networking:order` |
 | `attach_public_address_to_network` | Attach or move an already-paid address to an owned network's NAT | `networking:manage` | free |
 | `attach_public_address_to_server` | Attach or move an owned paid public address to an eligible zero-public-IP server's private port | `networking:manage` | free |
+| `list_public_address_server_targets` | Search and page the account's servers as targets for attach_public_address_to_server_interface. | `networking:read` | free |
+| `attach_public_address_to_server_interface` | Attach an owned paid public address directly to the public interface of a server that has its own public IPv4 (service_id from list_public_address_server_targets with eligible true). | `networking:manage` | free |
+| `check_network_public_address_reach` | Ask again whether an owned public address attached to a server's public interface is reachable from the internet, and ask the server's own step again (for example after the server agent was started). | `networking:manage` | free |
 | `detach_network_public_address` | Detach an owned public address from its current target; it stays owned for the paid period | `networking:manage` | free |
 | `quote_public_address_renewal` | Quote the address's next month without charging; use the returned quote and this key for confirmation. | `networking:manage` | Quote: `networking:order` |
 | `renew_network_public_address` | Pay the approved address renewal from balance with its exact quote ID/token and original key. | `networking:manage` | Paid: `networking:order` |

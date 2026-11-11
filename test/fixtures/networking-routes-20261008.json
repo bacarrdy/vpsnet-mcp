@@ -1,6 +1,6 @@
 {
-  "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3",
-  "audited_at": "2026-11-09",
+  "backend_commit": "abc88dc5dd9c133c8ba5942d71071cd83312a279",
+  "audited_at": "2026-11-11",
   "routes": [
     {
       "method": "get",
@@ -854,6 +854,34 @@
       "action": "vpnTrafficPackQuote",
       "spec": "backend routes.php",
       "backend_commit": "dcad53b0d8e1d729341161e1f5d61a36366f97d3"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/networks/{id}/port-forwards",
+      "controller": "NetworkingController",
+      "action": "portForwards",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/networks/{id}/port-forwards",
+      "controller": "NetworkingController",
+      "action": "replacePortForwards",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-addresses/server-targets",
+      "controller": "PublicAddressController",
+      "action": "serverTargets",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/reach-check",
+      "controller": "PublicAddressController",
+      "action": "reachCheck",
+      "spec": "sdn-products-v1.yml"
     }
   ],
   "excluded": [

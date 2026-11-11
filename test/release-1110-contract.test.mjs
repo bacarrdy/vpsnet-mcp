@@ -93,3 +93,84 @@ test('a service two-factor lock refusal keeps its typed reason, including the tr
   assert.doesNotMatch(result.content[0].text, /free text/);
   assert.equal(requests.length, 1);
 });
+
+test('NAT port forwarding: read, complete replacement with the router generation, spec-shaped rules and key', async t => {
+  const rule = { protocol: 'tcp', external_port: 8080, private_port_id: resource, internal_port: 80 };
+  const { requests, call } = await harness(t, () => ({ network_id, generation: 4, applied_generation: 3, state: 'pending', rules: [rule] }));
+  const base = `/account/networking/networks/${network_id}/port-forwards`;
+  await call('get_network_port_forwards', { network_id });
+  assert.deepEqual(requests.at(-1), { method: 'GET', path: base, body: undefined, key: undefined });
+  const put = await call('set_network_port_forwards', { network_id, expected_generation: 3, rules: [rule], idempotencyKey });
+  assert.deepEqual(requests.at(-1), { method: 'PUT', path: base, body: { expected_generation: 3, rules: [rule] }, key: idempotencyKey });
+  assert.ok(put.content.some(item => item.text.includes('"tool":"get_network_port_forwards"')), 'the accepted change is followed on the rules resource');
+  await call('set_network_port_forwards', { network_id, expected_generation: 4, rules: [], idempotencyKey });
+  assert.deepEqual(requests.at(-1).body, { expected_generation: 4, rules: [] });
+  const before = requests.length;
+  for (const bad of [
+    { rules: [{ ...rule, external_port: 0 }] }, { rules: [{ ...rule, protocol: 'sctp' }] }, { rules: [{ ...rule, extra: 1 }] },
+    { rules: [{ protocol: 'tcp', external_port: 80 }] }, { rules: Array(65).fill(rule) }, { rules: [rule], idempotencyKey: 'short' },
+    { rules: [rule], expected_generation: 0 }, { rules: [rule], network_generation: 2 },
+  ]) assert.equal((await call('set_network_port_forwards', { network_id, expected_generation: 3, idempotencyKey, ...bad })).isError, true);
+  assert.equal(requests.length, before);
+  const tools = (await (await import('../build/networking-tools.js')).networkingTools);
+  const description = tools.find(tool => tool.name === 'set_network_port_forwards').description;
+  assert.match(description, /25, 465, 587 and 2525/);
+  assert.match(description, /Cloud VPS servers are not accepted/);
+});
+
+test('address on a server public interface: read from the capability before any change, backend verdict for targets', async t => {
+  const capabilities = { value: { enabled: true } };
+  const { requests, call } = await harness(t, req => req.path === '/account/networking/capabilities' ? capabilities.value : { public_address: { id: resource } });
+  const args = { address_id: resource, service_id: 'VP12345' };
+  for (const value of [{ enabled: true }, { enabled: true, public_address_server_public: false }, { enabled: true, public_address_server_public: 'true' }]) {
+    capabilities.value = value;
+    const refused = await call('attach_public_address_to_server_interface', args);
+    assert.equal(refused.isError, true);
+    assert.equal(JSON.parse(refused.content[0].text).changed, false);
+  }
+  assert.ok(requests.every(request => request.method === 'GET' && request.path === '/account/networking/capabilities'), 'no attach was sent while the capability is not true');
+  capabilities.value = { enabled: true, public_address_server_public: true };
+  const attached = await call('attach_public_address_to_server_interface', args);
+  assert.notEqual(attached.isError, true);
+  assert.deepEqual(requests.at(-1), { method: 'POST', path: `/account/networking/public-addresses/${resource}/attach`, body: { service_id: 'VP12345' }, key: undefined });
+  await call('attach_public_address_to_server_interface', { ...args, move: true });
+  assert.deepEqual(requests.at(-1).body, { service_id: 'VP12345', move: true });
+  const before = requests.length;
+  for (const bad of [{ ...args, private_port_id: network_id }, { ...args, network_id }, { address_id: resource }, { ...args, service_id: '../x' }]) {
+    assert.equal((await call('attach_public_address_to_server_interface', bad)).isError, true);
+  }
+  assert.equal(requests.length, before);
+  await call('list_public_address_server_targets', { search: 'web', cursor: 'abc', limit: 25 });
+  assert.equal(requests.at(-1).path, '/account/networking/public-addresses/server-targets?search=web&cursor=abc&limit=25');
+  await call('list_public_address_server_targets', { service_id: 'VP12345' });
+  assert.equal(requests.at(-1).path, '/account/networking/public-addresses/server-targets?service_id=VP12345');
+  assert.equal((await call('list_public_address_server_targets', { limit: 101 })).isError, true);
+  await call('check_network_public_address_reach', { address_id: resource });
+  assert.deepEqual(requests.at(-1), { method: 'POST', path: `/account/networking/public-addresses/${resource}/reach-check`, body: {}, key: undefined });
+});
+
+test('the capability read failing refuses the server-interface attach without a change', async t => {
+  const { requests, call } = await harness(t, () => ({ code: 'unavailable' }), 503);
+  const result = await call('attach_public_address_to_server_interface', { address_id: resource, service_id: 'VP12345' });
+  assert.equal(result.isError, true);
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].path, '/account/networking/capabilities');
+});
+
+test('IPsec tuning keeps the outer limits and null or an empty object restores Automatic', async t => {
+  const { requests, call } = await harness(t);
+  const gateway_id = resource; const peer_id = network_id; const base = `/account/networking/appliances/vpn-gateways/${gateway_id}/peers/${peer_id}/ipsec-tuning`;
+  for (const tuning of [null, {}]) {
+    await call('set_network_vpn_ipsec_tuning', { gateway_id, peer_id, expected_generation: 2, tuning, idempotencyKey });
+    assert.deepEqual(requests.at(-1), { method: 'PUT', path: base, body: { expected_generation: 2, tuning }, key: idempotencyKey });
+  }
+  const before = requests.length;
+  for (const tuning of [{ ke_groups: [5] }, { ike_lifetime_seconds: 899 }, { ike_lifetime_seconds: 172801 }, { esp_lifetime_seconds: 299 }, { esp_lifetime_seconds: 86401 }]) {
+    assert.equal((await call('set_network_vpn_ipsec_tuning', { gateway_id, peer_id, expected_generation: 2, tuning, idempotencyKey })).isError, true);
+  }
+  assert.equal(requests.length, before);
+  const { networkingTools } = await import('../build/networking-tools.js');
+  const tool = networkingTools.find(item => item.name === 'set_network_vpn_ipsec_tuning');
+  assert.match(tool.description, /vpn_ipsec_tuning_not_allowed/);
+  assert.match(JSON.stringify(tool.schema.shape.tuning.toJSONSchema?.() ?? ''), /ipsec_tuning/);
+});
