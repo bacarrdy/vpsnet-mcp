@@ -246,6 +246,7 @@ const server = new McpServer(
       "Use list_domains to discover owned domain IDs before quote_domain_renew.",
       "Flow: quote_domain_register/quote_domain_transfer/quote_domain_renew/quote_domain_restore → confirm_domain_register/confirm_domain_transfer/confirm_domain_renew/confirm_domain_restore with the returned quoteToken, the same idempotencyKey, and a payment object. The domain action is queued only after VPSNet confirms the payment.",
       "Domain registration, transfer, renewal, restore, and assignment payments are non-refundable once confirmed. Verify spelling, period, contacts, nameservers, and auth code before calling a confirm tool.",
+      "Some registries require more about the holder than the contact carries (an identity number, a legal form, accepted terms). A quote without it is refused with registrantRequirementMissing and a fields array, before any money moves: put those questions to the customer and repeat quote and confirm with the answers under registrant_extra.",
       "Customers choose only the domain and action. VPSNet returns the final price before payment; renew and restore use the price attached to that existing domain. Domain read tools require domains:read; contact writes require domains:manage; paid domain calls require an idempotencyKey and, for API keys, paid_operations_enabled plus domains:order, domains:transfer, or domains:renew with spend caps.",
       "set_domain_nameservers changes delegation for an owned domain asynchronously; nameservers are hostnames only. It does not create same-domain nameserver IP records, DNS records, or PTR/reverse DNS.",
       "Same-domain nameserver IP records are separate host/IP records such as ns1.customer.com -> 203.0.113.10. The hostname must be below the owned domain, and addresses must be public routable IPs. These tools do not change DNS records or PTR/reverse DNS.",
@@ -418,6 +419,10 @@ const nameserverHostnameSchema = z
         .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)),
     "Nameserver hostname is invalid"
   );
+
+const registrantExtraSchema = z.record(z.string(), z.string()).optional().describe(
+  "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored."
+);
 
 const whoisPrivacySchema = z
   .boolean()
@@ -5168,6 +5173,7 @@ server.registerTool(
       billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted."),
       whois_privacy: whoisPrivacySchema,
+      registrant_extra: registrantExtraSchema,
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
     },
   },
@@ -5196,6 +5202,7 @@ server.registerTool(
       billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("2-13 nameserver hostnames; defaults to ns1/ns2.vpsnet.com. IP addresses are not accepted."),
       whois_privacy: whoisPrivacySchema,
+      registrant_extra: registrantExtraSchema,
       idempotencyKey: idempotencyKeySchema.describe("Unique key for this quote; sent as Idempotency-Key"),
     },
   },
@@ -5233,6 +5240,7 @@ server.registerTool(
       billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID used in quote"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("Nameserver hostnames used in quote"),
       whois_privacy: whoisPrivacySchema,
+      registrant_extra: registrantExtraSchema,
       idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_register"),
       payment: domainPaymentSchema,
@@ -5264,6 +5272,7 @@ server.registerTool(
       billing_contact_id: positiveIdSchema.optional().describe("Billing contact ID used in quote"),
       nameservers: z.array(nameserverHostnameSchema).optional().describe("Nameserver hostnames used in quote"),
       whois_privacy: whoisPrivacySchema,
+      registrant_extra: registrantExtraSchema,
       idempotencyKey: idempotencyKeySchema.describe("Same idempotencyKey used for quote"),
       quoteToken: z.string().min(32).describe("quoteToken returned by quote_domain_transfer"),
       payment: domainPaymentSchema,
