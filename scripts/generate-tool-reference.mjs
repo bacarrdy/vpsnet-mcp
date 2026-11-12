@@ -19,6 +19,9 @@ import { pathToFileURL } from "node:url";
 const root = new URL("../", import.meta.url);
 const START = "<!-- tool-reference:start -->";
 const END = "<!-- tool-reference:end -->";
+const COUNT_START = "<!-- tool-count -->";
+const COUNT_END = "<!-- /tool-count -->";
+const COUNT = /<!-- tool-count -->\d*<!-- \/tool-count -->/;
 export const SCOPE_TOKEN = /\b[a-z]+:(?:read|manage|write|rescue|restore|order|renew|transfer|invoke)\b/g;
 
 export function indexTools() {
@@ -131,7 +134,10 @@ export async function render(readme) {
   }
   let body = lines.join("\n");
   if (added.length > 0) body = `${body.replace(/\s*$/, "\n")}\n### Not yet categorised\n${HEADER}\n${SEPARATOR}\n${added.join("\n")}\n\n`;
-  return { text: readme.slice(0, start) + body + readme.slice(end), problems };
+  // The count in the feature list is written from the registered tools too (it said "280+" while 360 were listed).
+  const head = readme.slice(0, start).replace(COUNT, `${COUNT_START}${tools.size}${COUNT_END}`);
+  if (!COUNT.test(readme.slice(0, start))) problems.push(`README needs ${COUNT_START}N${COUNT_END} for the tool count`);
+  return { text: head + body + readme.slice(end), problems };
 }
 
 async function main() {

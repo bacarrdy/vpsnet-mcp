@@ -14,7 +14,9 @@ See the [plugin README](../plugin/README.md) for provider setup and the
 Each request uses the connected customer's authorization. Services and
 applications are limited to the selected services. Networking and Functions
 permissions apply to the customer's account, as shown during consent.
-Existing ownership checks and service locks still apply. Customers can revoke
+Existing ownership checks and service locks still apply. The firewall of a
+server's public interface and the list of SSH keys on a server are not offered
+over this connector yet; the local package has them. Customers can revoke
 connections from the AI connections page in their VPSnet account.
 
 The default directory profile manages existing services and excludes purchases,

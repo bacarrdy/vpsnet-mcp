@@ -4,7 +4,7 @@
 
 ## Features
 
-- **280+ tools** covering VPSNet service management, managed applications, free and paid TLS certificates, Automatic SSL subscriptions, DNS, domains, billing, API keys, and account operations
+- **<!-- tool-count -->371<!-- /tool-count --> tools** (local package; the hosted connector offers a subset) covering VPSNet service management, networking (private networks, server firewall, port forwarding, public addresses, load balancers, VPN), managed applications, free and paid TLS certificates, Automatic SSL subscriptions, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
@@ -307,7 +307,7 @@ This MCP server manages your VPS infrastructure through the VPSnet.com API, incl
 
 Most AI coding environments (Claude Code, Cline, Cursor, Codex) have built-in terminal access, so the AI can SSH into your VPS immediately after deploying a key — no extra tools needed.
 
-For environments without native SSH access, pair this with [mcp-server-ssh](https://github.com/bacarrdy/mcp-server-ssh) for direct server connectivity via MCP tools.
+For environments without native SSH access, pair this with [mcp-server-ssh](https://github.com/bacarrdy/mcp-ssh-server) for direct server connectivity via MCP tools.
 
 **Combined config:**
 
@@ -629,7 +629,10 @@ Every request is sent with the `X-API-KEY` header (`VPSNET_API_KEY`).
   everything its access level allows; listing scopes (for example `dns:read`,
   `services:manage`) restricts it. `X:manage` includes `X:read`. Networking is the
   exception: `networking:read` / `networking:manage` / `networking:order` are never
-  implied by `full` or `read` and must be granted explicitly.
+  implied by `full` or `read` and must be added to the key explicitly. A key created
+  without a permission list (for example an older `full` key) reaches no network
+  function (private networks, the server firewall, port forwarding, public addresses,
+  load balancers, VPN) until `networking:read` or `networking:manage` is added to it.
 - **Paid operations are a separate gate.** A tool marked `Paid` or `Quote` in the
   tables below needs a `full`-access key, `paid_operations_enabled`, the named paid
   scope (`vps:order`, `vds:order`, `ds:order`, `fc:order`, `domains:order`,
@@ -639,9 +642,10 @@ Every request is sent with the `X-API-KEY` header (`VPSNET_API_KEY`).
   an uncertain attempt, never a new one). Orders run quote, then confirm with the
   returned `quoteToken`; disclose the exact EUR total to the user before confirming.
   Use `list_api_keys` to see your key's scopes, paid scopes, caps and rate limit.
-- **Rate limits.** Requests are rate-limited per key (`rate_limit` in
-  `list_api_keys`, requests per minute). On HTTP `429` back off and retry after
-  `retry_after` seconds instead of retrying immediately.
+- **Rate limits.** Each key may make 300 requests per 60 seconds by default, and
+  some operations have lower limits. On HTTP `429` wait `retry_after` seconds
+  instead of retrying immediately. (The `rate_limit` value shown by
+  `list_api_keys` is stored with the key but is not what the limiter applies.)
 - API keys can never create, change or revoke API keys, and never receive admin
   access.
 
@@ -743,12 +747,14 @@ everything else.
 | `get_rdns` | Get current rDNS records | `services:read` | free |
 | `change_rdns` | Change reverse DNS (PTR) record | `services:manage` | free |
 | `clear_rdns` | Clear a PTR override and restore the automatic value | `services:manage` | free |
-| `flush_iptables` | Flush iptables rules (useful when locked out) | `services:manage` | free |
+| `flush_iptables` | Flush the iptables rules inside the server (useful when locked out by them); the server's public firewall is separate | `services:manage` | free |
 | `get_title` | Get the current service display title | `services:read` | free |
 | `change_title` | Change service display title | `services:manage` | free |
 | `toggle_ipv6` | Enable or disable IPv6 | `services:manage` | free |
 | `toggle_extra_settings` | Toggle ppp, fuse, tuntap, or nfs | `services:manage` | free |
 | `deploy_ssh_key` | Deploy an SSH key to a VPS; remote OAuth also requires `vm:exec` | `services:manage` | free |
+| `list_service_ssh_keys` | List which account SSH keys are on a Cloud VPS or Firecracker VPS; local package only | `services:read` | free |
+| `remove_service_ssh_key` | Remove one account SSH key from a server's root authorized_keys; local package only | `services:manage` | free |
 
 ### OS Reinstall
 | Tool | Description | Scope | Paid |
@@ -990,7 +996,7 @@ short-lived quote token.
 ### Service Rescue
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
-| `get_service_rescue` | Get rescue capability and current durable rescue session | `services:read` | free |
+| `get_service_rescue` | Get rescue capability and current durable rescue session; rescue is offered only while VPSnet has it switched on | `services:read` | free |
 | `enter_service_rescue` | Restart an eligible service into an advertised rescue image | `services:rescue` | free |
 | `exit_service_rescue` | Restore the exact pre-rescue boot configuration and state | `services:rescue` | free |
 
@@ -1118,8 +1124,26 @@ list the site's subscriptions before deciding whether to create another.
 NAT port forwarding publishes TCP or UDP ports of a private network's NAT public address on
 servers of that network. Read `get_network_port_forwards` first (rules, the router generation, per-rule
 exposure and eligible targets); `set_network_port_forwards` replaces the complete rule set at that
-generation, and an empty list withdraws every rule. Security groups still decide what a server accepts.
+generation, and an empty list withdraws every rule. A target is a Firecracker server of the network: one
+without a public IPv4 of its own, or the private interface of one that has its own public IPv4 (its replies
+go back through the network; the target's `reply_route` says whether that is in place). Cloud VPS servers
+are not targets. Security groups still decide what a server accepts.
 Poll the rules resource until `applied_generation` equals `generation`.
+
+The firewall of a server's own public interface (VPS and Cloud VPS, IPv4 and IPv6 incoming allow
+rules) is read with `get_service_public_firewall` and replaced as a whole with
+`set_service_public_firewall` at the read `generation`; `apply_service_public_firewall` sends the
+saved rules to the node again. Keep the management port (SSH, or RDP on Windows) open for the user's
+own address and ask the user for that address: `client_address` in the answer is only the address
+the API saw for the request. These three tools are in the local package only for now.
+
+`set_public_address_outgoing_source` makes an additional address attached to a VPS's public interface
+the source of the server's new outgoing IPv4 connections (or switches back to the server's own IP);
+`recheck_public_address_outgoing_source` asks a server again after an address left it.
+Reverse DNS of an additional address, a floating binding, a VPN's or a public load balancer's
+address uses `get_public_ip_rdns`, `set_public_ip_rdns` and `reset_public_ip_rdns` with a `target`
+field; a server's own primary address keeps `get_rdns` / `change_rdns`.
+`rebuild_network_load_balancer` rebuilds a public load balancer's proxies one at a time.
 
 An owned public address can also go directly onto the public interface of a server that has its own
 public IPv4 (`attach_public_address_to_server_interface`), only while `get_networking_capabilities`
@@ -1156,6 +1180,9 @@ feature gate.
 | `set_private_network_names` | Replace the complete internal DNS zone label and alias list | `networking:manage` | free |
 | `list_private_network_ports` | Read owned network ports, their fixed DHCP addresses, generations and attachment states | `networking:read` | free |
 | `list_service_private_ports` | Read private ports and order attachment recovery state for one owned service order number. | `networking:read` | free |
+| `get_service_public_firewall` | Read the firewall of a server's public interface (VPS or Cloud VPS): rules, generation and state; local package only for now | `networking:read` | free |
+| `set_service_public_firewall` | Switch the server's public firewall on or off and replace all its incoming rules at the read generation; local package only for now | `networking:manage` | free |
+| `apply_service_public_firewall` | Send the saved firewall rules to the server's node again; local package only for now | `networking:manage` | free |
 | `list_network_attachment_candidates` | Read attachable services and each attachment_mode | `networking:read` | free |
 | `attach_private_network_port` | Attach an owned service; omit ipv4 for automatic allocation or pass a fixed usable address | `networking:manage` | free |
 | `detach_private_network_port` | Detach the owned server port | `networking:manage` | free |
@@ -1188,6 +1215,7 @@ feature gate.
 | `remove_network_load_balancer_member` | Remove a member from rotation using the load balancer generation. | `networking:manage` | free |
 | `add_network_load_balancer_listener` | Add a listener and optional initial members using currently offered protocol capabilities | `networking:manage` | free |
 | `remove_network_load_balancer_listener` | Remove a listener and its members; deleting the last listener is refused. | `networking:manage` | free |
+| `rebuild_network_load_balancer` | Rebuild every proxy of a public load balancer, one at a time, keeping its address and listeners | `networking:manage` | free |
 | `list_network_vpn_gateways` | List owned VPN gateways, their device peers and safe status | `networking:read` | free |
 | `get_network_vpn_gateway` | Read one owned VPN gateway, protocol-specific peer status, IPsec capabilities/profiles, device grant scopes and site options | `networking:read` | free |
 | `delete_network_vpn_gateway` | Request teardown of an owned VPN gateway; all devices lose connectivity | `networking:manage` | free |
@@ -1229,6 +1257,11 @@ feature gate.
 | `list_public_address_server_targets` | Search and page the account's servers as targets for attach_public_address_to_server_interface. | `networking:read` | free |
 | `attach_public_address_to_server_interface` | Attach an owned paid public address directly to the public interface of a server that has its own public IPv4 (service_id from list_public_address_server_targets with eligible true). | `networking:manage` | free |
 | `check_network_public_address_reach` | Ask again whether an owned public address attached to a server's public interface is reachable from the internet, and ask the server's own step again (for example after the server agent was started). | `networking:manage` | free |
+| `set_public_address_outgoing_source` | Use an additional address on a VPS's public interface for the server's new outgoing IPv4 connections, or switch back | `networking:manage` | free |
+| `recheck_public_address_outgoing_source` | Ask a server again to put its outgoing source back on its own IP | `networking:manage` | free |
+| `get_public_ip_rdns` | Read the reverse DNS of an additional, floating, VPN or load-balancer address (`target`) | `networking:read` | free |
+| `set_public_ip_rdns` | Set the reverse DNS hostname of such an address at its revision | `networking:manage` | free |
+| `reset_public_ip_rdns` | Remove the custom reverse DNS of such an address | `networking:manage` | free |
 | `detach_network_public_address` | Detach an owned public address from its current target; it stays owned for the paid period | `networking:manage` | free |
 | `quote_public_address_renewal` | Quote the address's next month without charging; use the returned quote and this key for confirmation. | `networking:manage` | Quote: `networking:order` |
 | `renew_network_public_address` | Pay the approved address renewal from balance with its exact quote ID/token and original key. | `networking:manage` | Paid: `networking:order` |
@@ -1238,7 +1271,7 @@ feature gate.
 | `move_network_public_ip` | Move a prepared floating public binding to another owned private port; confirm interruption to the old target. | `networking:manage` | free |
 | `delete_network_public_binding` | Request deletion of an existing binding using its generation | `networking:manage` | free |
 
-### Not yet categorised
+### VPN gateways and sites (more)
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|
 | `restart_network_vpn_gateway` | Restart the owned VPN VM in place. | `networking:manage` | free |
@@ -1256,10 +1289,6 @@ feature gate.
 | `set_network_vpn_site_reach` | Set this site's load-balancer/floating-IP reach choice, or null to follow its VPN default. | `networking:manage` | free |
 
 | `rename_network_vpn_gateway` | Rename an owned VPN's customer label. | `networking:manage` | free |
-
-### Not yet categorised
-| Tool | Description | Scope | Paid |
-|------|-------------|-------|------|
 | `update_network_vpn_gateway_image` | Apply the backend-qualified reviewed VPN image in place. | `networking:manage` | free |
 | `check_network_vpn_public_access` | Preview the complete VPN public-source lists without applying them. | `networking:read` | free |
 | `set_network_vpn_public_access` | Replace the complete WireGuard/IPsec public-source lists at the VPN gateway generation. | `networking:manage` | free |
@@ -1343,12 +1372,19 @@ at the location given by `zone.verification.next_step`, then call
 
 ## Getting an API key
 
-1. Log in at [vpsnet.com](https://www.vpsnet.com)
-2. Go to **Account** > **API Keys**
-3. Click **Create API Key**
-4. Give it a name and copy the key
+1. Log in at [vpsnet.com](https://www.vpsnet.com) and open **Account** > **API Keys**:
+   <https://www.vpsnet.com/en/management/account/api-keys>
+2. Click **Create API Key**
+3. Give it a name, choose the access level and, for network tools, add `networking:read`
+   or `networking:manage` (they are never included by default)
+4. Copy the key
 
-The key is shown only once — store it securely.
+The key is shown only once — store it securely. The full API description is
+<https://www.vpsnet.com/openapi-v1.yml>.
+
+To use ChatGPT, Claude, Gemini or Grok without an API key, connect the hosted
+connector instead; connections are created and managed in **Account** > **AI connections**:
+<https://www.vpsnet.com/en/management/account/ai-connections>.
 
 ## Troubleshooting
 
