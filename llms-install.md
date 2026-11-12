@@ -46,7 +46,7 @@ request the needed permissions through OAuth when a task requires more.
 Reconnect if a client cannot request incremental consent. Services are limited
 to the selected services; account-wide networking and Functions permissions are
 disclosed during consent. Customers can revoke the connection in the VPSnet
-account's AI connections page.
+account's AI connections page (https://www.vpsnet.com/en/management/account/ai-connections).
 
 Keep tool approvals enabled. Linux shell commands run as root when explicitly
 authorized; file reading, file changes and commands have separate permissions.

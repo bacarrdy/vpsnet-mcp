@@ -28,7 +28,7 @@ For a repository installation, run `gemini extensions update vpsnet` in your ter
 
 ## Access
 
-Linux files and commands require separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. Disconnect through VPSnet's AI connections page to revoke access. This package manages existing services; it does not conduct purchases or direct customers into checkout.
+Linux files and commands require separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. Disconnect through VPSnet's AI connections page to revoke access. This package manages existing services; it buys nothing unless the customer separately grants order permissions with spending limits on the connection, and it never directs customers into an external checkout.
 
 ## Extension gallery
 

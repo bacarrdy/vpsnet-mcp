@@ -506,7 +506,7 @@ test('HTTP purchase discovery follows live granted scopes and trusted policy on 
   }
   for (const name of ['quote_domain_register', 'confirm_domain_register']) assert.ok(!tools.some(tool => tool.name === name), name);
   assert.deepEqual(tools.find(tool => tool.name === 'confirm_service_order')._meta.securitySchemes[0].scopes, ['orders:servers']);
-  assert.match((await initialize('ChatGPT')).result.instructions, /purchase permanent VPS servers/,
+  assert.match((await initialize('ChatGPT')).result.instructions, /purchase permanent servers/,
     'untrusted clientInfo does not override the backend policy');
   assert.doesNotMatch((await initialize('generic')).result.instructions, /register domains|enable purchases|purchase permissions/i);
   const input = { plan: 1, sshKey: 2, idempotencyKey: 'same-connection-order-0001' };
@@ -534,7 +534,7 @@ test('HTTP purchase discovery follows live granted scopes and trusted policy on 
   assert.ok(!tools.some(tool => tool.name === 'confirm_service_order'));
   assert.deepEqual(tools.find(tool => tool.name === 'confirm_domain_register')._meta.securitySchemes[0].scopes, ['orders:domains']);
   assert.match((await initialize('generic')).result.instructions, /register domains/);
-  assert.doesNotMatch((await initialize('generic')).result.instructions, /purchase permanent VPS servers/);
+  assert.doesNotMatch((await initialize('generic')).result.instructions, /purchase permanent servers/);
   const domainInput = { domain: 'example.test', idempotencyKey: 'same-connection-domain-0001' };
   assert.ok(!(await invoke('quote_domain_register', domainInput)).result.isError);
   assert.equal(received.at(-1).path, '/account/mcp/orders/domains/quote');

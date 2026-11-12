@@ -1,41 +1,21 @@
 # Changelog
 
-## 2.7.0 MCP server (source, not yet published) — 2026-11-12
+## 2.7.0 MCP server — YYYY-MM-DD
 
-Contract check against the backend API description at `a33981f7` (r97, the release in production since 2026-11-12; first written against `abc88dc5`): every networking tool names a route of `spec/*.yml` with the scope the route enforces, only sends body fields and query parameters the route declares, and `test/backend-spec-routes.test.mjs` fails otherwise (regenerate its fixture with `scripts/sync-backend-spec-routes.py`). Only what production serves is described. This version also carries the unreleased source entries below (VPN completion, health webhooks, dependency fixes).
+New tools. Every function below is live in production.
 
-- Security-group default modes: `create_private_network` and `set_network_default_security_policy` accept `ingress_rules` (IPv4 egress allowed, ingress follows the rules); `create_network_security_group` takes `egress_policy` (`rules_only` keeps exactly the supplied rules, `allow` adds unrestricted egress). `get_security_group_capabilities` reports which values the backend offers.
-- `list_network_product_periods` takes `resource_id` for one product and reports `incomplete` when the account has more than 100 products or one period could not be read.
-- One VPN product: the sellable catalogue omits the retired `full_exit` alias row; `quote_account_vpn` needs no `tier` (a legacy code is still forwarded unchanged for recovery); additional traffic is bought separately with `quote_network_vpn_traffic_pack`.
-- `attach_public_address_to_server` and `attach_public_address_to_network` accept `move=true` after the customer approved interrupting the previous target; without it the backend refuses an implicit move.
-- A refusal because a server's two-factor lock is on keeps its typed reason (including `transferNeedsLockOff` for a service transfer).
-- The load balancer listener text now says an https listener is passed through to the members and the balancer does not terminate TLS.
-- NAT port forwarding: `get_network_port_forwards` reads the rules, router generation, per-rule exposure, eligible targets, the last refused change and rules kept while the network has no NAT address; `set_network_port_forwards` replaces the complete rule set (an empty list withdraws all) with `expected_generation` from that read and an `Idempotency-Key`. Mail ports and operator-refused ports are refused by the backend with `nat_port_forward_*` reason codes naming the rule (`context.rule_index`).
-- An owned public address on the public interface of a server that has its own public IPv4: `list_public_address_server_targets` (the backend's eligibility verdict per server), `attach_public_address_to_server_interface` (`service_id`, optional `move`) and `check_network_public_address_reach`. The attach reads `get_networking_capabilities` first and refuses without any change unless `public_address_server_public` is true. `list_network_public_addresses` and `get_networking_capabilities` descriptions name the new target kind and the two new capability flags.
-- IPsec tuning: the key exchange group and lifetime bounds in `set_network_vpn_ipsec_tuning` are documented as the platform's outer limits (the same as the backend's); the offered set comes from the gateway's `ipsec_tuning` and the backend refuses others with `vpn_ipsec_tuning_not_allowed`. `tuning` null and `{}` both restore Automatic.
-- `test/backend-spec-routes.test.mjs` also checks that every body field of a changing tool is a property of the route's request body in the spec. One field the backend accepts but its spec does not list yet (`subnet_prefix_length` on network creation) is named in the test.
-- Server firewall (functions live since r97): `get_service_public_firewall`, `set_service_public_firewall` (the complete incoming rule set for IPv4 and IPv6 at the read `generation`, with an `Idempotency-Key`; `acknowledge_no_incoming` to switch on with no rule) and `apply_service_public_firewall` (sends the saved rules to the node again) for VPS and Cloud VPS. Local package only for now: the hosted connector gets them once the backend limits these routes to the services a connection selected. The answer's `client_address` is the address the API saw, never taken as the user's own; a hosted connection returns it as null.
-- Outgoing source of a server (r97): `set_public_address_outgoing_source` (`enabled`) and `recheck_public_address_outgoing_source` (`service_id`).
-- Reverse DNS of public addresses that are not a server's own primary address (r97): `get_public_ip_rdns`, `set_public_ip_rdns` (`hostname`, `expected_revision`) and `reset_public_ip_rdns`, with one `target` field for an additional address, an assignment, a floating binding, a VPN or a load balancer.
-- `rebuild_network_load_balancer`: rebuilds a public load balancer's proxies one at a time (route live since r96).
-- `list_service_ssh_keys` and `remove_service_ssh_key`: which account keys are on a Cloud VPS or Firecracker VPS, and removing one (local package only; the hosted policy has no rule for these routes).
-- NAT port forwarding text: targets include the private interface of a Firecracker server that has its own public IPv4 (`kind own_ipv4`, answered by its `reply_route`), live since r97.
-- Rescue tools say that VPSnet can switch rescue off (`capability.enabled` false; the entry tool then sends nothing). `flush_iptables` says it does not change the server's public firewall. The rate-limit text says 300 requests per 60 seconds per key by default, lower on some operations; `rate_limit` in `list_api_keys` is a stored value the limiter does not read.
-- README: the tool count is generated from the code; the SSH server link points to `bacarrdy/mcp-ssh-server`; panel addresses for API keys and AI connections; one sentence on adding networking permissions to a key.
-- Deliberately not included, because the feature is not live in production: managed TLS on load balancer listeners, the shared-group public-impact acknowledgement, VPN internal DNS, VPN node-failure recovery and App Cloud projects. The older firewall design (`retry_service_public_firewall`, `create_service_public_firewall_group`) named routes the backend does not have and stays out. Prepared contract counts: stdio 371, directory 286, orders 293.
+- Server firewall (VPS and Cloud VPS): `get_service_public_firewall`, `set_service_public_firewall`, `apply_service_public_firewall`.
+- Outgoing address of a server: `set_public_address_outgoing_source`, `recheck_public_address_outgoing_source`.
+- Reverse DNS of additional, floating, VPN and load-balancer addresses: `get_public_ip_rdns`, `set_public_ip_rdns`, `reset_public_ip_rdns`.
+- An additional address on a server that has its own IP: `list_public_address_server_targets`, `attach_public_address_to_server_interface`, `check_network_public_address_reach`.
+- Port forwarding from a network's NAT address, also to servers with their own IP: `get_network_port_forwards`, `set_network_port_forwards`.
+- Load balancer rebuild: `rebuild_network_load_balancer`.
+- Network default policy `ingress_rules` (outgoing allowed, incoming by rules) on `create_private_network` and `set_network_default_security_policy`; `move=true` on the address attach tools moves an attached address.
+- VPN: `rename_network_vpn_gateway`, `restart_network_vpn_gateway`, `rebuild_network_vpn_gateway`, `update_network_vpn_gateway_image`, `check_network_vpn_public_access`, `set_network_vpn_public_access`, `set_network_vpn_internet_exit`, `take_network_vpn_site_line_config`, `rotate_network_vpn_ipsec_key`, `list_network_vpn_site_health_webhooks`, `create_network_vpn_site_health_webhook`, `delete_network_vpn_site_health_webhook`, `save_network_vpn_router_setup`, `set_network_vpn_site_bgp`, `add_network_vpn_site_line`, `set_network_vpn_site_main_line`, `remove_network_vpn_site_second_line`, `set_network_vpn_ipsec_tuning`, `start_network_vpn_tunnel_test`, `get_network_vpn_tunnel_test`, `set_network_vpn_site_reach`, `quote_network_vpn_traffic_pack` (local package only).
+- SSH keys on a server: `list_service_ssh_keys`, `remove_service_ssh_key` (local package only).
+- Removed: `configure_network_public_forwarding` (no customer object can use its route).
 
-## Unreleased source — 2026-11-09
-
-- Reconcile VPN customer APIs against backend `dcad53b`: add reviewed image update, public-source restriction preview/replacement, advanced IPsec tuning and current-month traffic-pack quotes. The preview is read-only with `networking:read`; changes use `networking:manage` and preserve generation/idempotency fences. Traffic-pack quotes retain the existing local-only paid networking boundary. Public-source previews see the MCP gateway source address.
-- Align peer creation with supported IKEv2 devices, sites with empty or network-wide grants, optional creation-time BGP/tuning and site reach. Secrets remain one-time sealed envelopes for decryption outside MCP; no plaintext credentials or private key inputs are added. These source changes require a separate hosted deployment.
-
-## Unreleased source — 2026-11-04
-
-- Remove `configure_network_public_forwarding`. It called `POST /account/networking/public-bindings/{id}/forward`, which no customer object can use today: the `forwarding` address kind is no longer sold (409 `public_address_sold_per_account`), `native_nlb` has no product (503), and an account's own public addresses are refused (`public_address_use_address_actions`). Every other networking tool, including `get_network_public_binding`, is unchanged. Prepared contract counts: stdio 350, directory 271, orders 278.
-
-## Unreleased source — 2026-11-02
-
-- Add three VPN site health webhook tools against backend `a8d10fe`: list with `networking:read`, create and delete with `networking:manage`. Existing tool names and inputs remain unchanged. API-key/OAuth creation requires an external X25519 public reveal key; MCP returns only the sealed signing envelope and public host display. Create and delete return immediate resources, with no operation polling or idempotency key. Prepared contract counts: stdio 351, directory 272, orders 279. This source change does not publish or deploy the new tools.
+Tool counts: local package 371, hosted connector 289 (296 with order permissions).
 
 ## 0.6.16 connector / 2.6.0 MCP server — 2026-10-30
 

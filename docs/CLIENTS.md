@@ -7,7 +7,7 @@ model API key. The model and its usage limits belong to your chosen AI account.
 
 Start with: “Show my connected VPSnet servers and what is running. Ask before
 making changes.” Files, commands and metered Functions execution need their
-respective permissions. Disconnect in **AI connections** in the VPSnet panel.
+respective permissions. Disconnect in **AI connections** in the VPSnet panel (https://www.vpsnet.com/en/management/account/ai-connections).
 
 If authorization is lost, follow the [reconnect workflow](REMOTE_MCP.md#reconnect-after-losing-authorization).
 Consent presets can grant only the [scopes requested by the client](REMOTE_MCP.md#why-some-consent-choices-are-unavailable);

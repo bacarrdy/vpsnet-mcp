@@ -14,10 +14,14 @@ See the [plugin README](../plugin/README.md) for provider setup and the
 Each request uses the connected customer's authorization. Services and
 applications are limited to the selected services. Networking and Functions
 permissions apply to the customer's account, as shown during consent.
-Existing ownership checks and service locks still apply. The firewall of a
-server's public interface and the list of SSH keys on a server are not offered
-over this connector yet; the local package has them. Customers can revoke
-connections from the AI connections page in their VPSnet account.
+Existing ownership checks and service locks still apply. A network change that
+affects a server (its public firewall, private ports and their security groups,
+a security group or default policy that covers it, an address on it, a port
+forward, VPN grant or balancer member that reaches it, DNS, routing or VPN access
+changes of a network it is on) needs every affected server among the selected
+services; VPSnet otherwise answers `service_not_selected` (403) and changes nothing. The list of SSH keys on a server is offered only in the
+local package. Customers can revoke
+connections from the AI connections page in their VPSnet account (https://www.vpsnet.com/en/management/account/ai-connections).
 
 The default directory profile manages existing services and excludes purchases,
 renewals, payment settings, API-key management, service transfer, model invocation

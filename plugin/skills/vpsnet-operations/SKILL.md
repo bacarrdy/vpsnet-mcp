@@ -19,4 +19,4 @@ For networking, read current capabilities, network attachments, security rules a
 
 Windows tools cover service state and lifecycle; delegated guest commands and files are Linux-only. Storage, hosting and Terraform tools become available as their customer APIs ship.
 
-This directory package manages existing customer services. Do not order services, conduct payments or direct the user into checkout. Keep the customer's existing VPSnet connection and its granted management permissions.
+This directory package manages existing customer services and carries no purchase workflow. A connection buys servers or domains only when its customer separately granted order permissions with daily and monthly limits; never direct the user into an external checkout. Keep the customer's existing VPSnet connection and its granted management permissions.

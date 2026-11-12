@@ -30,7 +30,7 @@ function message(data: unknown): string {
 }
 
 const MANAGEMENT_KEY_FIX =
-  "Create a management API key in the VPSnet panel under Account > API Keys "
+  "Create a management API key in the VPSnet panel under Account > API Keys (https://www.vpsnet.com/en/management/account/api-keys) "
   + "(scope 'full', or 'read' if you only need GET reads) and set it as "
   + "VPSNET_API_KEY. A key is 'vpsnet_' followed by 43 characters.";
 
@@ -101,8 +101,8 @@ export function explainAuthFailure(
         ? `The API key authenticated successfully but is missing the '${required}' scope.`
         : "The API key authenticated successfully but is missing a scope this endpoint requires.",
       fix: required
-        ? `Add the '${required}' scope to the key in Account > API Keys, or use a key that already has it.`
-        : "Grant the endpoint's scope to the key in Account > API Keys.",
+        ? `Add the '${required}' scope to the key in Account > API Keys (https://www.vpsnet.com/en/management/account/api-keys), or use a key that already has it.`
+        : "Grant the endpoint's scope to the key in Account > API Keys (https://www.vpsnet.com/en/management/account/api-keys).",
     };
   }
 
@@ -139,7 +139,7 @@ export function explainAuthFailure(
         + "IP is not on the key's IP allowlist. Note this is NOT the "
         + "AI-scoped-key case, which returns 403 with its own message.",
       fix:
-        "Check the key in Account > API Keys: confirm it is active, unexpired, "
+        "Check the key in Account > API Keys (https://www.vpsnet.com/en/management/account/api-keys): confirm it is active, unexpired, "
         + "copied whole, and that any IP allowlist on it includes the address "
         + "this server calls from. " + MANAGEMENT_KEY_FIX,
     };
@@ -148,7 +148,7 @@ export function explainAuthFailure(
   return {
     code: "apiKeyForbiddenUnclassified",
     reason: "The account API refused this request for the authenticated key.",
-    fix: "Check the key's scopes and access settings in Account > API Keys.",
+    fix: "Check the key's scopes and access settings in Account > API Keys (https://www.vpsnet.com/en/management/account/api-keys).",
   };
 }
 

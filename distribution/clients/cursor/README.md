@@ -10,7 +10,7 @@ Connect the VPSnet MCP server through Cursor's browser OAuth flow. Sign in to VP
 
 Start with: “Show my connected VPSnet servers and their state. Do not change anything.”
 
-Linux files and commands require separate permission. Functions execution requires separate consent to metered usage and a daily account usage ceiling. Disconnect through VPSnet's AI connections page to revoke access. This package manages existing services; it does not conduct purchases or direct customers into checkout.
+Linux files and commands require separate permission. Functions execution requires separate consent to metered usage and a daily account usage ceiling. Disconnect through VPSnet's AI connections page to revoke access. This package manages existing services; it buys nothing unless the customer separately grants order permissions with spending limits on the connection, and it never directs customers into an external checkout.
 
 ## Updates
 

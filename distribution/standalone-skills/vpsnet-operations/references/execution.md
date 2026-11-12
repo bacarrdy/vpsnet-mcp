@@ -39,7 +39,7 @@ Use the live connection's granted scopes and selected services. The optional
 VPSnet `scope_descriptions` metadata map describes only advertised profile
 scopes; it is not a standard OAuth requirement, an execution grant or evidence
 that every application displays it. This directory package manages existing
-services and does not authorize purchases. Request only permissions needed for
+services; its management permissions never authorize a purchase (purchases need separate order permissions with limits). Request only permissions needed for
 the task. For account Functions execution, disclose charges to the VPSnet balance,
 which the AI subscription does not cover, and follow the Functions skill's
 separate execution consent, the granted daily and any reported monthly ceiling,
@@ -68,7 +68,7 @@ Verify the user's actual outcome: an HTTP response for a website, healthy applic
 
 For domain or HTTPS tasks, inspect the account's existing DNS zones, domain state and certificates. Use DNS record tools for authoritative records, domain tools for nameservers and parent DS records, and certificate tools for validation and issuance. Verify the resulting state; a queued DNS or certificate change may still be pending. A nameserver change may report `dnssec_transition` steps with waiting/retrying states; follow that transition instead of manually bypassing DS guards. A DNS lookup failure is not proof that parent DS records are absent. These permissions cover the account rather than the selected VM list. Obtain the missing OAuth permission when needed. Public SSH-key tools manage saved public keys; they never supply private keys.
 
-Rescue mode requires its own `services:rescue` permission and reboots the selected server. Use it only when recovery needs that interruption. Existing snapshot rollback and OS reinstallation replace data; confirm the selected target and replacement before proceeding. Reads of backup listings do not authorize a paid restore.
+Rescue mode is offered only while VPSnet has it switched on (get_service_rescue capability.enabled); it requires its own `services:rescue` permission and reboots the selected server. Use it only when recovery needs that interruption. Existing snapshot rollback and OS reinstallation replace data; confirm the selected target and replacement before proceeding. Reads of backup listings do not authorize a paid restore.
 
 
 ### Permission and file operations

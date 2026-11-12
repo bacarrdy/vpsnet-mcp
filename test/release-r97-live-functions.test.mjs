@@ -153,13 +153,12 @@ test('server SSH keys: the list reads the server, refresh asks again, removal na
   assert.equal(requests.length, before);
 });
 
-test('hosted list: the firewall waits for the backend selected-service check; the other new tools carry networking scopes', async () => {
+test('hosted list: the new networking tools carry networking scopes; the server SSH key tools stay local', async () => {
   const { discoverTools, profiles } = await import('../scripts/tool-contracts.mjs');
   const hosted = new Map((await discoverTools(profiles.directory)).map(tool => [tool.name, tool]));
-  for (const name of ['get_service_public_firewall', 'set_service_public_firewall', 'apply_service_public_firewall', 'list_service_ssh_keys', 'remove_service_ssh_key']) {
-    assert.ok(!hosted.has(name), `${name} is local-package only for now`);
-  }
-  for (const [name, scope] of [['get_public_ip_rdns', 'networking:read'], ['set_public_ip_rdns', 'networking:manage'], ['reset_public_ip_rdns', 'networking:manage'],
+  // The backend has no OAuth rule for /account/services/{orderNo}/ssh-keys, so these stay in the local package.
+  for (const name of ['list_service_ssh_keys', 'remove_service_ssh_key']) assert.ok(!hosted.has(name), `${name} is local-package only`);
+  for (const [name, scope] of [['get_service_public_firewall', 'networking:read'], ['set_service_public_firewall', 'networking:manage'], ['apply_service_public_firewall', 'networking:manage'], ['get_public_ip_rdns', 'networking:read'], ['set_public_ip_rdns', 'networking:manage'], ['reset_public_ip_rdns', 'networking:manage'],
     ['set_public_address_outgoing_source', 'networking:manage'], ['recheck_public_address_outgoing_source', 'networking:manage'], ['rebuild_network_load_balancer', 'networking:manage']]) {
     assert.deepEqual(hosted.get(name)?.securitySchemes, [{ type: 'oauth2', scopes: [scope] }], name);
   }

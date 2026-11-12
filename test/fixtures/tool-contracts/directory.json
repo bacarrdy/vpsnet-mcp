@@ -7,6 +7,7 @@
     "add_network_load_balancer_member",
     "add_network_vpn_site_line",
     "apply_dns_template",
+    "apply_service_public_firewall",
     "attach_network_vpn_gateway",
     "attach_private_network_port",
     "attach_public_address_to_network",
@@ -141,6 +142,7 @@
     "get_service_file_operation",
     "get_service_graphs",
     "get_service_history",
+    "get_service_public_firewall",
     "get_service_rescue",
     "get_ssh_key",
     "get_system_status",
@@ -262,6 +264,7 @@
     "set_private_port_security_groups",
     "set_public_address_outgoing_source",
     "set_public_ip_rdns",
+    "set_service_public_firewall",
     "set_vpn_server_access",
     "start_application",
     "start_network_vpn_tunnel_test",
@@ -422,6 +425,28 @@
           {
             "scopes": [
               "dns:write"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "apply_service_public_firewall": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
             ],
             "type": "oauth2"
           }
@@ -3954,6 +3979,28 @@
           {
             "scopes": [
               "services:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "get_service_public_firewall": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
             ],
             "type": "oauth2"
           }
@@ -7517,6 +7564,28 @@
       }
     },
     "set_public_ip_rdns": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "set_service_public_firewall": {
       "set": {
         "_meta": {
           "securitySchemes": [

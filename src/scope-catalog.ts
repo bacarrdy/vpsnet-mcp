@@ -20,8 +20,8 @@ export const scopeCatalog: Record<string, { label: Record<string, string>; descr
       "lt": "Valdyti pasirinktus serverius"
     },
     "description": {
-      "en": "Start, stop or restart selected servers and change their settings, including guest DNS and firewall reset. Includes viewing selected servers.",
-      "lt": "Paleisti, stabdyti ar perkrauti pasirinktus serverius ir keisti jų nustatymus, įskaitant DNS bei ugniasienės atkūrimą. Apima serverių peržiūrą."
+      "en": "Start, stop or restart selected servers and change their settings, including guest DNS and clearing the firewall rules inside the server (this does not change the server's public firewall). Includes viewing selected servers.",
+      "lt": "Paleisti, stabdyti ar perkrauti pasirinktus serverius ir keisti jų nustatymus, įskaitant DNS ir ugniasienės taisyklių išvalymą pačiame serveryje (serverio viešosios ugniasienės tai nekeičia). Apima serverių peržiūrą."
     },
     "implies": [
       "services:read"
@@ -76,8 +76,8 @@ export const scopeCatalog: Record<string, { label: Record<string, string>; descr
       "lt": "Valdyti paskyros tinklus"
     },
     "description": {
-      "en": "Create, change or remove existing-account networks, routes, attachments and appliances. May interrupt connectivity. Includes network viewing; excludes purchases and renewals.",
-      "lt": "Kurti, keisti ar šalinti paskyros tinklus, maršrutus, jungtis ir įrenginius. Gali sutrikdyti ryšį. Apima tinklų peržiūrą; pirkimai ir pratęsimai neįtraukti."
+      "en": "Create, change or remove existing-account networks, routes, attachments and appliances, port forwarding, public IP addresses and their reverse DNS, and the firewall of the servers you select. May interrupt connectivity. Includes network viewing; excludes purchases and renewals.",
+      "lt": "Kurti, keisti ar šalinti paskyros tinklus, maršrutus, jungtis ir įrenginius, portų persiuntimą, viešuosius IP adresus ir jų atvirkštinį DNS (rDNS), taip pat pasirinktų serverių ugniasienę. Gali sutrikdyti ryšį. Apima tinklų peržiūrą; pirkimai ir pratęsimai neįtraukti."
     },
     "implies": [
       "networking:read"
@@ -383,12 +383,12 @@ export const scopeCatalog: Record<string, { label: Record<string, string>; descr
   },
   "orders:servers": {
     "label": {
-      "en": "Purchase VPS servers from your balance",
-      "lt": "Pirkti VPS serverius iš balanso"
+      "en": "Purchase servers from your balance",
+      "lt": "Pirkti serverius iš balanso"
     },
     "description": {
-      "en": "Quote and purchase VPS servers using your VPSnet balance after approval of the final gross EUR amount and period, within this connection’s daily and monthly limits. Includes viewing order plans and purchase results. Available only through the separate orders profile.",
-      "lt": "Gauti VPS serverių pasiūlymus ir pirkti iš VPSnet balanso, patvirtinus galutinę EUR sumą su mokesčiais bei laikotarpį, neviršijant jungties dienos ir mėnesio ribų. Apima planų ir pirkimų rezultatų peržiūrą. Prieinama tik atskirame užsakymų profilyje."
+      "en": "Quote and purchase servers (VPS, Cloud VPS and Container VPS) using your VPSnet balance after approval of the final gross EUR amount and period, within this connection’s daily and monthly limits. Includes viewing order plans and purchase results. Available only through the separate orders profile.",
+      "lt": "Gauti serverių (VPS, Cloud VPS ir Container VPS) pasiūlymus ir pirkti iš VPSnet balanso, patvirtinus galutinę EUR sumą su mokesčiais bei laikotarpį, neviršijant jungties dienos ir mėnesio ribų. Apima planų ir pirkimų rezultatų peržiūrą. Prieinama tik atskirame užsakymų profilyje."
     },
     "implies": [
       "orders:read"

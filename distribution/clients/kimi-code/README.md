@@ -15,7 +15,7 @@ Open `/plugins` to inspect the enabled plugin and its MCP server. If OAuth is re
 
 Start with: “Show my connected VPSnet servers and their state. Do not change anything.”
 
-Linux files and commands need separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. This package manages existing services; it does not conduct purchases or direct customers into checkout. Disconnect through VPSnet's AI connections page to revoke access.
+Linux files and commands need separate permission. Functions execution requires separate consent to usage charges and a daily account usage ceiling. This package manages existing services; it buys nothing unless the customer separately grants order permissions with spending limits on the connection, and it never directs customers into an external checkout. Disconnect through VPSnet's AI connections page to revoke access.
 
 ## Updates
 

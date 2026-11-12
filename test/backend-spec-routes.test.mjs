@@ -58,7 +58,6 @@ test('features that are live in production are registered with the spec shape', 
   assert.equal(attach.options.requiresCapability, 'public_address_server_public');
   const firewall = networkingTools.filter(tool => tool.path.includes('/public-firewall'));
   assert.equal(firewall.length, 3);
-  for (const tool of firewall) assert.equal(tool.options.localOnly, true, `${tool.name} stays local until the hosted policy limits it to selected services`);
   for (const name of ['get_public_ip_rdns', 'set_public_ip_rdns', 'reset_public_ip_rdns']) {
     assert.deepEqual(Object.keys(networkingTools.find(tool => tool.name === name).options.targetPaths), ['address', 'assignment', 'binding', 'vpn', 'load_balancer']);
   }

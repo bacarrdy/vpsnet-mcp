@@ -20,7 +20,7 @@
 
 ## Remote OAuth connector
 
-The remote profile also includes scoped DNS, domain and certificate management, public SSH keys, server recovery and backup browsing. It uses the same customer APIs as the panel; permissions are enforced by the backend on every request.
+The remote profile also includes scoped DNS, domain and certificate management, public SSH keys, backup browsing and, while VPSnet offers it, server rescue. It uses the same customer APIs as the panel; permissions are enforced by the backend on every request.
 
 The remote connector uses `https://mcp.vpsnet.com/mcp` and customer consent through
 VPSnet. See [Remote AI connections](docs/REMOTE_MCP.md) for connection setup,
@@ -628,8 +628,10 @@ Every request is sent with the `X-API-KEY` header (`VPSNET_API_KEY`).
 - **Granular scopes only narrow a key.** A key with an empty scope list keeps
   everything its access level allows; listing scopes (for example `dns:read`,
   `services:manage`) restricts it. `X:manage` includes `X:read`. Networking is the
-  exception: `networking:read` / `networking:manage` / `networking:order` are never
-  implied by `full` or `read` and must be added to the key explicitly. A key created
+  exception: `networking:read` / `networking:manage` / `networking:order`,
+  `files:read` / `files:manage` (service file manager) and the App Cloud permissions
+  `projects:*` / `projectdb:*` are never implied by `full` or `read` and must be added
+  to the key explicitly. A key created
   without a permission list (for example an older `full` key) reaches no network
   function (private networks, the server firewall, port forwarding, public addresses,
   load balancers, VPN) until `networking:read` or `networking:manage` is added to it.
@@ -642,9 +644,10 @@ Every request is sent with the `X-API-KEY` header (`VPSNET_API_KEY`).
   an uncertain attempt, never a new one). Orders run quote, then confirm with the
   returned `quoteToken`; disclose the exact EUR total to the user before confirming.
   Use `list_api_keys` to see your key's scopes, paid scopes, caps and rate limit.
-- **Rate limits.** Each key may make 300 requests per 60 seconds by default, and
-  some operations have lower limits. On HTTP `429` wait `retry_after` seconds
-  instead of retrying immediately. (The `rate_limit` value shown by
+- **Rate limits.** Each key has one request budget: 300 requests per 60 seconds by
+  default, and some DNS and domain operations have lower limits. On HTTP `429` wait
+  the `retry_after` seconds of the result (the API also sends `Retry-After`;
+  `X-RateLimit-Limit` / `-Remaining` show the budget) instead of retrying immediately. (The `rate_limit` value shown by
   `list_api_keys` is stored with the key but is not what the limiter applies.)
 - API keys can never create, change or revoke API keys, and never receive admin
   access.
@@ -1135,7 +1138,7 @@ rules) is read with `get_service_public_firewall` and replaced as a whole with
 `set_service_public_firewall` at the read `generation`; `apply_service_public_firewall` sends the
 saved rules to the node again. Keep the management port (SSH, or RDP on Windows) open for the user's
 own address and ask the user for that address: `client_address` in the answer is only the address
-the API saw for the request. These three tools are in the local package only for now.
+the API saw for the request. Over the hosted connector, network changes act only on servers selected for the connection (`service_not_selected` otherwise).
 
 `set_public_address_outgoing_source` makes an additional address attached to a VPS's public interface
 the source of the server's new outgoing IPv4 connections (or switches back to the server's own IP);
@@ -1180,9 +1183,9 @@ feature gate.
 | `set_private_network_names` | Replace the complete internal DNS zone label and alias list | `networking:manage` | free |
 | `list_private_network_ports` | Read owned network ports, their fixed DHCP addresses, generations and attachment states | `networking:read` | free |
 | `list_service_private_ports` | Read private ports and order attachment recovery state for one owned service order number. | `networking:read` | free |
-| `get_service_public_firewall` | Read the firewall of a server's public interface (VPS or Cloud VPS): rules, generation and state; local package only for now | `networking:read` | free |
-| `set_service_public_firewall` | Switch the server's public firewall on or off and replace all its incoming rules at the read generation; local package only for now | `networking:manage` | free |
-| `apply_service_public_firewall` | Send the saved firewall rules to the server's node again; local package only for now | `networking:manage` | free |
+| `get_service_public_firewall` | Read the firewall of a server's public interface (VPS or Cloud VPS): rules, generation and state | `networking:read` | free |
+| `set_service_public_firewall` | Switch the server's public firewall on or off and replace all its incoming rules  at the read generation | `networking:manage` | free |
+| `apply_service_public_firewall` | Send the saved firewall rules to the server's node again | `networking:manage` | free |
 | `list_network_attachment_candidates` | Read attachable services and each attachment_mode | `networking:read` | free |
 | `attach_private_network_port` | Attach an owned service; omit ipv4 for automatic allocation or pass a fixed usable address | `networking:manage` | free |
 | `detach_private_network_port` | Detach the owned server port | `networking:manage` | free |
@@ -1437,18 +1440,18 @@ Malformed or oversized URL identifiers are rejected before an API request.
 |---|---|---|
 | `aiScopedApiKeyCannotManageAccount` (403) | The key is an **AI-scoped key**. Those are issued only for VPSnet AI assistant inference and are deliberately refused on the entire account API. Granting scopes cannot change this — the restriction is on the key type. | Create a separate key with scope `full` (or `read` for GET-only use) and use that here. Keep the AI-scoped key for inference. |
 | `apiKeyRejected` (401) | The key failed authentication outright. The API returns one identical 401 for every cause, so it is one of: unknown, revoked, expired, malformed, or your source IP is not on the key's IP allowlist. | Check the key is active and copied whole, and that any IP allowlist includes the address this server calls from. |
-| `readOnlyApiKeyCannotWrite` (401) | A read-scoped key was used for a write; read keys are limited to GET. | Use a full-scope key, or stay on read-only tools. |
-| `apiKeyScopeMissing` (403) | The key authenticated but lacks the granular scope named in `requiredScope`. | Add that scope in Account > API Keys. |
+| `readOnlyApiKeyCannotWrite` (403) | A read-scoped key was used for a write; read keys are limited to GET. | Use a full-scope key, or stay on read-only tools. |
+| `apiKeyScopeMissing` (403) | The key authenticated but lacks the granular scope named in `requiredScope`. | Add that scope in Account > API Keys (https://www.vpsnet.com/en/management/account/api-keys). |
 | `apiKeyForbidden` (403) | The endpoint refuses API keys entirely. API keys never grant admin access. | Use the panel with a signed-in session. |
 
 - Verify the key is correct (starts with `vpsnet_` followed by 43 characters)
 - Keys are shown only once at creation — if lost, create a new one
-- Check that the key hasn't expired (Account > API Keys)
+- Check that the key hasn't expired (Account > API Keys: https://www.vpsnet.com/en/management/account/api-keys)
 
 ### `deploy_ssh_key` succeeded but SSH still fails
 
 - All VPSnet.com servers use `root` as the SSH username
-- Key deployment is async — wait 15-30 seconds after deploying before attempting SSH
+- Key deployment is asynchronous: follow the returned noty UUID with `wait_for_event` until it reports completed before attempting SSH
 
 ### `fetch is not defined` or unexpected errors
 

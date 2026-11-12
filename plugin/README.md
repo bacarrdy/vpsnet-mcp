@@ -22,7 +22,7 @@ Start with a task:
 - “Point my existing domain at my server and check DNS and TLS.”
 
 You can also ask where to host a self-hosted application before connecting an
-account. The plugin can explain fit and requirements; it does not sell services.
+account. The plugin can explain fit and requirements; it does not sell anything on its own; purchases happen only through order permissions you grant on the connection.
 
 ## AI applications
 
@@ -83,10 +83,12 @@ availability requirements and current plans; “microVM” does not mean a small
   ceiling. These ceilings count all account Functions usage, including pending
   runs; an absent monthly value is not permission for unlimited usage. Charges use your VPSnet balance; your AI subscription does not
   cover them. This does not grant permission to buy resources or credits.
-- Disconnect an app in the VPSnet customer panel's **AI connections** page to
+- Disconnect an app in the VPSnet customer panel's **AI connections** page (https://www.vpsnet.com/en/management/account/ai-connections) to
   revoke further access. Operation records remain available for review.
-- Purchases, payments, billing changes and infrastructure administration are
-  outside this connector. An accepted operation is still pending until its final
+- Purchases are off unless you allow them for the connection on the AI
+  connections page: order permissions with daily and monthly limits and a
+  two-factor check. Payment settings, billing changes and infrastructure
+  administration stay outside this connector. An accepted operation is still pending until its final
   result is read.
 
 Permissions are advertised by the live VPSnet endpoint; this bundle does not

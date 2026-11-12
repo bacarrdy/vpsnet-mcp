@@ -4,9 +4,9 @@ Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN sit
 
 | Fixture | Discovery context | Tool count |
 | --- | --- | ---: |
-| `stdio` | General local server, API-key transport | 360 |
-| `directory` | Remote profile, `services:read` | 280 |
-| `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 287 |
+| `stdio` | General local server, API-key transport | 371 |
+| `directory` | Remote profile, `services:read` | 289 |
+| `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 296 |
 
 OpenAI uses the remote directory contract; there is no separately implemented OpenAI profile. The HTTP gateway selects the orders profile only from the issuer's live ordering decision and actual granted order scopes. The fixture scope contexts are explicit because an orders-only subset or different VM scopes can affect discovery/security metadata. The counts above are not a universal client limit or a count observed in an authenticated Claude/OpenAI session.
 
@@ -59,6 +59,6 @@ After deployment, an OpenAI publisher can request a rescan and inspect live vers
 
 Claude documents dynamic/on-demand tool access for larger connector libraries. Its API tool-search limits are a separate product contract; neither source establishes a universal fixed consumer-directory tool count. No authenticated Claude or OpenAI publisher scan was available in this audit. Local SDK/HTTP tests do not prove a directory refreshed. [Claude tool access](https://support.claude.com/en/articles/13730515-manage-claude-s-tool-access), [API tool search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool), checked 2026-10-14.
 
-[The publication record](../distribution/releases/published.json) records the latest independently verified artifacts, separately from prepared source versions. As of the 2026-10-26 verification, it records plugin `0.6.15` (public ZIP digest verified) and MCP `2.3.16`; MCP `2.4.1` and `2.5.0` are released from source but not yet published to npm or recorded there. This proves the recorded public artifact, not OpenAI/Claude approval, registry synchronization or every gateway's deployed version. [Verified plugin release](https://github.com/bacarrdy/vpsnet-mcp/releases/tag/plugin-0.6.15).
+[The publication record](../distribution/releases/published.json) records the latest independently verified artifacts, separately from prepared source versions. As of the 2026-10-30 verification, it records plugin `0.6.16` and MCP `2.6.0`; MCP `2.7.0` is prepared from source and not yet published. This proves the recorded public artifact, not OpenAI/Claude approval, registry synchronization or every gateway's deployed version. [Verified plugin release](https://github.com/bacarrdy/vpsnet-mcp/releases/tag/plugin-0.6.15).
 
 A provider's generic "further review" finding does not identify a schema or annotation defect. Record the exact tool and live/held state, compare its raw descriptor with the previously scanned version, and ask for the specific review requirement. Do not change an impact hint or bump the server version merely to hide a review hold. OpenAI and Claude share the directory profile; preserve that contract until an intentional, reviewed change is ready.
