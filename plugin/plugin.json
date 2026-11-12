@@ -1,13 +1,13 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vpsnet",
-  "version": "0.6.16",
+  "version": "1.0.1",
   "description": "Install apps, build websites, troubleshoot VPSnet servers, configure networks and VPNs, manage DNS, domains and TLS certificates, and create and test Functions with customer-selected access.",
   "author": {
     "name": "VPSnet",
-    "url": "https://vpsnet.com"
+    "url": "https://www.vpsnet.com/en"
   },
-  "homepage": "https://vpsnet.com",
+  "homepage": "https://www.vpsnet.com/en",
   "repository": "https://github.com/bacarrdy/vpsnet-mcp",
   "license": "MIT",
   "keywords": [
@@ -29,7 +29,7 @@
         "displayName": "VPSnet",
         "shortDescription": "Servers, apps and networks",
         "developerName": "VPSnet",
-        "websiteURL": "https://www.vpsnet.com",
+        "websiteURL": "https://www.vpsnet.com/en",
         "defaultPrompt": [
           "Install n8n on my selected VPSnet server and verify that it is healthy.",
           "Build and run a small website on my VPSnet server, then check its address.",
@@ -104,7 +104,7 @@
         "demo_recording_url": "https://www.vpsnet.com/ai-review/6bd15b32b2b9e8da1f1359788554b758/vpsnet-demo.mp4"
       },
       "publication": {
-        "release_notes": "Connector 0.6.16 accompanies MCP server 2.6.0. DNS creation now discloses ownership-based restoration/publication and stale-candidate deletion and is marked potentially destructive. Hosted connections accept native zones only and reject secondary/TSIG inputs before dispatch; configure secondary credentials in the authenticated panel. VPN tools add capability-gated IPsec site-to-site parameters, public router recipes and explicit network-wide device grants. Personal-device VPN remains WireGuard; configuration stays sealed for external decryption. Shared guidance distinguishes protocol status and queued from applied changes. OAuth scopes and hosted purchase restrictions remain unchanged. Server deployment and OpenAI approval are separate release steps."
+        "release_notes": "Version 1.0.1. New: manage the firewall of a server's public interface, choose an additional address as a server's outgoing address, set reverse DNS of additional, floating, VPN and load balancer addresses, put an additional address on a server that has its own IP, forward ports from a private network's NAT address, rebuild a public load balancer, and more VPN controls."
       }
     }
   }
