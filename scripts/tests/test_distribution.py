@@ -54,7 +54,7 @@ class DistributionTest(unittest.TestCase):
         _, second = module.build(self.root, self.root / 'second-build')
         self.assertEqual(first['artifacts'], second['artifacts'])
         self.assertFalse(first['published'])
-        self.assertEqual(len(first['artifacts']), 9)
+        self.assertEqual(len(first['artifacts']), 10)
         for record in first['artifacts']:
             with ZipFile(folder / record['file']) as archive:
                 names = archive.namelist()

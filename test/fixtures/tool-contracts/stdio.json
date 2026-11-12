@@ -6,7 +6,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Abort service file upload"
       },
@@ -88,7 +88,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Add network load balancer listener"
       },
@@ -171,7 +171,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Add network load balancer member"
       },
@@ -327,6 +327,7 @@
     "apply_dns_template": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Apply DNS template"
@@ -388,7 +389,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Apply service public firewall"
       },
@@ -417,7 +418,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Attach network VPN gateway"
       },
@@ -461,9 +462,9 @@
     },
     "attach_private_network_port": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Attach private network port"
       },
@@ -516,7 +517,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Attach public address to network"
       },
@@ -565,7 +566,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Attach public address to server"
       },
@@ -608,7 +609,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Attach public address to server interface"
       },
@@ -647,6 +648,7 @@
     "attach_service_dns_record": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Attach service DNS record"
@@ -713,7 +715,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Bind network public IP"
       },
@@ -834,6 +836,7 @@
     "calculate_plan_change": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Calculate plan change"
@@ -1126,6 +1129,7 @@
     "change_hostname": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Change hostname"
@@ -1164,6 +1168,7 @@
     "change_plan": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Change plan"
@@ -1210,6 +1215,7 @@
     "change_rdns": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Change rDNS"
@@ -1251,6 +1257,7 @@
     "change_root_password": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Change root password"
@@ -1287,6 +1294,7 @@
     "change_title": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Change title"
@@ -1325,7 +1333,8 @@
     "check_domain_availability": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
         "readOnlyHint": true,
         "title": "Check domain availability"
       },
@@ -1388,7 +1397,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Check network VPN public access"
       },
@@ -1449,6 +1458,7 @@
     "clear_rdns": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Clear rDNS"
@@ -1486,7 +1496,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Clone network security group"
       },
@@ -2596,6 +2606,7 @@
     "console_service": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Console service"
@@ -2826,6 +2837,7 @@
     "create_backup": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create backup"
@@ -2900,7 +2912,8 @@
     "create_ddns_token": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Create DDNS token"
       },
@@ -2959,6 +2972,7 @@
     "create_dns_zone": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Create DNS zone"
@@ -3022,6 +3036,7 @@
     "create_domain_contact": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create domain contact"
@@ -3169,7 +3184,8 @@
     },
     "create_firecracker_snapshot": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create firecracker snapshot"
@@ -3424,7 +3440,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create network security group"
       },
@@ -3996,7 +4012,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create private network"
       },
@@ -4205,7 +4221,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create service directory"
       },
@@ -4257,6 +4273,7 @@
     "create_snapshot": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create snapshot"
@@ -4292,6 +4309,7 @@
     "create_ssh_key": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create SSH key"
@@ -4326,7 +4344,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Create on-demand server session (Coming soon)"
       },
@@ -4410,6 +4428,7 @@
     "delete_dns_record": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Delete DNS record"
@@ -4447,6 +4466,7 @@
     "delete_dns_zone": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Delete DNS zone"
@@ -4482,6 +4502,7 @@
     "delete_domain_contact": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete domain contact"
@@ -4603,6 +4624,7 @@
     "delete_firecracker_snapshot": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete firecracker snapshot"
@@ -4641,6 +4663,7 @@
     "delete_function": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Delete function"
@@ -4672,7 +4695,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete network load balancer"
       },
@@ -4716,7 +4739,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete network public binding"
       },
@@ -4760,7 +4783,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete network security group"
       },
@@ -4812,7 +4835,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete network VPN gateway"
       },
@@ -4856,7 +4879,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete network VPN site health webhook"
       },
@@ -4904,7 +4927,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete private network"
       },
@@ -4948,7 +4971,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete service files"
       },
@@ -5011,6 +5034,7 @@
     "delete_snapshot": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete snapshot"
@@ -5050,6 +5074,7 @@
     "delete_ssh_key": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Delete SSH key"
@@ -5081,7 +5106,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Permanently delete on-demand server"
       },
@@ -5117,6 +5142,7 @@
     "deploy_ssh_key": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Deploy SSH key"
@@ -5156,7 +5182,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Detach network public address"
       },
@@ -5188,7 +5214,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Detach network VPN gateway"
       },
@@ -5226,7 +5252,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Detach private network port"
       },
@@ -5283,7 +5309,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Disable network product auto renew"
       },
@@ -5323,7 +5349,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Disable public address auto renew"
       },
@@ -5355,7 +5381,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Disable VPN auto renew"
       },
@@ -5479,7 +5505,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Download service file"
       },
@@ -5589,7 +5615,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Estimate network load balancer"
       },
@@ -5848,6 +5874,7 @@
     "export_dns_zone": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Export DNS zone"
@@ -5879,7 +5906,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Extract service file archive"
       },
@@ -5936,7 +5963,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Find network product order"
       },
@@ -5967,6 +5994,7 @@
     "flush_iptables": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Flush iptables"
@@ -5998,6 +6026,7 @@
     "get_account": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get account"
@@ -6017,6 +6046,7 @@
     "get_api_key": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get API key"
@@ -6047,6 +6077,7 @@
     "get_api_key_activity": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get API key activity"
@@ -6083,6 +6114,7 @@
     "get_api_key_inference_usage": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get API key inference usage"
@@ -6238,7 +6270,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Inspect managed application health"
       },
@@ -6369,7 +6401,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Inspect managed application logs"
       },
@@ -6524,6 +6556,7 @@
     "get_backup_history": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get backup history"
@@ -6561,6 +6594,7 @@
     "get_backup_status": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get backup status"
@@ -6683,6 +6717,7 @@
     "get_dns_service_status": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get DNS service status"
@@ -6702,6 +6737,7 @@
     "get_dns_zone": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get DNS zone"
@@ -6732,6 +6768,7 @@
     "get_dns_zone_diagnostics": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": true,
         "readOnlyHint": true,
         "title": "Get DNS zone diagnostics"
@@ -6762,6 +6799,7 @@
     "get_dns_zone_history": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get DNS zone history"
@@ -6792,6 +6830,7 @@
     "get_dnssec": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get DNSSEC"
@@ -6822,6 +6861,7 @@
     "get_domain": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get domain"
@@ -6852,7 +6892,8 @@
     "get_domain_ordering_status": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
         "readOnlyHint": true,
         "title": "Get domain ordering status"
       },
@@ -6871,6 +6912,7 @@
     "get_domain_parent_ds": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get domain parent DS"
@@ -6901,6 +6943,7 @@
     "get_event": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get event"
@@ -6939,6 +6982,7 @@
     "get_faq": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get faq"
@@ -7053,7 +7097,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": true,
         "title": "Check free-certificate eligibility"
       },
@@ -7102,6 +7146,7 @@
     "get_function": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Get function"
@@ -7132,6 +7177,7 @@
     "get_function_invocation": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get function invocation"
@@ -7170,6 +7216,7 @@
     "get_guest_agent_status": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get guest agent status"
@@ -7233,6 +7280,7 @@
     "get_hostname": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Get hostname"
@@ -7264,6 +7312,7 @@
     "get_invoice": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get invoice"
@@ -7295,6 +7344,7 @@
     "get_login_history": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get login history"
@@ -7321,6 +7371,7 @@
     "get_management_history": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get management history"
@@ -7365,7 +7416,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network appliance billing"
       },
@@ -7386,7 +7437,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network appliance capabilities"
       },
@@ -7407,7 +7458,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network appliance operation"
       },
@@ -7439,7 +7490,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network load balancer"
       },
@@ -7471,7 +7522,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network payment methods"
       },
@@ -7497,7 +7548,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network port forwards"
       },
@@ -7529,7 +7580,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network product order"
       },
@@ -7561,7 +7612,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network public address"
       },
@@ -7593,7 +7644,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network public binding"
       },
@@ -7625,7 +7676,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network routed egress"
       },
@@ -7657,7 +7708,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network security policy"
       },
@@ -7697,7 +7748,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network VPN egress options"
       },
@@ -7729,7 +7780,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network VPN gateway"
       },
@@ -7761,7 +7812,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network VPN peer history"
       },
@@ -7811,7 +7862,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network VPN peer recipe"
       },
@@ -7905,7 +7956,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network VPN summary"
       },
@@ -7937,7 +7988,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get network VPN tunnel test"
       },
@@ -7985,7 +8036,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get networking capabilities"
       },
@@ -8006,7 +8057,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get networking features"
       },
@@ -8027,7 +8078,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get networking operation"
       },
@@ -8059,7 +8110,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get networking overview"
       },
@@ -8080,7 +8131,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get networking topology"
       },
@@ -8105,6 +8156,7 @@
     "get_order_options": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get order options"
@@ -8135,6 +8187,7 @@
     "get_order_plans": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get order plans"
@@ -8169,6 +8222,7 @@
     "get_os_options": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get OS options"
@@ -8200,6 +8254,7 @@
     "get_period_options": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get period options"
@@ -8231,6 +8286,7 @@
     "get_plan_options": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get plan options"
@@ -8262,6 +8318,7 @@
     "get_plan_resources": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get plan resources"
@@ -8300,6 +8357,7 @@
     "get_pricing": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get pricing"
@@ -8335,7 +8393,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get private network"
       },
@@ -8366,6 +8424,7 @@
     "get_profile": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get profile"
@@ -8386,7 +8445,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get public IP rDNS"
       },
@@ -8429,6 +8488,7 @@
     "get_rdns": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get rDNS"
@@ -8460,7 +8520,8 @@
     "get_registrar_lock": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
         "readOnlyHint": true,
         "title": "Get registrar lock"
       },
@@ -8529,6 +8590,7 @@
     "get_restore_status": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get restore status"
@@ -8561,7 +8623,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get security group capabilities"
       },
@@ -8581,6 +8643,7 @@
     "get_service": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get service"
@@ -8817,7 +8880,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get service file capabilities"
       },
@@ -8849,7 +8912,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Get service file download URL"
       },
@@ -8895,7 +8958,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get service file operation"
       },
@@ -8931,6 +8994,7 @@
     "get_service_graphs": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get service graphs"
@@ -9012,6 +9076,7 @@
     "get_service_history": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get service history"
@@ -9050,7 +9115,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get service public firewall"
       },
@@ -9110,6 +9175,7 @@
     "get_ssh_key": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get SSH key"
@@ -9140,6 +9206,7 @@
     "get_system_status": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get system status"
@@ -9160,7 +9227,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get on-demand server session"
       },
@@ -9191,7 +9258,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get on-demand server options"
       },
@@ -9210,6 +9277,7 @@
     "get_title": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get title"
@@ -9241,6 +9309,7 @@
     "get_usage_statements": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Get usage statements"
@@ -9268,6 +9337,7 @@
     "import_dns_zone": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Import DNS zone"
@@ -9308,7 +9378,7 @@
     },
     "install_application": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": true,
         "openWorldHint": true,
         "readOnlyHint": false,
@@ -9522,7 +9592,7 @@
     },
     "install_application_recipe": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": true,
         "openWorldHint": true,
         "readOnlyHint": false,
@@ -9657,6 +9727,7 @@
     "list_api_keys": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List API keys"
@@ -9970,6 +10041,7 @@
     "list_ddns_tokens": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List DDNS tokens"
@@ -10000,6 +10072,7 @@
     "list_dns_templates": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List DNS templates"
@@ -10030,6 +10103,7 @@
     "list_dns_zones": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List DNS zones"
@@ -10062,6 +10136,7 @@
     "list_domain_contacts": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List domain contacts"
@@ -10081,6 +10156,7 @@
     "list_domain_glue_records": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List domain glue records"
@@ -10111,6 +10187,7 @@
     "list_domain_tlds": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List domain tlds"
@@ -10130,6 +10207,7 @@
     "list_domains": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List domains"
@@ -10162,6 +10240,7 @@
     "list_firecracker_snapshots": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List firecracker snapshots"
@@ -10286,6 +10365,7 @@
     "list_function_invocations": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List function invocations"
@@ -10316,6 +10396,7 @@
     "list_functions": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "List functions"
@@ -10335,6 +10416,7 @@
     "list_invoices": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List invoices"
@@ -10363,7 +10445,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network appliances"
       },
@@ -10384,7 +10466,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network attachment candidates"
       },
@@ -10423,7 +10505,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network load balancers"
       },
@@ -10444,7 +10526,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network product periods"
       },
@@ -10473,7 +10555,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network products"
       },
@@ -10502,7 +10584,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network public addresses"
       },
@@ -10523,7 +10605,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network security groups"
       },
@@ -10555,7 +10637,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network VPN gateways"
       },
@@ -10576,7 +10658,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List network VPN site health webhooks"
       },
@@ -10616,7 +10698,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List networking operations"
       },
@@ -10636,6 +10718,7 @@
     "list_payments": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List payments"
@@ -10664,7 +10747,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List private network ports"
       },
@@ -10696,7 +10779,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List private networks"
       },
@@ -10717,7 +10800,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List public address server targets"
       },
@@ -10789,6 +10872,7 @@
     "list_restore_points": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List restore points"
@@ -10852,6 +10936,7 @@
     "list_service_dns_options": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List service DNS options"
@@ -10884,7 +10969,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List service file uploads"
       },
@@ -10916,7 +11001,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List service files"
       },
@@ -10991,7 +11076,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List service private ports"
       },
@@ -11055,6 +11140,7 @@
     "list_services": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List services"
@@ -11082,6 +11168,7 @@
     "list_snapshots": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "List snapshots"
@@ -11113,6 +11200,7 @@
     "list_ssh_keys": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List SSH keys"
@@ -11145,7 +11233,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "List on-demand server sessions"
       },
@@ -11674,7 +11762,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Move network public IP"
       },
@@ -11726,7 +11814,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Move service file"
       },
@@ -11793,7 +11881,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Order Automatic SSL domain"
       },
@@ -11880,7 +11968,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Prepay Automatic SSL renewal"
       },
@@ -11932,7 +12020,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Order Automatic SSL subscription"
       },
@@ -12044,7 +12132,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Order paid TLS certificate"
       },
@@ -12232,9 +12320,9 @@
     },
     "order_network_product": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Order network product"
       },
@@ -12324,6 +12412,7 @@
     "order_service": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Order service"
@@ -12444,7 +12533,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": false,
+        "openWorldHint": true,
         "readOnlyHint": true,
         "title": "Plan a free TLS certificate"
       },
@@ -12560,7 +12649,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote account VPN"
       },
@@ -12969,7 +13058,8 @@
     "quote_domain_register": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Quote domain register"
       },
@@ -13044,7 +13134,8 @@
     "quote_domain_renew": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Quote domain renew"
       },
@@ -13089,7 +13180,8 @@
     "quote_domain_restore": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Quote domain restore"
       },
@@ -13130,7 +13222,8 @@
     "quote_domain_transfer": {
       "annotations": {
         "destructiveHint": false,
-        "openWorldHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Quote domain transfer"
       },
@@ -13207,7 +13300,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote network product"
       },
@@ -13265,7 +13358,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote network product renewal"
       },
@@ -13317,7 +13410,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote network public address"
       },
@@ -13360,7 +13453,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote network VPN traffic pack"
       },
@@ -13403,7 +13496,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote public address renewal"
       },
@@ -13447,7 +13540,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote on-demand server session (Coming soon)"
       },
@@ -13490,7 +13583,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Quote VPN period renewal"
       },
@@ -13534,7 +13627,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Read service file"
       },
@@ -13620,7 +13713,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Rebuild network load balancer"
       },
@@ -13658,7 +13751,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Rebuild network VPN gateway"
       },
@@ -13787,7 +13880,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Recheck public address outgoing source"
       },
@@ -14081,6 +14174,7 @@
     "reissue_dns_zone_verification": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Reissue DNS zone verification"
@@ -14162,7 +14256,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Remove network load balancer listener"
       },
@@ -14214,7 +14308,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Remove network load balancer member"
       },
@@ -14266,7 +14360,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Remove network VPN site second line"
       },
@@ -14355,9 +14449,9 @@
     },
     "rename_network_vpn_gateway": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Rename network VPN gateway"
       },
@@ -14392,7 +14486,7 @@
     },
     "renew_free_certificate": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
@@ -14441,9 +14535,9 @@
     },
     "renew_network_product": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Renew network product"
       },
@@ -14508,9 +14602,9 @@
     },
     "renew_network_public_address": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Renew network public address"
       },
@@ -14568,6 +14662,7 @@
     "renew_service": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Renew service"
@@ -14630,9 +14725,9 @@
     },
     "renew_vpn_period": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Renew VPN period"
       },
@@ -14907,6 +15002,7 @@
     "reset_hostname": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Reset hostname"
@@ -14990,7 +15086,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Restart application"
       },
@@ -15043,7 +15139,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Restart network VPN gateway"
       },
@@ -15080,6 +15176,7 @@
     "restart_service": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Restart service"
@@ -15192,6 +15289,7 @@
     "resume_service": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Resume service"
@@ -15224,7 +15322,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Retire network security policy"
       },
@@ -15276,7 +15374,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Retry network security policy"
       },
@@ -15322,7 +15420,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Retry private network"
       },
@@ -15366,7 +15464,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Retry private network port"
       },
@@ -15422,6 +15520,7 @@
     "revoke_ddns_token": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Revoke DDNS token"
@@ -15506,7 +15605,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Revoke network VPN peer"
       },
@@ -15558,7 +15657,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Roll back application"
       },
@@ -15624,6 +15723,7 @@
     "rollback_firecracker_snapshot": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Rollback firecracker snapshot"
@@ -15662,6 +15762,7 @@
     "rollback_snapshot": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Rollback snapshot"
@@ -15702,7 +15803,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Rotate network VPN ipsec key"
       },
@@ -15752,9 +15853,9 @@
     },
     "save_network_vpn_router_setup": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Save network VPN router setup"
       },
@@ -15854,7 +15955,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Search service files"
       },
@@ -15910,6 +16011,7 @@
     "set_auto_renew": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set auto renew"
@@ -15950,6 +16052,7 @@
     "set_dnssec": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Set DNSSEC"
@@ -15989,6 +16092,7 @@
     "set_domain_auto_renew": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set domain auto renew"
@@ -16030,6 +16134,7 @@
     "set_domain_nameservers": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Set domain nameservers"
@@ -16135,7 +16240,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network default security policy"
       },
@@ -16202,7 +16307,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network port forwards"
       },
@@ -16287,7 +16392,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network routed egress"
       },
@@ -16347,7 +16452,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network site route mode"
       },
@@ -16387,7 +16492,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN internet exit"
       },
@@ -16434,7 +16539,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN ipsec tuning"
       },
@@ -16609,7 +16714,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN peer egress"
       },
@@ -16712,7 +16817,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN peer grants"
       },
@@ -16781,7 +16886,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN public access"
       },
@@ -16857,9 +16962,9 @@
     },
     "set_network_vpn_site_alert": {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN site alert"
       },
@@ -16903,7 +17008,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN site bgp"
       },
@@ -16995,7 +17100,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN site main line"
       },
@@ -17072,7 +17177,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN site options"
       },
@@ -17126,7 +17231,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set network VPN site reach"
       },
@@ -17190,7 +17295,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set private network DNS"
       },
@@ -17247,7 +17352,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set private network names"
       },
@@ -17308,7 +17413,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set private port security groups"
       },
@@ -17386,7 +17491,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set public address outgoing source"
       },
@@ -17479,7 +17584,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set service public firewall"
       },
@@ -17600,7 +17705,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Set VPN server access"
       },
@@ -17646,7 +17751,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Start application"
       },
@@ -17756,6 +17861,7 @@
     "start_service": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Start service"
@@ -17788,7 +17894,7 @@
       "annotations": {
         "destructiveHint": false,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Stat service file"
       },
@@ -17840,7 +17946,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Stop application"
       },
@@ -17892,6 +17998,7 @@
     "stop_service": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Stop service"
@@ -17923,6 +18030,7 @@
     "suspend_service": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Suspend service"
@@ -17955,7 +18063,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Take network VPN peer config"
       },
@@ -18004,7 +18112,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Take network VPN site line config"
       },
@@ -18048,6 +18156,7 @@
     "toggle_extra_settings": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Toggle extra settings"
@@ -18095,6 +18204,7 @@
     "toggle_ipv6": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Toggle IPv6"
@@ -18132,7 +18242,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Uninstall application"
       },
@@ -18257,6 +18367,7 @@
     "update_dns_record": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Update DNS record"
@@ -18343,6 +18454,7 @@
     "update_domain_contact": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Update domain contact"
@@ -18444,6 +18556,7 @@
     "update_function": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Update function"
@@ -18541,7 +18654,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Update network security group"
       },
@@ -18675,7 +18788,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": true,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Update network VPN gateway image"
       },
@@ -18713,7 +18826,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Upload service file"
       },
@@ -18786,6 +18899,7 @@
     "upsert_dns_record": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Upsert DNS record"
@@ -18915,6 +19029,7 @@
     "verify_dns_zone": {
       "annotations": {
         "destructiveHint": true,
+        "idempotentHint": false,
         "openWorldHint": true,
         "readOnlyHint": false,
         "title": "Verify DNS zone"
@@ -18945,6 +19060,7 @@
     "wait_for_event": {
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
         "openWorldHint": false,
         "readOnlyHint": true,
         "title": "Wait for event"
@@ -18990,7 +19106,7 @@
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
-        "openWorldHint": true,
+        "openWorldHint": false,
         "readOnlyHint": false,
         "title": "Write service file"
       },

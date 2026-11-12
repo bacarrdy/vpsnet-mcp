@@ -414,13 +414,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Apply DNS template"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -574,13 +567,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Attach service DNS record"
         },
         "securitySchemes": [
           {
@@ -739,7 +725,7 @@
         "annotations": {
           "destructiveHint": true,
           "idempotentHint": true,
-          "openWorldHint": true,
+          "openWorldHint": false,
           "readOnlyHint": false,
           "title": "Cancel VM operation"
         },
@@ -818,13 +804,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Change hostname"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -847,13 +826,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Change rDNS"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -875,13 +847,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Change title"
         },
         "securitySchemes": [
           {
@@ -948,13 +913,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Clear rDNS"
         },
         "securitySchemes": [
           {
@@ -1132,13 +1090,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Create DNS zone"
-        },
         "description": "Create a native forward DNS zone in the connected VPSnet account. Secondary zones and their TSIG credentials must be configured in the VPSnet control panel; this hosted tool does not accept authentication secrets. Normally creates pending_verification. With qualifying current ownership proof, the API may instead restore a recently deleted zone and queue immediate publication. Publication can delete stale zone candidates for the same name, including their DNS records and DDNS tokens. Existing live zones are refused; this does not register a domain or change registrar nameservers. Read the returned zone.status and apply_state: queued publication is not proof of live DNS service. When verification is needed, verificationRecord contains the public ownership TXT challenge (_vpsnet-dns.<zone>). Follow zone.verification.next_step and warnings for its location, then call verify_dns_zone. Keep nameservers already delegated to VPSnet. A previous-provider or parent-zone location may be required. If the TXT value is missing, first read get_dns_zone.zone.verification.record.value; reissue_dns_zone_verification rotates it only when unrecoverable or requested by the customer. Requires dns:write.",
         "inputSchema": {
           "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1180,13 +1131,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Create domain contact"
         },
         "securitySchemes": [
           {
@@ -1464,13 +1408,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Create SSH key"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -1571,13 +1508,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Delete DNS record"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -1600,13 +1530,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Delete DNS zone"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -1628,13 +1551,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Delete domain contact"
         },
         "securitySchemes": [
           {
@@ -1702,13 +1618,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Delete firecracker snapshot"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -1730,13 +1639,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Delete function"
         },
         "securitySchemes": [
           {
@@ -1914,13 +1816,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Delete snapshot"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -1943,13 +1838,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Delete SSH key"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -1971,13 +1859,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Deploy SSH key"
         },
         "securitySchemes": [
           {
@@ -2199,13 +2080,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Export DNS zone"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2249,13 +2123,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Flush iptables"
         },
         "securitySchemes": [
           {
@@ -2499,13 +2366,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get backup history"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2527,13 +2387,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get backup status"
         },
         "securitySchemes": [
           {
@@ -2746,13 +2599,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get DNS service status"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2774,13 +2620,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get DNS zone"
         },
         "securitySchemes": [
           {
@@ -2804,13 +2643,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": true,
-          "readOnlyHint": true,
-          "title": "Get DNS zone diagnostics"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2832,13 +2664,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get DNS zone history"
         },
         "securitySchemes": [
           {
@@ -2862,13 +2687,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get DNSSEC"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2890,13 +2708,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get domain"
         },
         "securitySchemes": [
           {
@@ -2920,13 +2731,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get domain parent DS"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2949,13 +2753,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get event"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -2975,13 +2772,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get faq"
         },
         "securitySchemes": [
           {
@@ -3113,13 +2903,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Get function"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -3142,13 +2925,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get function invocation"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -3170,13 +2946,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get guest agent status"
         },
         "securitySchemes": [
           {
@@ -3221,13 +2990,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Get hostname"
         },
         "securitySchemes": [
           {
@@ -3669,13 +3431,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get OS options"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -3742,13 +3497,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get rDNS"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -3770,13 +3518,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get registrar lock"
         },
         "securitySchemes": [
           {
@@ -3843,13 +3584,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get service"
         },
         "securitySchemes": [
           {
@@ -3939,13 +3673,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get service graphs"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -3967,13 +3694,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get service history"
         },
         "securitySchemes": [
           {
@@ -4041,13 +3761,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get SSH key"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -4068,13 +3781,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get system status"
-        },
         "securitySchemes": [
           {
             "scopes": [],
@@ -4094,13 +3800,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Get title"
         },
         "securitySchemes": [
           {
@@ -4553,7 +4252,7 @@
         },
         "annotations": {
           "destructiveHint": false,
-          "idempotentHint": false,
+          "idempotentHint": true,
           "openWorldHint": false,
           "readOnlyHint": true,
           "title": "Get VM operation"
@@ -4610,13 +4309,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Import DNS zone"
         },
         "securitySchemes": [
           {
@@ -4988,13 +4680,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List DDNS tokens"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5016,13 +4701,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List DNS templates"
         },
         "securitySchemes": [
           {
@@ -5046,13 +4724,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List DNS zones"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5074,13 +4745,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List domain contacts"
         },
         "securitySchemes": [
           {
@@ -5104,13 +4768,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List domain glue records"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5133,13 +4790,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List domains"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5161,13 +4811,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List firecracker snapshots"
         },
         "securitySchemes": [
           {
@@ -5235,13 +4878,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List function invocations"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5263,13 +4899,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "List functions"
         },
         "securitySchemes": [
           {
@@ -5557,13 +5186,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List restore points"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5607,13 +5229,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List service DNS options"
         },
         "securitySchemes": [
           {
@@ -5703,13 +5318,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List services"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5732,13 +5340,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "List snapshots"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -5760,13 +5361,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "List SSH keys"
         },
         "securitySchemes": [
           {
@@ -5837,7 +5431,7 @@
         "annotations": {
           "destructiveHint": true,
           "idempotentHint": false,
-          "openWorldHint": true,
+          "openWorldHint": false,
           "readOnlyHint": false,
           "title": "Open VM session"
         },
@@ -5967,7 +5561,7 @@
         "annotations": {
           "destructiveHint": false,
           "idempotentHint": true,
-          "openWorldHint": true,
+          "openWorldHint": false,
           "readOnlyHint": false,
           "title": "Read VM file"
         },
@@ -6333,13 +5927,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Reissue DNS zone verification"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -6560,13 +6147,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Reset hostname"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -6655,13 +6235,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Restart service"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -6683,13 +6256,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Resume service"
         },
         "securitySchemes": [
           {
@@ -6801,13 +6367,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Revoke DDNS token"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -6896,13 +6455,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Rollback firecracker snapshot"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -6924,13 +6476,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Rollback snapshot"
         },
         "securitySchemes": [
           {
@@ -7099,13 +6644,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Set DNSSEC"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -7127,13 +6665,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Set domain nameservers"
         },
         "securitySchemes": [
           {
@@ -7685,13 +7216,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Start service"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -7758,13 +7282,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Stop service"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -7786,13 +7303,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Suspend service"
         },
         "securitySchemes": [
           {
@@ -7860,13 +7370,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Toggle extra settings"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -7888,13 +7391,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Toggle IPv6"
         },
         "securitySchemes": [
           {
@@ -7962,13 +7458,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Update DNS record"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -7991,13 +7480,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": false,
-          "readOnlyHint": false,
-          "title": "Update domain contact"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -8019,13 +7501,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Update function"
         },
         "securitySchemes": [
           {
@@ -8093,13 +7568,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Upsert DNS record"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -8144,13 +7612,6 @@
             }
           ]
         },
-        "annotations": {
-          "destructiveHint": true,
-          "idempotentHint": false,
-          "openWorldHint": true,
-          "readOnlyHint": false,
-          "title": "Verify DNS zone"
-        },
         "securitySchemes": [
           {
             "scopes": [
@@ -8172,13 +7633,6 @@
               "type": "oauth2"
             }
           ]
-        },
-        "annotations": {
-          "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": false,
-          "readOnlyHint": true,
-          "title": "Wait for event"
         },
         "securitySchemes": [
           {
@@ -8227,7 +7681,7 @@
         "annotations": {
           "destructiveHint": true,
           "idempotentHint": true,
-          "openWorldHint": true,
+          "openWorldHint": false,
           "readOnlyHint": false,
           "title": "Write VM file"
         },

@@ -43,11 +43,16 @@ def png_size(path):
 
 def hosted_tools():
     """The tool names the hosted directory profile serves (the reviewed contract snapshot)."""
-    snapshot = json.loads((root / 'test/fixtures/tool-contracts/directory.json').read_text())
+    path = root / 'test/fixtures/tool-contracts/directory.json'
+    if not path.is_file():  # a packaging-only copy without the test fixtures: the repository test run checks the names
+        return None
+    snapshot = json.loads(path.read_text())
     return set(snapshot.get('included') or snapshot.get('tools') or [])
 
 
-def main():
+def build_openai_zip(out=None, check_only=False):
+    """Validate the OpenAI package rules; write the ZIP to `out` (default artifacts/) unless check_only. Returns (path, version, files)."""
+    ERRORS.clear()
     version = validate_package(package)
     manifest = json.loads((package / 'plugin.json').read_text())
     mcp = json.loads((package / 'mcp.json').read_text())
@@ -84,7 +89,7 @@ def main():
     for case in positive:
         need(all(isinstance(case.get(k), str) and case[k].strip() for k in ('description', 'prompt', 'tools_triggered', 'expected_behavior')), 'positive case: description, prompt, tools_triggered and expected_behavior')
         for name in [n.strip() for n in case.get('tools_triggered', '').split(',') if n.strip()]:
-            need(name in tools, f'positive case names {name}, which the hosted connector does not serve')
+            need(tools is None or name in tools, f'positive case names {name}, which the hosted connector does not serve')
     for case in negative:
         need(all(isinstance(case.get(k), str) and case[k].strip() for k in ('description', 'prompt')), 'negative case: description and prompt')
     https(review.get('demo_recording_url'), 'review.demo_recording_url', 2048)
@@ -108,21 +113,24 @@ def main():
         path = package / name
         need(path.is_file() and not path.is_symlink(), f'missing package file {name}')
     if ERRORS:
-        print('\n'.join('ERROR: ' + e for e in ERRORS), file=sys.stderr)
-        sys.exit(1)
-    if '--check' in sys.argv:
-        print(json.dumps({'version': version, 'files': files, 'pass': True}))
-        return
-    out = root / 'artifacts' / f'vpsnet-plugin-openai-{version}.zip'
-    out.parent.mkdir(exist_ok=True)
+        raise ValueError('OpenAI package check failed:\n' + '\n'.join(ERRORS))
+    if check_only:
+        return None, version, files
+    out = out or root / 'artifacts' / f'vpsnet-plugin-openai-{version}.zip'
+    out.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(out, 'w', ZIP_DEFLATED) as archive:
         for name in sorted(files):
             info = ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0))
             info.external_attr = 0o644 << 16
             info.compress_type = ZIP_DEFLATED
             archive.writestr(info, (package / name).read_bytes())
-    print(out)
+    return out, version, files
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        path, version, files = build_openai_zip(check_only='--check' in sys.argv)
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({'version': version, 'files': files, 'pass': True}) if path is None else path)

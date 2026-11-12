@@ -221,7 +221,7 @@ class ReleaseTest(unittest.TestCase):
         (self.root / '.env').write_text('MUST_NOT_PACKAGE')
         result = release.build(self.root, 'plugin')
         self.assertFalse(result['published'])
-        self.assertEqual(len(result['artifacts']), 9)
+        self.assertEqual(len(result['artifacts']), 10)
         for entry in result['artifacts']:
             path = self.root / ('artifacts/distribution-' + self.plugin_version) / entry['file']
             self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), entry['sha256'])

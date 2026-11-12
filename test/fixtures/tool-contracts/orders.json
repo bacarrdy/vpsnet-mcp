@@ -1051,7 +1051,7 @@
         "annotations": {
           "destructiveHint": false,
           "idempotentHint": false,
-          "openWorldHint": false,
+          "openWorldHint": true,
           "readOnlyHint": false,
           "title": "Quote domain register"
         },

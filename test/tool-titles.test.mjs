@@ -7,7 +7,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createVpsnetServer } from '../build/index.js';
 import { installToolTitles } from '../build/remote-policy.js';
 
-test('registration fills only missing annotation titles and preserves authored metadata', () => {
+test('registration fills missing titles, preserves authored metadata and serves the reviewed hints', () => {
   const registrations = [];
   const server = {
     registerTool(name, config, handler) {
@@ -22,8 +22,9 @@ test('registration fills only missing annotation titles and preserves authored m
   const config = { title: 'Authored display title', annotations: { readOnlyHint: true, destructiveHint: false } };
   assert.equal(server.registerTool('read_vm_file', config, handler), registrations[0]);
   assert.equal(registrations[0].config.annotations.title, 'Authored display title');
+  // The four hints always come from the reviewed table (src/tool-annotations.ts), whatever a registration authored.
   assert.deepEqual(registrations[0].config.annotations, {
-    readOnlyHint: true, destructiveHint: false, openWorldHint: true, title: 'Authored display title',
+    readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false, title: 'Authored display title',
   });
   assert.equal(config.annotations.title, undefined, 'the original configuration is not mutated');
   assert.equal(registrations[0].config.title, 'Authored display title');
@@ -31,7 +32,8 @@ test('registration fills only missing annotation titles and preserves authored m
 
   server.registerTool('get_rdns', { annotations: { title: 'Read reverse DNS', openWorldHint: true } }, handler);
   assert.equal(registrations[1].config.annotations.title, 'Read reverse DNS');
-  assert.equal(registrations[1].config.annotations.openWorldHint, true);
+  assert.equal(registrations[1].config.annotations.openWorldHint, false, 'reading the account\'s own PTR record stays inside VPSnet');
+  assert.throws(() => server.registerTool('a_tool_nobody_reviewed', { inputSchema: {} }, handler), /no reviewed annotations/);
   server.registerTool('set_private_network_dns', { inputSchema: {} }, handler);
   assert.equal(registrations[2].config.annotations.title, 'Set private network DNS');
 });

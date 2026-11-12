@@ -7,6 +7,7 @@ The resulting manifest records package validation, not live client acceptance.
 import argparse
 import hashlib
 import json
+import importlib.util
 from pathlib import Path, PurePosixPath
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
@@ -18,6 +19,12 @@ from sync_plugin_version import check_version
 ENDPOINT = 'https://mcp.vpsnet.com/mcp'
 SHARED = ('LICENSE', 'assets/icon.png') + SKILL_FILES
 PORTABLE = SHARED + ('plugin.json', 'mcp.json', '.claude-plugin/plugin.json', '.mcp.json', 'README.md')
+
+
+_openai_spec = importlib.util.spec_from_file_location('package_openai_plugin', __file__.replace('package-distribution.py', 'package-openai-plugin.py'))
+_openai = importlib.util.module_from_spec(_openai_spec)
+_openai_spec.loader.exec_module(_openai)
+build_openai_zip = _openai.build_openai_zip
 
 
 def encode(data):
@@ -114,6 +121,10 @@ def build(root, output=None):
     remote_server(json.loads(portable['mcp.json']))
     remote_server(json.loads(portable['.mcp.json']))
     records.append({**archive(output, f'vpsnet-plugin-{version}.zip', portable), 'format': 'openai-claude'})
+    # OpenAI's plugin portal (Agent Plugins layout only, checked against its submission rules): upload this one.
+    openai_zip, _, _ = build_openai_zip(output / f'vpsnet-plugin-openai-{version}.zip')
+    records.append({'file': openai_zip.name, 'sha256': hashlib.sha256(openai_zip.read_bytes()).hexdigest(), 'bytes': openai_zip.stat().st_size,
+                    'format': 'openai-plugin-portal', 'submission': 'Upload to the OpenAI plugin portal (Plugins dashboard, existing VPSnet plugin)'})
 
     # OpenAI declares its authentication extension in mcp.json. The core Agent
     # Plugins schema does not allow that extension, so build a portable view.

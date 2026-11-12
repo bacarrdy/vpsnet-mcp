@@ -8,6 +8,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { networkingTools } from "./networking-tools.js";
 import { serviceFileTools } from "./service-files.js";
 import { authorizationContext } from "./request-context.js";
+import { reviewedAnnotations } from "./tool-annotations.js";
 
 export const remoteInstructions = [
   "The VPSnet connector manages the customer's existing VPS, KVM, Firecracker, applications, Functions, software-defined networks, DNS, domains and TLS certificates.",
@@ -307,6 +308,11 @@ export function installToolTitles(server: McpServer): void {
     for (const [key, value] of Object.entries({ ...legacyHints, openWorldHint: externalTools.has(name) })) {
       if (completed[key] === undefined) completed[key] = value;
     }
+    // The reviewed table is the one source of every served hint, in every profile (src/tool-annotations.ts).
+    const reviewed = reviewedAnnotations[name];
+    if (!reviewed) throw new Error(`Tool ${name} has no reviewed annotations in src/tool-annotations.ts`);
+    Object.assign(completed, { readOnlyHint: reviewed.readOnlyHint, destructiveHint: reviewed.destructiveHint,
+      idempotentHint: reviewed.idempotentHint, openWorldHint: reviewed.openWorldHint });
     return original(name, {
       ...config,
       title: config.title || title,
