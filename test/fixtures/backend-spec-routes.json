@@ -1,5 +1,5 @@
 {
- "backend_commit": "abc88dc5dd9c133c8ba5942d71071cd83312a279",
+ "backend_commit": "a33981f7cc959a6339bdedbcf185c54615c1b4aa",
  "routes": {
   "DELETE /account/networking/appliances/load-balancers/{}": {
    "scopes": [
@@ -184,6 +184,19 @@
    "query": [],
    "body": []
   },
+  "GET /account/networking/appliances/load-balancers/tls-preflight": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [
+    "hostname"
+   ],
+   "body": []
+  },
   "GET /account/networking/appliances/load-balancers/{}": {
    "scopes": [
     "networking:read"
@@ -192,6 +205,14 @@
     "read",
     "full"
    ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/load-balancers/{}/rdns": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
    "query": [],
    "body": []
   },
@@ -308,6 +329,14 @@
     "read",
     "full"
    ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/appliances/vpn-gateways/{}/rdns": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
    "query": [],
    "body": []
   },
@@ -560,6 +589,14 @@
    "query": [],
    "body": []
   },
+  "GET /account/networking/public-addresses/{}/rdns": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [],
+   "body": []
+  },
   "GET /account/networking/public-bindings/{}": {
    "scopes": [
     "networking:read"
@@ -568,6 +605,22 @@
     "read",
     "full"
    ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/public-bindings/{}/rdns": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/public-ip-assignments/{}/rdns": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [],
    "query": [],
    "body": []
   },
@@ -580,6 +633,17 @@
    "body": []
   },
   "GET /account/networking/services/{}/ports": {
+   "scopes": [
+    "networking:read"
+   ],
+   "access": [
+    "read",
+    "full"
+   ],
+   "query": [],
+   "body": []
+  },
+  "GET /account/networking/services/{}/public-firewall": {
    "scopes": [
     "networking:read"
    ],
@@ -644,7 +708,8 @@
    "body": [
     "members",
     "port",
-    "protocol"
+    "protocol",
+    "tls"
    ]
   },
   "POST /account/networking/appliances/load-balancers/{}/members": {
@@ -659,6 +724,27 @@
     "address",
     "listener_id",
     "port"
+   ]
+  },
+  "POST /account/networking/appliances/load-balancers/{}/rdns": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision",
+    "hostname"
+   ]
+  },
+  "POST /account/networking/appliances/load-balancers/{}/rdns/reset": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision"
    ]
   },
   "POST /account/networking/appliances/load-balancers/{}/rebuild": {
@@ -835,6 +921,27 @@
    "query": [],
    "body": [
     "services"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/rdns": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision",
+    "hostname"
+   ]
+  },
+  "POST /account/networking/appliances/vpn-gateways/{}/rdns/reset": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision"
    ]
   },
   "POST /account/networking/appliances/vpn-gateways/{}/rebuild": {
@@ -1121,6 +1228,18 @@
     "quote_id"
    ]
   },
+  "POST /account/networking/public-addresses/outgoing-source/recheck": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "service_id"
+   ]
+  },
   "POST /account/networking/public-addresses/quote": {
    "scopes": [
     "networking:manage",
@@ -1171,6 +1290,39 @@
    ],
    "query": [],
    "body": []
+  },
+  "POST /account/networking/public-addresses/{}/outgoing-source": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "enabled"
+   ]
+  },
+  "POST /account/networking/public-addresses/{}/rdns": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision",
+    "hostname"
+   ]
+  },
+  "POST /account/networking/public-addresses/{}/rdns/reset": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision"
+   ]
   },
   "POST /account/networking/public-addresses/{}/reach-check": {
    "scopes": [
@@ -1246,6 +1398,58 @@
     "expected_generation",
     "private_port_id"
    ]
+  },
+  "POST /account/networking/public-bindings/{}/rdns": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision",
+    "hostname"
+   ]
+  },
+  "POST /account/networking/public-bindings/{}/rdns/reset": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision"
+   ]
+  },
+  "POST /account/networking/public-ip-assignments/{}/rdns": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision",
+    "hostname"
+   ]
+  },
+  "POST /account/networking/public-ip-assignments/{}/rdns/reset": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": "full",
+   "query": [],
+   "body": [
+    "expected_revision"
+   ]
+  },
+  "POST /account/networking/services/{}/public-firewall/apply": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": []
   },
   "POST /account/networking/vpn/product-quotes": {
    "scopes": [
@@ -1524,6 +1728,22 @@
    "body": [
     "expected_revision",
     "name",
+    "rules"
+   ]
+  },
+  "PUT /account/networking/services/{}/public-firewall": {
+   "scopes": [
+    "networking:manage"
+   ],
+   "access": [
+    "full"
+   ],
+   "query": [],
+   "body": [
+    "acknowledge_no_incoming",
+    "egress_policy",
+    "enabled",
+    "expected_generation",
     "rules"
    ]
   }

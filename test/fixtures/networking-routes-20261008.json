@@ -1,6 +1,6 @@
 {
-  "backend_commit": "abc88dc5dd9c133c8ba5942d71071cd83312a279",
-  "audited_at": "2026-11-11",
+  "backend_commit": "a33981f7cc959a6339bdedbcf185c54615c1b4aa",
+  "audited_at": "2026-11-12",
   "routes": [
     {
       "method": "get",
@@ -882,6 +882,153 @@
       "controller": "PublicAddressController",
       "action": "reachCheck",
       "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/services/{serviceId}/public-firewall",
+      "controller": "PublicFirewallController",
+      "action": "show",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "put",
+      "path": "/account/networking/services/{serviceId}/public-firewall",
+      "controller": "PublicFirewallController",
+      "action": "update",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/services/{serviceId}/public-firewall/apply",
+      "controller": "PublicFirewallController",
+      "action": "apply",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/outgoing-source",
+      "controller": "PublicAddressController",
+      "action": "outgoingSource",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/outgoing-source/recheck",
+      "controller": "PublicAddressController",
+      "action": "outgoingSourceRecheck",
+      "spec": "sdn-products-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers/{id}/rebuild",
+      "controller": "ApplianceController",
+      "action": "rebuild",
+      "spec": "appliances-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-addresses/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "rdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "updateRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-addresses/{id}/rdns/reset",
+      "controller": "PublicAddressController",
+      "action": "resetRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-ip-assignments/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "assignmentRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-ip-assignments/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "updateAssignmentRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-ip-assignments/{id}/rdns/reset",
+      "controller": "PublicAddressController",
+      "action": "resetAssignmentRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/public-bindings/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "bindingRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-bindings/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "updateBindingRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/public-bindings/{id}/rdns/reset",
+      "controller": "PublicAddressController",
+      "action": "resetBindingRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "vpnRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "updateVpnRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/vpn-gateways/{id}/rdns/reset",
+      "controller": "PublicAddressController",
+      "action": "resetVpnRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "get",
+      "path": "/account/networking/appliances/load-balancers/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "loadbalancerRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers/{id}/rdns",
+      "controller": "PublicAddressController",
+      "action": "updateLoadBalancerRdns",
+      "spec": "private-networking-v1.yml"
+    },
+    {
+      "method": "post",
+      "path": "/account/networking/appliances/load-balancers/{id}/rdns/reset",
+      "controller": "PublicAddressController",
+      "action": "resetLoadBalancerRdns",
+      "spec": "private-networking-v1.yml"
     }
   ],
   "excluded": [

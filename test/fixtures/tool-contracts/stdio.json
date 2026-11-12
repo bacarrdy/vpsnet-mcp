@@ -384,6 +384,35 @@
       "name": "apply_dns_template",
       "title": "Apply DNS template"
     },
+    "apply_service_public_firewall": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Apply service public firewall"
+      },
+      "description": "Send the saved firewall of an owned server to its node again, typically after state not_applied; the rules and the generation do not change. Free. A send still waiting for the node's answer is not repeated; a server without a firewall, or with it switched off and confirmed, answers its current state and nothing is sent. Poll get_service_public_firewall for the state. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id"
+        ],
+        "type": "object"
+      },
+      "name": "apply_service_public_firewall",
+      "title": "Apply service public firewall"
+    },
     "attach_network_vpn_gateway": {
       "annotations": {
         "destructiveHint": true,
@@ -5510,7 +5539,7 @@
         "readOnlyHint": false,
         "title": "Enter service rescue mode"
       },
-      "description": "Restart one owned active Firecracker VPS or Cloud VPS into an operator-owned rescue system. Read get_service_rescue first and use an exact advertised image ID. This interrupts every running service. Call only after the user explicitly confirms the target service, rescue image, and reboot. Requires services:rescue, full API-key access, and a fresh idempotencyKey.",
+      "description": "Restart one owned active Firecracker VPS or Cloud VPS into an operator-owned rescue system. Read get_service_rescue first and use an exact advertised image ID. This interrupts every running service. Call only after the user explicitly confirms the target service, rescue image, and reboot. Requires services:rescue, full API-key access, and a fresh idempotencyKey. Rescue may be switched off by VPSnet: while get_service_rescue reports capability.enabled false this tool sends nothing and answers serviceRescueImageNotAdvertised (the API itself answers 503 serviceRescueUnavailable).",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -5942,7 +5971,7 @@
         "readOnlyHint": false,
         "title": "Flush iptables"
       },
-      "description": "Flush iptables rules on VPS (useful when locked out) Requires services:manage and a full-access API key.",
+      "description": "Flush iptables rules on VPS (useful when locked out) Requires services:manage and a full-access API key. It clears the rules inside the server only; the public firewall that VPSnet applies to the server's public interface on its node is separate and is not changed by this.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -7472,7 +7501,7 @@
         "readOnlyHint": true,
         "title": "Get network port forwards"
       },
-      "description": "Read the NAT port forwarding rules of an owned private network: applied rules (protocol, external_port on the network's NAT public address, the target server's private_port_id and its internal_port), the router generation to send to set_network_port_forwards (not the network generation), state (empty, pending, active, failed), per-rule exposure (open_to_internet is true when the server's security groups admit that port from every IPv4 address), targets with eligible and unavailable_reason_code, capability (available, limit, protocols), last_change (a refused change with its nat_port_forward_refused_* reason_code) and suspended (rules kept while the network has no NAT address; they are on no router). active is the router's committed state, not a packet test. The network needs its NAT public address (see get_network_routed_egress); capability.available false means new rules are not accepted for this account now, rules already there can still be removed. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read the NAT port forwarding rules of an owned private network: applied rules (protocol, external_port on the network's NAT public address, the target server's private_port_id and its internal_port), the router generation to send to set_network_port_forwards (not the network generation), state (empty, pending, active, failed), per-rule exposure (open_to_internet is true when the server's security groups admit that port from every IPv4 address), targets with eligible, unavailable_reason_code, kind (private_primary = a server without its own public IPv4, own_ipv4 = the private interface of a server that has one) and reply_route (own_ipv4 only), capability (available, limit, protocols), last_change (a refused change with its nat_port_forward_refused_* reason_code) and suspended (rules kept while the network has no NAT address; they are on no router). active is the router's committed state, not a packet test. The network needs its NAT public address (see get_network_routed_egress); capability.available false means new rules are not accepted for this account now, rules already there can still be removed. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -8353,6 +8382,50 @@
       "name": "get_profile",
       "title": "Get profile"
     },
+    "get_public_ip_rdns": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get public IP rDNS"
+      },
+      "description": "Read the reverse DNS (PTR) of an owned public address that is not a server's own primary address: an additional address, a floating binding, a VPN's or a public load balancer's address (target). Free. hostname is the requested name (null requests removal), applied_hostname the last name the DNS server confirmed, state unset, pending, applied or failed with reason_code, revision the value to send as expected_revision, applied_at the last confirmed write (not resolver cache expiry). Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "resource_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "target": {
+            "description": "What resource_id names: address = an owned additional public address (list_network_public_addresses), binding = a floating public binding, vpn = a VPN gateway (its public address), load_balancer = a public load balancer (its address), assignment = a current public IP assignment ID that an answer named. A server's own primary address uses get_rdns / change_rdns instead.",
+            "enum": [
+              "address",
+              "assignment",
+              "binding",
+              "vpn",
+              "load_balancer"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "target"
+        ],
+        "type": "object"
+      },
+      "name": "get_public_ip_rdns",
+      "title": "Get public IP rDNS"
+    },
     "get_rdns": {
       "annotations": {
         "destructiveHint": false,
@@ -8973,6 +9046,35 @@
       "name": "get_service_history",
       "title": "Get service history"
     },
+    "get_service_public_firewall": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Get service public firewall"
+      },
+      "description": "Read the firewall of an owned server's public interface (VPS or Cloud VPS; incoming allow rules for IPv4 and IPv6). Free. available and unavailable_reason say whether it is offered for this server now; enabled, rules, generation (send it as expected_generation to set_service_public_firewall; 0 = the server never had one), applied_generation and state: applying, applied (the node enforces it), saved_for_start (stored, loaded before the server's interface comes up), not_applied with reason_code (public_firewall_closed = the node closed ALL incoming connections; apply_service_public_firewall sends the saved rules again), not_enforced (the node's bypass is on, nothing is filtered) or off. limits.rules is the rule limit; manage and manage_reason (read_only_key, two_factor_locked, suspended, check_failed) say whether this key may change it now; management_ports names the SSH port (RDP on a Windows Cloud VPS) that a change must keep open so the user is not locked out. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id"
+        ],
+        "type": "object"
+      },
+      "name": "get_service_public_firewall",
+      "title": "Get service public firewall"
+    },
     "get_service_rescue": {
       "annotations": {
         "destructiveHint": false,
@@ -8981,7 +9083,7 @@
         "readOnlyHint": true,
         "title": "Get service rescue status"
       },
-      "description": "Get operator rescue capability and the current durable rescue session for one owned Firecracker VPS or Cloud VPS. Requires services:read. Provider identifiers, ISO paths, nonces, and rollback state are never returned.",
+      "description": "Get operator rescue capability and the current durable rescue session for one owned Firecracker VPS or Cloud VPS. Requires services:read. Provider identifiers, ISO paths, nonces, and rollback state are never returned. VPSnet can switch rescue off: capability.enabled false means it is not offered now; say so and do not call enter_service_rescue.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -9559,7 +9661,7 @@
         "readOnlyHint": true,
         "title": "List API keys"
       },
-      "description": "Show the API key this request authenticated with: scope (read/full/ai), granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit (requests per minute), plus permission_options listing every scope the panel can grant. The backend scopes this endpoint to the calling key itself (apiKeyScopedToSelf), so other keys on the account are never listed here. By design an API key can never create, change or revoke API keys (403 apiKeyForbidden, reason api_keys_cannot_manage_api_keys): that is done in the VPSnet panel while signed in. Read-only.",
+      "description": "Show the API key this request authenticated with: scope (read/full/ai), granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit (a stored value the limiter does not read: every key may make 300 requests per 60 seconds by default, fewer on some operations), plus permission_options listing every scope the panel can grant. The backend scopes this endpoint to the calling key itself (apiKeyScopedToSelf), so other keys on the account are never listed here. By design an API key can never create, change or revoke API keys (403 apiKeyForbidden, reason api_keys_cannot_manage_api_keys): that is done in the VPSnet panel while signed in. Read-only.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -10913,6 +11015,42 @@
       },
       "name": "list_service_private_ports",
       "title": "List service private ports"
+    },
+    "list_service_ssh_keys": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "List SSH keys on a server"
+      },
+      "description": "List which account SSH keys are in root's authorized_keys on one owned Cloud VPS or Firecracker VPS, as the server last reported: per key deployed (true, false, or null when the server was never read) and a removal running or ended in the last 15 minutes; inventory carries source, observedAt, refreshing (a Firecracker VPS answers asynchronously), readFailure, passwordLogin and the count of other keys. refresh=true asks the server again. Container VPS and dedicated servers answer supported false with unsupportedReason. Free. Requires services:read when called with an API key.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "orderNo": {
+            "description": "Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP12345 or VP12345-1",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "type": "string"
+          },
+          "refresh": {
+            "description": "Ask the server again even when the last read is fresh",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "orderNo"
+        ],
+        "type": "object"
+      },
+      "name": "list_service_ssh_keys",
+      "title": "List SSH keys on a server"
     },
     "list_services": {
       "annotations": {
@@ -13478,6 +13616,44 @@
       "name": "reapply_dns_zone",
       "title": "Reapply DNS zone"
     },
+    "rebuild_network_load_balancer": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Rebuild network load balancer"
+      },
+      "description": "Rebuild every proxy server of an owned public load balancer, one at a time, from the image it runs now; the others keep serving, so the balancer keeps its address, listeners and members. Free. Proxies that do not serve are rebuilt first; a healthy balancer may be rebuilt too. The operation (kind load_balancer_proxy_rebuild) waits with reason load_balancer_rebuilding until every proxy is rebuilt, or fails with load_balancer_rebuild_failed at the first proxy that could not be rebuilt (the platform rebuilds that one by itself), or is cancelled when the balancer is removed or its paid period ends. Refusals: 409 load_balancer_rebuild_not_offered (an internal balancer has no server of its own), 409 load_balancer_not_active, 409 appliance_busy, 409 load_balancer_proxy_paid_period_unavailable, 429 load_balancer_rebuild_too_soon (one rebuild per two minutes), 423 while a server of its network is suspended for abuse. Every read of the balancer shows a running rebuild in its rebuild field. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "load_balancer_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "load_balancer_id",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "rebuild_network_load_balancer",
+      "title": "Rebuild network load balancer"
+    },
     "rebuild_network_vpn_gateway": {
       "annotations": {
         "destructiveHint": true,
@@ -13606,6 +13782,36 @@
       },
       "name": "recheck_free_certificate",
       "title": "Recheck free TLS certificate"
+    },
+    "recheck_public_address_outgoing_source": {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Recheck public address outgoing source"
+      },
+      "description": "Ask a server again to put its outgoing source back on its own IP, for an entry of outgoing_source_warnings (an address already left the server, which still tries to send from it). Free; nothing else changes. outcome unchanged when nothing is owed for that server or a request for it still waits for its answer; 404 workload_not_found for a server that is not this account's. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "service_id": {
+            "description": "The server's service number from the outgoing_source_warnings entry",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id"
+        ],
+        "type": "object"
+      },
+      "name": "recheck_public_address_outgoing_source",
+      "title": "Recheck public address outgoing source"
     },
     "reconcile_application": {
       "annotations": {
@@ -14107,6 +14313,45 @@
       },
       "name": "remove_network_vpn_site_second_line",
       "title": "Remove network VPN site second line"
+    },
+    "remove_service_ssh_key": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Remove an SSH key from a server"
+      },
+      "description": "Remove one account SSH key (ssh_key from list_ssh_keys) from root's authorized_keys on one owned running Cloud VPS or Firecracker VPS; every line with that key goes, nothing else changes, and the key stays in the account. Free. Confirm with the user first. A key that is not on the server answers state absent. Refused with 409 sshKeyRemoveLastKey when it is the server's last permanent key and root cannot log in with a password: add another key first. Cloud VPS answers at once (removed or absent); Firecracker VPS answers 202 pending and list_service_ssh_keys shows the result in the key's removal. One removal at a time per server, at most 10 per minute; 423 while the server's two-factor lock is on. Requires services:manage and a full-access API key.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "orderNo": {
+            "description": "Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP12345 or VP12345-1",
+            "maxLength": 64,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9-]+$",
+            "type": "string"
+          },
+          "ssh_key": {
+            "description": "SSH key ID from list_ssh_keys",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "orderNo",
+          "ssh_key"
+        ],
+        "type": "object"
+      },
+      "name": "remove_service_ssh_key",
+      "title": "Remove an SSH key from a server"
     },
     "rename_network_vpn_gateway": {
       "annotations": {
@@ -14689,6 +14934,57 @@
       },
       "name": "reset_hostname",
       "title": "Reset hostname"
+    },
+    "reset_public_ip_rdns": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Reset public IP rDNS"
+      },
+      "description": "Remove the custom reverse DNS of an owned public address (target) at the revision read with get_public_ip_rdns; a paid address gets no automatic name back. Free. The answer stays pending until the DNS server confirms the removal; moving or detaching the address does not remove it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "description": "revision from the last get_public_ip_rdns read",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "resource_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "target": {
+            "description": "What resource_id names: address = an owned additional public address (list_network_public_addresses), binding = a floating public binding, vpn = a VPN gateway (its public address), load_balancer = a public load balancer (its address), assignment = a current public IP assignment ID that an answer named. A server's own primary address uses get_rdns / change_rdns instead.",
+            "enum": [
+              "address",
+              "assignment",
+              "binding",
+              "vpn",
+              "load_balancer"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "target",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "name": "reset_public_ip_rdns",
+      "title": "Reset public IP rDNS"
     },
     "restart_application": {
       "annotations": {
@@ -15910,7 +16206,7 @@
         "readOnlyHint": false,
         "title": "Set network port forwards"
       },
-      "description": "Replace the COMPLETE NAT port forwarding rule set of an owned network (rules: [] withdraws all of them) at the router generation read from get_network_port_forwards. Each rule forwards TCP or UDP from the network's NAT public address (external_port) to a server's private port (private_port_id, internal_port). Targets are Firecracker servers without a public IPv4 of their own that use this network as primary interface; Cloud VPS servers are not accepted. Security groups still decide whether the server takes the traffic: this never opens a security group and never buys an address. Mail ports 25, 465, 587 and 2525 are refused for every rule (nat_port_forward_smtp_refused) and a new or changed rule on a port the platform refuses is refused with nat_port_forward_port_refused; a refusal of one rule names it in context.rule_index. At most capability.limit rules (64 at most). A set equal to the applied one answers 200 outcome unchanged; otherwise 202, with outcome queued when an earlier change is still being applied and retried when the identical failed set is sent again. A request that only removes rules is never stopped by a service two-factor or abuse lock. Poll get_network_port_forwards until applied_generation equals generation and state is active or empty; last_change names a change the router refused (the applied rules are unchanged then). Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Replace the COMPLETE NAT port forwarding rule set of an owned network (rules: [] withdraws all of them) at the router generation read from get_network_port_forwards. Each rule forwards TCP or UDP from the network's NAT public address (external_port) to a server's private port (private_port_id, internal_port). Targets are ports of this network's Firecracker servers that get_network_port_forwards lists as eligible: the first interface of a server without a public IPv4 of its own (kind private_primary) or the private interface of a server that has its own public IPv4 (kind own_ipv4; it answers forwarded connections through the network, and the target's reply_route says whether that reply route is in place or which command the customer runs on the server). Cloud VPS servers are not accepted. Security groups still decide whether the server takes the traffic: this never opens a security group and never buys an address. Mail ports 25, 465, 587 and 2525 are refused for every rule (nat_port_forward_smtp_refused) and a new or changed rule on a port the platform refuses is refused with nat_port_forward_port_refused; a refusal of one rule names it in context.rule_index. At most capability.limit rules (64 at most). A set equal to the applied one answers 200 outcome unchanged; otherwise 202, with outcome queued when an earlier change is still being applied and retried when the identical failed set is sent again. A request that only removes rules is never stopped by a service two-factor or abuse lock. Poll get_network_port_forwards until applied_generation equals generation and state is active or empty; last_change names a change the router refused (the applied rules are unchanged then). Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -17085,6 +17381,220 @@
       },
       "name": "set_private_port_security_groups",
       "title": "Set private port security groups"
+    },
+    "set_public_address_outgoing_source": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set public address outgoing source"
+      },
+      "description": "Make an owned additional address the source of a server's new outgoing IPv4 connections (enabled=true), or go back to the server's own IP (enabled=false). Free. Only for an address attached to the public interface of a VPS (target.kind server_public) whose target.carrier.outgoing.offered is true; a server has at most one such address, so switching another one on replaces it. Replies, IPv6, sockets a program binds itself and NAT-ed container traffic do not change; the other side of a new outgoing connection sees the chosen address. The same value again answers outcome unchanged. When the address leaves the server the platform first moves the outgoing source back to the server's own IP. Refusals: 409 public_address_outgoing_not_on_server, public_address_outgoing_node_not_ready, public_address_outgoing_server_type_not_available (Cloud VPS), public_address_change_pending; 423 while the server's two-factor lock is closed. Accepted is not applied: read target.carrier.outgoing.state with get_network_public_address. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "address_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "address_id",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "name": "set_public_address_outgoing_source",
+      "title": "Set public address outgoing source"
+    },
+    "set_public_ip_rdns": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set public IP rDNS"
+      },
+      "description": "Set the reverse DNS (PTR) hostname of an owned public address (target) at the revision read with get_public_ip_rdns. Free; no forward DNS record is required. The name is trimmed and lowercased; an invalid one is refused with 422 public_address_rdns_hostname_invalid (validation_code), a stale revision with 409 public_address_rdns_revision_conflict (read again). The answer is state pending until the DNS server confirms it (applied). After an uncertain result read again and compare hostname instead of sending it twice. 423 while the server the address is attached to has its two-factor lock closed. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "expected_revision": {
+            "description": "revision from the last get_public_ip_rdns read",
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "hostname": {
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
+          "resource_id": {
+            "description": "Exact lowercase UUID returned by an owned networking resource",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+            "type": "string"
+          },
+          "target": {
+            "description": "What resource_id names: address = an owned additional public address (list_network_public_addresses), binding = a floating public binding, vpn = a VPN gateway (its public address), load_balancer = a public load balancer (its address), assignment = a current public IP assignment ID that an answer named. A server's own primary address uses get_rdns / change_rdns instead.",
+            "enum": [
+              "address",
+              "assignment",
+              "binding",
+              "vpn",
+              "load_balancer"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "target",
+          "hostname",
+          "expected_revision"
+        ],
+        "type": "object"
+      },
+      "name": "set_public_ip_rdns",
+      "title": "Set public IP rDNS"
+    },
+    "set_service_public_firewall": {
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Set service public firewall"
+      },
+      "description": "Replace the COMPLETE firewall of an owned server's public interface (VPS or Cloud VPS) at the generation read with get_service_public_firewall: enabled switches it on or off, rules is every incoming allow rule (at most limits.rules; a rule left out is removed). Free. Switched on, a new connection reaches the server only where a rule allows it (replies to connections the server opened, ICMP errors, neighbour discovery and DHCP still pass; outgoing traffic stays allowed); removing a rule refuses new connections at once but does not cut a session already open. Before switching it on or removing a rule, make sure management_ports stays open for the user's own address, and ask the user for that address. Switching on with no incoming rule needs acknowledge_no_incoming=true (every new connection is then refused). Outgoing rules are not offered. Refusals: 409 public_firewall_generation_conflict (read again), 409 public_firewall_unavailable with unavailable_reason (switching off is always accepted), 422 public_firewall_rule_limit, 422 with field rules.N.<key> for a refused rule, 422 public_firewall_idempotency_key_reused, 423 while the server's two-factor lock is closed. A body equal to the stored one answers the current state and changes nothing. The answer reads state applying; poll get_service_public_firewall until state is applied (saved_for_start for a stopped server) or not_applied. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "execution": {
+        "taskSupport": "forbidden"
+      },
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "acknowledge_no_incoming": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_generation": {
+            "maximum": 9007199254740991,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "idempotencyKey": {
+            "description": "Idempotency-Key for this exact change; preserve it and the unchanged body on uncertain recovery",
+            "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "direction": {
+                  "const": "ingress",
+                  "description": "Only incoming rules are offered",
+                  "type": "string"
+                },
+                "ether_type": {
+                  "enum": [
+                    "IPv4",
+                    "IPv6"
+                  ],
+                  "type": "string"
+                },
+                "icmp_code": {
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "icmp_type": {
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "id": {
+                  "description": "Optional: a rule without id that equals a stored rule keeps its id",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$",
+                  "type": "string"
+                },
+                "port_max": {
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "port_min": {
+                  "maximum": 65535,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "protocol": {
+                  "enum": [
+                    "any",
+                    "tcp",
+                    "udp",
+                    "sctp",
+                    "icmp",
+                    "icmpv6"
+                  ],
+                  "type": "string"
+                },
+                "remote_cidr": {
+                  "description": "Canonical source prefix of the rule's family, for example 198.51.100.7/32, 0.0.0.0/0, 2001:db8::/32 or ::/0. Never the server's own address.",
+                  "maxLength": 43,
+                  "pattern": "^(?:\\d{1,3}(?:\\.\\d{1,3}){3}\\/(?:[0-9]|[12][0-9]|3[0-2])|[0-9A-Fa-f:]{2,39}\\/(?:[0-9]|[1-9][0-9]|1[01][0-9]|12[0-8]))$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "direction",
+                "ether_type",
+                "protocol",
+                "remote_cidr"
+              ],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "type": "array"
+          },
+          "service_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9-]{0,95}$(?![\\s\\S])",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service_id",
+          "expected_generation",
+          "enabled",
+          "rules",
+          "idempotencyKey"
+        ],
+        "type": "object"
+      },
+      "name": "set_service_public_firewall",
+      "title": "Set service public firewall"
     },
     "set_vpn_server_access": {
       "annotations": {

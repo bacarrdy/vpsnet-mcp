@@ -154,7 +154,7 @@ const server = new McpServer(
     instructions: options.remoteScopes ? (options.remoteProfile === "orders" ? orderInstructions(options.remoteScopes) : remoteInstructions) : [
       "This MCP server controls VPSnet.com services, including VPS service management, DNS zones, domain registration, domain contacts, API keys, billing, and related paid actions.",
       "Use the tool descriptions and API-key scopes to choose the correct surface; do not assume this server is limited to VPS-only operations.",
-      "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Requests are rate-limited — on HTTP 429, back off and retry after a short delay rather than hammering the endpoint.",
+      "Auth: every request authenticates with the X-API-KEY header (your VPSNet API key). Each API key may make 300 requests per 60 seconds by default, and some operations have lower limits; on HTTP 429 wait retry_after seconds before retrying rather than hammering the endpoint.",
       "This server needs a MANAGEMENT API key (scope full, or read for GET-only use). An AI-scoped key is issued only for VPSnet AI assistant inference and is refused on every account route, so no tool here can work with one. When a tool result carries auth_problem, read its reason and fix and relay them instead of reporting a bare 'Unauthorized'.",
       "Service tools are scope-gated for API keys: service reads (lists, details, graphs, history, options, backup/snapshot/restore-point listings) require services:read; service mutations (start/stop/restart/console, suspend/resume, hostname, rDNS, root password, title, IPv6, extra settings, SSH key deploy, OS reinstall, plan change, renewal, auto-renew, backups, snapshots, firewall flush) require services:manage plus a full-access key; rescue requires services:rescue; paid whole-service restore additionally requires the services:restore paid scope. A key whose granular scope list was left empty keeps everything its access level (full/read) already allows, so scopes only ever narrow a key.",
       "Service file manager tools (get_service_file_capabilities, list/stat/read/search, download/upload, write, mkdir, move, delete, extract) need an EXPLICIT files:read or files:manage grant on the API key (an empty permission list does not include them; changes need a full-access key). Call get_service_file_capabilities first and relay an unavailable reason verbatim: Firecracker servers need the updated guest agent (agent_update_required) and Cloud VPS (KVM) needs the VDS file-manager switch (feature_disabled). Writes are compare-and-swap: pass the version or sha256 you read. Slow guests are polled inside the tools; continue a returned operationId with get_service_file_operation instead of repeating a change.",
@@ -191,7 +191,7 @@ const server = new McpServer(
       "Installation list and detail responses carry a capabilities block for the service's platform: data_restore, console, compose_adoption, custom_projects, and log_service_filter. Treat it as the authority on what is possible for that installation. Do not offer selective data restore when data_restore is false, do not offer Compose adoption or customer recipes when their flags are false, and do not pass a per-service log filter when log_service_filter is false. A separate access.capabilities.can_configure flag governs whether the access mode may be changed.",
       "Never repeat application variable values in summaries or approval text. Refer only to variable names, especially for passwords, tokens, and secrets.",
       "Use manual SSH deployment when it best matches the requested result or the user explicitly requests a custom installation. Do not present a manual deployment as a VPSnet-managed catalog installation.",
-      "Service rescue is a separate recovery path for Firecracker VPS and Cloud VPS. Always call get_service_rescue first. Entering rescue restarts the service; call enter_service_rescue only after the user explicitly approves the restart and exact image returned by the capability response. Firecracker exposes the customer filesystem at /mnt/customer; Cloud VPS uses the operator recovery ISO and noVNC. Exit restores the exact original boot and running/stopped state. If exit returns needs_attention, retry exit_service_rescue with the same idempotency key. Never ask for or invent provider nodes, VM IDs, ISO paths, operation nonces, or rollback configuration.",
+      "Service rescue is a separate recovery path for Firecracker VPS and Cloud VPS, offered only while VPSnet has it switched on. Always call get_service_rescue first; capability.enabled false means it is not offered now. Entering rescue restarts the service; call enter_service_rescue only after the user explicitly approves the restart and exact image returned by the capability response. Firecracker exposes the customer filesystem at /mnt/customer; Cloud VPS uses the operator recovery ISO and noVNC. Exit restores the exact original boot and running/stopped state. If exit returns needs_attention, retry exit_service_rescue with the same idempotency key. Never ask for or invent provider nodes, VM IDs, ISO paths, operation nonces, or rollback configuration.",
       "",
       "### Manual or custom deployment inside a VPS",
       "Use only the access needed for the user's task. Keep local sandbox and approval controls enabled; request a specific missing capability instead of unrestricted agent access.",
@@ -663,7 +663,7 @@ server.registerTool(
   "get_service_rescue",
   {
     description:
-      "Get operator rescue capability and the current durable rescue session for one owned Firecracker VPS or Cloud VPS. Requires services:read. Provider identifiers, ISO paths, nonces, and rollback state are never returned.",
+      "Get operator rescue capability and the current durable rescue session for one owned Firecracker VPS or Cloud VPS. Requires services:read. Provider identifiers, ISO paths, nonces, and rollback state are never returned. VPSnet can switch rescue off: capability.enabled false means it is not offered now; say so and do not call enter_service_rescue.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -692,7 +692,7 @@ server.registerTool(
   "enter_service_rescue",
   {
     description:
-      "Restart one owned active Firecracker VPS or Cloud VPS into an operator-owned rescue system. Read get_service_rescue first and use an exact advertised image ID. This interrupts every running service. Call only after the user explicitly confirms the target service, rescue image, and reboot. Requires services:rescue, full API-key access, and a fresh idempotencyKey.",
+      "Restart one owned active Firecracker VPS or Cloud VPS into an operator-owned rescue system. Read get_service_rescue first and use an exact advertised image ID. This interrupts every running service. Call only after the user explicitly confirms the target service, rescue image, and reboot. Requires services:rescue, full API-key access, and a fresh idempotencyKey. Rescue may be switched off by VPSnet: while get_service_rescue reports capability.enabled false this tool sends nothing and answers serviceRescueImageNotAdvertised (the API itself answers 503 serviceRescueUnavailable).",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       image: serviceRescueImageIdSchema,
@@ -2862,7 +2862,7 @@ server.registerTool(
 server.registerTool(
   "flush_iptables",
   {
-    description: "Flush iptables rules on VPS (useful when locked out) Requires services:manage and a full-access API key.",
+    description: "Flush iptables rules on VPS (useful when locked out) Requires services:manage and a full-access API key. It clears the rules inside the server only; the public firewall that VPSnet applies to the server's public interface on its node is separate and is not changed by this.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
     },
@@ -2974,6 +2974,56 @@ server.registerTool(
       "POST",
       svc(orderNo, "change-ssh-key"),
       { ssh_key }
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "list_service_ssh_keys",
+  {
+    description:
+      "List which account SSH keys are in root's authorized_keys on one owned Cloud VPS or Firecracker VPS, as the server last reported: per key deployed (true, false, or null when the server was never read) and a removal running or ended in the last 15 minutes; inventory carries source, observedAt, refreshing (a Firecracker VPS answers asynchronously), readFailure, passwordLogin and the count of other keys. refresh=true asks the server again. Container VPS and dedicated servers answer supported false with unsupportedReason. Free. Requires services:read when called with an API key.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      refresh: z.boolean().optional().describe("Ask the server again even when the last read is fresh"),
+    },
+    annotations: {
+      title: "List SSH keys on a server",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, refresh }) => {
+    const { data } = await apiRequest(
+      "GET",
+      svc(orderNo, "ssh-keys") + (refresh === true ? "?refresh=1" : "")
+    );
+    return { content: [{ type: "text", text: formatJson(data) }] };
+  }
+);
+
+server.registerTool(
+  "remove_service_ssh_key",
+  {
+    description:
+      "Remove one account SSH key (ssh_key from list_ssh_keys) from root's authorized_keys on one owned running Cloud VPS or Firecracker VPS; every line with that key goes, nothing else changes, and the key stays in the account. Free. Confirm with the user first. A key that is not on the server answers state absent. Refused with 409 sshKeyRemoveLastKey when it is the server's last permanent key and root cannot log in with a password: add another key first. Cloud VPS answers at once (removed or absent); Firecracker VPS answers 202 pending and list_service_ssh_keys shows the result in the key's removal. One removal at a time per server, at most 10 per minute; 423 while the server's two-factor lock is on. Requires services:manage and a full-access API key.",
+    inputSchema: {
+      orderNo: serviceOrderNoSchema,
+      ssh_key: positiveIdSchema.describe("SSH key ID from list_ssh_keys"),
+    },
+    annotations: {
+      title: "Remove an SSH key from a server",
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+    },
+  },
+  async ({ orderNo, ssh_key }) => {
+    const { data } = await apiRequest(
+      "DELETE",
+      svc(orderNo, `ssh-keys/${ssh_key}`)
     );
     return { content: [{ type: "text", text: formatJson(data) }] };
   }
@@ -3615,7 +3665,7 @@ server.registerTool(
   "list_api_keys",
   {
     description:
-      "Show the API key this request authenticated with: scope (read/full/ai), granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit (requests per minute), plus permission_options listing every scope the panel can grant. The backend scopes this endpoint to the calling key itself (apiKeyScopedToSelf), so other keys on the account are never listed here. By design an API key can never create, change or revoke API keys (403 apiKeyForbidden, reason api_keys_cannot_manage_api_keys): that is done in the VPSnet panel while signed in. Read-only.",
+      "Show the API key this request authenticated with: scope (read/full/ai), granular scopes, paid_scopes, paid_operations_enabled, daily_spend_limit_eur, monthly_spend_limit_eur, allowed IPs, expiry and rate_limit (a stored value the limiter does not read: every key may make 300 requests per 60 seconds by default, fewer on some operations), plus permission_options listing every scope the panel can grant. The backend scopes this endpoint to the calling key itself (apiKeyScopedToSelf), so other keys on the account are never listed here. By design an API key can never create, change or revoke API keys (403 apiKeyForbidden, reason api_keys_cannot_manage_api_keys): that is done in the VPSnet panel while signed in. Read-only.",
     inputSchema: {},
   },
   async () => {

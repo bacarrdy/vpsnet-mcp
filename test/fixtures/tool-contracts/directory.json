@@ -130,6 +130,7 @@
     "get_networking_topology",
     "get_os_options",
     "get_private_network",
+    "get_public_ip_rdns",
     "get_rdns",
     "get_registrar_lock",
     "get_restore_file_browse",
@@ -199,9 +200,11 @@
     "read_service_file",
     "read_vm_file",
     "reapply_dns_zone",
+    "rebuild_network_load_balancer",
     "rebuild_network_vpn_gateway",
     "recheck_certificate_validation",
     "recheck_free_certificate",
+    "recheck_public_address_outgoing_source",
     "reconcile_application",
     "refresh_automatic_ssl_subscription",
     "refresh_certificate",
@@ -218,6 +221,7 @@
     "replace_automatic_ssl_domain",
     "resend_certificate_validation",
     "reset_hostname",
+    "reset_public_ip_rdns",
     "restart_application",
     "restart_network_vpn_gateway",
     "restart_service",
@@ -256,6 +260,8 @@
     "set_private_network_dns",
     "set_private_network_names",
     "set_private_port_security_groups",
+    "set_public_address_outgoing_source",
+    "set_public_ip_rdns",
     "set_vpn_server_access",
     "start_application",
     "start_network_vpn_tunnel_test",
@@ -3677,6 +3683,28 @@
         ]
       }
     },
+    "get_public_ip_rdns": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:read"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:read"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "get_rdns": {
       "set": {
         "_meta": {
@@ -5989,6 +6017,28 @@
         ]
       }
     },
+    "rebuild_network_load_balancer": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
     "rebuild_network_vpn_gateway": {
       "set": {
         "_meta": {
@@ -6049,6 +6099,28 @@
           {
             "scopes": [
               "certificates:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "recheck_public_address_outgoing_source": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
             ],
             "type": "oauth2"
           }
@@ -6452,6 +6524,28 @@
           {
             "scopes": [
               "services:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "reset_public_ip_rdns": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
             ],
             "type": "oauth2"
           }
@@ -7379,6 +7473,50 @@
       }
     },
     "set_private_port_security_groups": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "set_public_address_outgoing_source": {
+      "set": {
+        "_meta": {
+          "securitySchemes": [
+            {
+              "scopes": [
+                "networking:manage"
+              ],
+              "type": "oauth2"
+            }
+          ]
+        },
+        "securitySchemes": [
+          {
+            "scopes": [
+              "networking:manage"
+            ],
+            "type": "oauth2"
+          }
+        ]
+      }
+    },
+    "set_public_ip_rdns": {
       "set": {
         "_meta": {
           "securitySchemes": [

@@ -136,7 +136,8 @@ for (const name of ["rollback_snapshot", "delete_snapshot", "rollback_firecracke
 // The directory profile operates existing services and excludes upgrade promotion.
 for (const name of ["get_pricing", "get_plan_options", "get_plan_resources", "calculate_plan_change", "get_period_options", "list_certificate_catalog", "get_certificate_catalog_product", "list_domain_tlds", "check_domain_availability", "get_domain_ordering_status"]) permissions.delete(name);
 for (const tool of networkingTools) {
-  if (!tool.path.startsWith("/account/networking/") || tool.options.paid || tool.options.quote
+  // localOnly: the public firewall waits for the backend's selected-service check on its routes (see networking-tools.ts).
+  if (!tool.path.startsWith("/account/networking/") || tool.options.paid || tool.options.quote || tool.options.localOnly
       || /\/(orders|product-orders|products|product-periods|billing|auto-renew|quote|renew|renewal|payment|checkout|catalog)(\/|$)/.test(tool.path)) continue;
   permissions.set(tool.name, tool.options.readOnly ? "networking:read" : "networking:manage");
 }

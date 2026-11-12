@@ -1344,5 +1344,17 @@
    "applications:manage"
   ],
   "paid": ""
+ },
+ "list_service_ssh_keys": {
+  "scopes": [
+   "services:read"
+  ],
+  "paid": ""
+ },
+ "remove_service_ssh_key": {
+  "scopes": [
+   "services:manage"
+  ],
+  "paid": ""
  }
 }
