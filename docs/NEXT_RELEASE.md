@@ -1,6 +1,6 @@
 # MCP server 2.7.0
 
-Prepared 2026-11-12 against the backend in production. Not yet published.
+Published to npm on 2026-11-12.
 
 ## Release notes
 
@@ -19,5 +19,4 @@ See [CHANGELOG](../CHANGELOG.md) for the tool names.
 
 ## Publication and deployment
 
-1. Backend first: the release in which AI connections act only on the servers the customer selected.
-2. Then, from the same commit of this repository: `npm publish` of the package and the hosted gateway deploy.
+The package is published to npm from this commit. The hosted connector at https://mcp.vpsnet.com/mcp is updated separately.

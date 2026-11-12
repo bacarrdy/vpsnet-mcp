@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.7.0 MCP server — YYYY-MM-DD
+## 2.7.0 MCP server — 2026-11-12
 
 New tools. Every function below is live in production.
 
