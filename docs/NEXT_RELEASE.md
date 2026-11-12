@@ -1,6 +1,6 @@
 # Connector 1.0.1 / MCP server 2.7.1
 
-Prepared 2026-11-12. Not yet published.
+Published 2026-11-12.
 
 ## Release notes
 

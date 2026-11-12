@@ -1,4 +1,4 @@
-// Generated once from the reviewed audit (vpsnet_qa/openai-plugin-20261112/AUDIT.md), then maintained by hand.
+// Generated once from the reviewed audit of what every tool does, then maintained by hand.
 // One entry per tool of every profile (local, hosted directory, hosted orders): the four MCP hints as explicit
 // booleans, the tool's effect and world, and the sentence that justifies them. installToolTitles serves exactly these
 // values; test/tool-annotations.test.mjs fails when a tool has no entry or a hint contradicts its effect or world.

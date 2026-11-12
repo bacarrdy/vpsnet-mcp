@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.1 connector / 2.7.1 MCP server — YYYY-MM-DD
+## 1.0.1 connector / 2.7.1 MCP server — 2026-11-12
 
 - No new tools. Every tool states its read-only, destructive, idempotent and open-world hints as explicit true or false values that match what the tool does, with the reason beside each tool in `src/tool-annotations.ts`.
 - The connector package for OpenAI's plugin portal is built by `scripts/package-openai-plugin.py` (asset `vpsnet-plugin-openai-1.0.1.zip`).
