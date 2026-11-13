@@ -120,6 +120,15 @@ install dependencies using `npm ci --ignore-scripts`, then the wrapper builds
 and packs with lifecycle scripts disabled. Built artifacts are marked unpublished.
 Never upload a modified bundle under an already published version.
 
+For the npm package, `build` also runs the required check **the packed tarball
+answers through its bin**: `node scripts/check-packed-bin.mjs <tarball>` installs
+the exact `.tgz` into an empty folder and starts it through
+`node_modules/.bin/vpsnet-mcp` (the symlink that npx and global installs use),
+through `npx --no-install vpsnet-mcp`, through `npx -y --package=<tarball>
+vpsnet-mcp` and directly; each must answer
+`initialize` and `tools/list`, and `vpsnet-mcp-http` must start listening.
+`build` fails if it does not. `npm test` runs the same check on a fresh pack.
+
 Run `npm test` and `npm run docs:tools:check`, review the exact commit, and wait
 for its contract CI on Node 20 and 22. Publish the exact reviewed artifacts;
 verify public downloads and checksums rather than rebuilding after approval.

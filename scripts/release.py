@@ -146,7 +146,12 @@ def build(root, component):
     result = subprocess.run(['npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', str(output)], cwd=root, check=True, capture_output=True, text=True)
     record = json.loads(result.stdout)[0]
     path = output / record['filename']
+    # Required release step: the packed tarball answers through its bin
+    # (node_modules/.bin symlink and npx), the way users start it.
+    check = subprocess.run(['node', 'scripts/check-packed-bin.mjs', str(path)], cwd=root, capture_output=True, text=True)
+    require(check.returncode == 0, 'The packed tarball does not answer through its bin: ' + (check.stderr or check.stdout).strip()[:600])
     return {'component': component, 'built': True, 'published': False,
+            'packed_bin_answers': [entry['label'] for entry in json.loads(check.stdout)['results']],
             'artifacts': [{'file': path.name, 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(), 'bytes': path.stat().st_size}]}
 
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.2 MCP server — unreleased
+
+- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`). Since 2.3.2 those starts exited at once without answering.
+
 ## 1.0.1 connector / 2.7.1 MCP server — 2026-11-12
 
 - No new tools. Every tool states its read-only, destructive, idempotent and open-world hints as explicit true or false values that match what the tool does, with the reason beside each tool in `src/tool-annotations.ts`.

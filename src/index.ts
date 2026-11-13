@@ -8,8 +8,7 @@ import { purchaseReadiness, serviceReadiness, serviceResultOutput } from "./serv
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { pathToFileURL } from "node:url";
-import { resolve } from "node:path";
+import { isEntrypoint } from "./entrypoint.js";
 import { reinstallDescription } from "./service-reinstall-contract.js";
 import { installRemotePolicy, installToolTitles, remoteInstructions, orderInstructions } from "./remote-policy.js";
 import { createHash, randomUUID } from "node:crypto";
@@ -7284,7 +7283,8 @@ async function main() {
   console.error("VPSnet MCP server running");
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+// Real paths on both sides: npx, global installs and node_modules/.bin start this file through a symlink.
+if (isEntrypoint(import.meta.url)) {
   main().catch((error) => {
     console.error("Fatal error:", error);
     process.exitCode = 1;

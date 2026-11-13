@@ -1,19 +1,17 @@
-# Connector 1.0.1 / MCP server 2.7.1
+# MCP server 2.7.2
 
-Published 2026-11-12.
+Not published yet. The connector stays at 1.0.1 (no connector, hosted gateway or ZIP change).
 
 ## Release notes
 
-Connector **1.0.1** / MCP server **2.7.1**. New for the VPSnet connector since 0.6.16:
+MCP server **2.7.2**:
 
-- Manage the firewall of your server's public interface (VPS and Cloud VPS): read the rules, replace them, send them to the server again.
-- Choose an additional address as the source of a server's outgoing connections.
-- Set and reset reverse DNS of additional, floating, VPN and load-balancer addresses.
-- Put an additional address directly on a server that has its own IP, and check that it is reachable.
-- Forward ports from a private network's NAT address, also to servers that have their own IP.
-- Rebuild a public load balancer.
-- More VPN controls: rename, restart, rebuild, image update, who may connect, internet exit, second line, BGP, IPsec settings, tunnel tests, key rotation, health webhooks.
+- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`). Since 2.3.2 those starts exited at once without answering.
 
-For OpenAI, upload **vpsnet-plugin-openai-1.0.1.zip** to the existing plugin.
+No tool changes. See [CHANGELOG](../CHANGELOG.md).
 
-See [CHANGELOG](../CHANGELOG.md) for the tool names.
+## Required release checks
+
+- `npm ci`, `npm test` (Node 20 and 22) and `npm run docs:tools:check` pass on the exact commit.
+- `python3 scripts/release.py build --component mcp` passes, including **the packed tarball answers through its bin** (`node_modules/.bin/vpsnet-mcp`, `npx --no-install vpsnet-mcp`, `npx -y --package=<tarball> vpsnet-mcp`, `vpsnet-mcp-http`).
+- Publish exactly the tarball that check ran on; compare its sha256 with the registry download afterwards.
