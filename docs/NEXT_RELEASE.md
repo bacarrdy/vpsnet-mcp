@@ -1,12 +1,12 @@
 # MCP server 2.7.2
 
-Not published yet. The connector stays at 1.0.1 (no connector, hosted gateway or ZIP change).
+Published 2026-11-13. The connector stays at 1.0.1 (no connector, hosted gateway or ZIP change).
 
 ## Release notes
 
 MCP server **2.7.2**:
 
-- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`). Since 2.3.2 those starts exited at once without answering.
+- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`).
 
 No tool changes. See [CHANGELOG](../CHANGELOG.md).
 

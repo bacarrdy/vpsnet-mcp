@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.7.2 MCP server — unreleased
+## 2.7.2 MCP server — 2026-11-13
 
-- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`). Since 2.3.2 those starts exited at once without answering.
+- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`).
 
 ## 1.0.1 connector / 2.7.1 MCP server — 2026-11-12
 
