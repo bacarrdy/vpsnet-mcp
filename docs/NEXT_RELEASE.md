@@ -1,14 +1,15 @@
-# MCP server 2.7.2
+# MCP server 2.7.3
 
-Published 2026-11-13. The connector stays at 1.0.1 (no connector, hosted gateway or ZIP change).
+Not published yet. The connector stays at 1.0.1 (no connector or ZIP change). Publish after the backend release that adds `vpn.site_router_models` and `vpn.recipe_languages` to the capability answer: the tool texts name those fields.
 
 ## Release notes
 
-MCP server **2.7.2**:
+MCP server **2.7.3**:
 
-- The package starts when run through npx or a global install (`npx -y vpsnet-mcp`, `vpsnet-mcp`).
+- Every router the VPN offers can be used: the router vendor, a WireGuard office's router model and the recipe language are checked by VPSnet against the list `get_network_appliance_capabilities` returns, so Cisco ASA (route-based), VyOS and other IKEv2 routers, and recipes in Latvian and Estonian, are no longer refused by the MCP.
+- Domain registration and transfer can answer what the registry asks about the holder (`registrant_extra`).
 
-No tool changes. See [CHANGELOG](../CHANGELOG.md).
+Hosted connector: the same changes reach it when the gateway runs 2.7.3 (registration only; transfer is not offered there). See [CHANGELOG](../CHANGELOG.md).
 
 ## Required release checks
 

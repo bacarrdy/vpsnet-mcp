@@ -420,9 +420,16 @@ const nameserverHostnameSchema = z
     "Nameserver hostname is invalid"
   );
 
-const registrantExtraSchema = z.record(z.string(), z.string()).optional().describe(
-  "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored."
-);
+// The backend's bounds (TldRegistrantRequirements): field keys like "dk_accept_terms",
+// at most 12 answers, each a string of at most 190 characters or an integer. The
+// backend checks every value against the TLD's declaration; this only bounds input.
+const registrantExtraSchema = z
+  .record(z.string().regex(/^[a-z][a-z0-9_]{1,39}$/), z.union([z.string().max(190), z.number().int()]))
+  .refine((answers) => Object.keys(answers).length <= 12, { message: "At most 12 registrant answers" })
+  .optional()
+  .describe(
+    "Answers to what the TLD's registry asks about the holder beyond the contact (an identity number, a legal form, accepted terms), keyed by the field key from list_domain_tlds registrant_requirements or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send the same answers with both quote and confirm. They go to the registrar with the order; VPSnet keeps them only encrypted and only until the registrar has them, never in receipts or logs."
+  );
 
 const whoisPrivacySchema = z
   .boolean()

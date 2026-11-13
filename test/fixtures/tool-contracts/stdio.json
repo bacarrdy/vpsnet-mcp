@@ -290,20 +290,8 @@
           "vendor": {
             "anyOf": [
               {
-                "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog",
-                "enum": [
-                  "fortigate",
-                  "mikrotik",
-                  "pfsense",
-                  "opnsense",
-                  "cisco_ios_xe",
-                  "cisco_asa",
-                  "unifi",
-                  "junos_srx",
-                  "panos",
-                  "generic_strongswan",
-                  "generic_libreswan"
-                ],
+                "description": "Router recipe vendor ID, one of get_network_appliance_capabilities vpn.ipsec_vendors[].id; the backend refuses any other",
+                "pattern": "^[a-z][a-z0-9_]{1,39}$",
                 "type": "string"
               },
               {
@@ -2321,9 +2309,23 @@
           },
           "registrant_extra": {
             "additionalProperties": {
+              "anyOf": [
+                {
+                  "maxLength": 190,
+                  "type": "string"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Answers to what the TLD's registry asks about the holder beyond the contact (an identity number, a legal form, accepted terms), keyed by the field key from list_domain_tlds registrant_requirements or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send the same answers with both quote and confirm. They go to the registrar with the order; VPSnet keeps them only encrypted and only until the registrar has them, never in receipts or logs.",
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]{1,39}$",
               "type": "string"
             },
-            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
             "type": "object"
           },
           "tech_contact_id": {
@@ -2589,9 +2591,23 @@
           },
           "registrant_extra": {
             "additionalProperties": {
+              "anyOf": [
+                {
+                  "maxLength": 190,
+                  "type": "string"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Answers to what the TLD's registry asks about the holder beyond the contact (an identity number, a legal form, accepted terms), keyed by the field key from list_domain_tlds registrant_requirements or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send the same answers with both quote and confirm. They go to the registrar with the order; VPSnet keeps them only encrypted and only until the registrar has them, never in receipts or logs.",
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]{1,39}$",
               "type": "string"
             },
-            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
             "type": "object"
           },
           "tech_contact_id": {
@@ -3687,14 +3703,8 @@
                     "type": "array"
                   },
                   "router_model": {
-                    "enum": [
-                      "mikrotik",
-                      "pfsense",
-                      "opnsense",
-                      "unifi",
-                      "linux",
-                      "other"
-                    ],
+                    "description": "The office router, one of get_network_appliance_capabilities vpn.site_router_models; the backend refuses any other",
+                    "pattern": "^[a-z][a-z0-9_]{1,39}$",
                     "type": "string"
                   }
                 },
@@ -3911,19 +3921,7 @@
                   },
                   "vendor": {
                     "description": "Advertised router recipe vendor; omitted uses generic_strongswan",
-                    "enum": [
-                      "fortigate",
-                      "mikrotik",
-                      "pfsense",
-                      "opnsense",
-                      "cisco_ios_xe",
-                      "cisco_asa",
-                      "unifi",
-                      "junos_srx",
-                      "panos",
-                      "generic_strongswan",
-                      "generic_libreswan"
-                    ],
+                    "pattern": "^[a-z][a-z0-9_]{1,39}$",
                     "type": "string"
                   }
                 },
@@ -7915,10 +7913,8 @@
             "type": "object"
           },
           "lang": {
-            "enum": [
-              "en",
-              "lt"
-            ],
+            "description": "Recipe language, one of get_network_appliance_capabilities vpn.recipe_languages; the backend refuses any other",
+            "pattern": "^[a-z]{2}$",
             "type": "string"
           },
           "lines": {
@@ -7936,20 +7932,8 @@
             "type": "string"
           },
           "vendor": {
-            "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog",
-            "enum": [
-              "fortigate",
-              "mikrotik",
-              "pfsense",
-              "opnsense",
-              "cisco_ios_xe",
-              "cisco_asa",
-              "unifi",
-              "junos_srx",
-              "panos",
-              "generic_strongswan",
-              "generic_libreswan"
-            ],
+            "description": "Router recipe vendor ID, one of get_network_appliance_capabilities vpn.ipsec_vendors[].id; the backend refuses any other",
+            "pattern": "^[a-z][a-z0-9_]{1,39}$",
             "type": "string"
           },
           "version": {
@@ -13123,9 +13107,23 @@
           },
           "registrant_extra": {
             "additionalProperties": {
+              "anyOf": [
+                {
+                  "maxLength": 190,
+                  "type": "string"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Answers to what the TLD's registry asks about the holder beyond the contact (an identity number, a legal form, accepted terms), keyed by the field key from list_domain_tlds registrant_requirements or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send the same answers with both quote and confirm. They go to the registrar with the order; VPSnet keeps them only encrypted and only until the registrar has them, never in receipts or logs.",
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]{1,39}$",
               "type": "string"
             },
-            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
             "type": "object"
           },
           "tech_contact_id": {
@@ -13298,9 +13296,23 @@
           },
           "registrant_extra": {
             "additionalProperties": {
+              "anyOf": [
+                {
+                  "maxLength": 190,
+                  "type": "string"
+                },
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                }
+              ]
+            },
+            "description": "Answers to what the TLD's registry asks about the holder beyond the contact (an identity number, a legal form, accepted terms), keyed by the field key from list_domain_tlds registrant_requirements or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send the same answers with both quote and confirm. They go to the registrar with the order; VPSnet keeps them only encrypted and only until the registrar has them, never in receipts or logs.",
+            "propertyNames": {
+              "pattern": "^[a-z][a-z0-9_]{1,39}$",
               "type": "string"
             },
-            "description": "Answers to what the TLD's registry requires, keyed by the field key from registrant_requirements in list_domain_tlds or from the fields array of a registrantRequirementMissing refusal. Ask the customer for the values and send them with both quote and confirm; they are forwarded to the registrar and not stored.",
             "type": "object"
           },
           "tech_contact_id": {
@@ -15941,20 +15953,8 @@
             "type": "string"
           },
           "vendor": {
-            "description": "Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog",
-            "enum": [
-              "fortigate",
-              "mikrotik",
-              "pfsense",
-              "opnsense",
-              "cisco_ios_xe",
-              "cisco_asa",
-              "unifi",
-              "junos_srx",
-              "panos",
-              "generic_strongswan",
-              "generic_libreswan"
-            ],
+            "description": "Router recipe vendor ID, one of get_network_appliance_capabilities vpn.ipsec_vendors[].id; the backend refuses any other",
+            "pattern": "^[a-z][a-z0-9_]{1,39}$",
             "type": "string"
           },
           "version": {

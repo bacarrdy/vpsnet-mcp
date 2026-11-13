@@ -99,16 +99,25 @@ const firewallRule = z.object({
 const portForwardRule = z.object({
   protocol: z.enum(["tcp", "udp"]), external_port: port, private_port_id: uuid, internal_port: port,
 }).strict();
+const catalogId = /^[a-z][a-z0-9_]{1,39}$/;
 const sitePeer = z.object({
   remote_prefixes: z.array(z.string().regex(/^\d{1,3}(?:\.\d{1,3}){3}\/(?:[0-9]|[12][0-9]|3[0-2])$/)).min(1).max(16)
     .describe("The office's PRIVATE IPv4 networks (10/8, 172.16/12, 192.168/16 or 100.64/10), canonical and disjoint"),
   endpoint: z.string().regex(/^\d{1,3}(?:\.\d{1,3}){3}:\d{1,5}$/).nullable().optional()
     .describe("The office router's fixed public IPv4:port; omit or null to learn a roaming endpoint"),
   persistent_keepalive_seconds: z.number().int().min(0).max(600).optional(),
-  router_model: z.enum(["mikrotik", "pfsense", "opnsense", "unifi", "linux", "other"]).optional(),
+  router_model: z.string().regex(catalogId).optional()
+    .describe("The office router, one of get_network_appliance_capabilities vpn.site_router_models; the backend refuses any other"),
 }).strict();
-const ipsecVendor = z.enum(["fortigate", "mikrotik", "pfsense", "opnsense", "cisco_ios_xe", "cisco_asa", "unifi", "junos_srx", "panos", "generic_strongswan", "generic_libreswan"])
-  .describe("Router recipe vendor ID from the current get_network_appliance_capabilities VPN ipsec_vendors catalog");
+// Router vendors, WireGuard router models and recipe languages are the backend's
+// lists: get_network_appliance_capabilities returns the same constants the API
+// validates against (vpn.ipsec_vendors[].id, vpn.site_router_models,
+// vpn.recipe_languages). The MCP keeps no copy, so a router added on the backend
+// works here at once; only the identifier format is checked locally.
+const ipsecVendor = z.string().regex(catalogId)
+  .describe("Router recipe vendor ID, one of get_network_appliance_capabilities vpn.ipsec_vendors[].id; the backend refuses any other");
+const recipeLanguage = z.string().regex(/^[a-z]{2}$/)
+  .describe("Recipe language, one of get_network_appliance_capabilities vpn.recipe_languages; the backend refuses any other");
 const ipsecTuning = z.object({
   nat_traversal: z.enum(["auto", "off", "forced"]).optional(),
   ke_groups: z.array(z.union([z.literal(19), z.literal(20), z.literal(21), z.literal(31), z.literal(15), z.literal(16), z.literal(14)])).nullable().optional()
@@ -360,7 +369,7 @@ export const networkingTools: NetworkingTool[] = [
   tool("list_network_vpn_site_health_webhooks", "GET", `${peer}/health-webhooks`, "List this owned site's signed health subscriptions and last delivery outcomes. Destination URLs are shown as public HTTPS hosts only; stored paths and signing material are never returned. Health is the VPN-side observation, not a test from the customer's LAN."),
   tool("create_network_vpn_site_health_webhook", "POST", `${peer}/health-webhooks`, "Create a signed site health subscription. Supply a public HTTPS DNS endpoint on port 443 and a caller-generated X25519 PUBLIC reveal key; keep the private half outside MCP. The immediate 201 response contains the subscription and a one-time sealed_secret envelope, not a raw signing secret. Decrypt it outside MCP to configure the receiver. Verify timestamp, exact-body HMAC and event-ID deduplication at the receiver. After an uncertain outcome, list subscriptions before deciding whether to create another; this route has no idempotency key or operation ID.", { url: webhookUrl, reveal_public_key: publicKey }, {}),
   tool("delete_network_vpn_site_health_webhook", "DELETE", `${peer}/health-webhooks/{subscription_id}`, "Remove this owned site's subscription and cancel pending deliveries. The immediate 200 result is {removed:true}; a missing subscription returns 404. Check the list after an uncertain outcome; this route has no operation ID.", {}, { destructive: true, bodyless: true }),
-  tool("get_network_vpn_peer_recipe", "GET", `${peer}/recipe`, "Read backend-sourced router setup instructions for one owned IPsec IKEv2 site. Optional vendor, language, line selection and version/inputs preview use the backend recipe catalogue. The recipe contains a literal {{PSK}} placeholder, never the secret. Unsupported router/BGP/line combinations are refused, not replaced by a static recipe.", { vendor: ipsecVendor.optional(), lang: z.enum(["en", "lt"]).optional(), lines: z.enum(["all", "2"]).optional(), version: z.string().max(64).optional(), inputs: recipeInputs.optional() }, { query: ["vendor", "lang", "lines", "version", "inputs"] }),
+  tool("get_network_vpn_peer_recipe", "GET", `${peer}/recipe`, "Read backend-sourced router setup instructions for one owned IPsec IKEv2 site. Optional vendor, language, line selection and version/inputs preview use the backend recipe catalogue. The recipe contains a literal {{PSK}} placeholder, never the secret. Unsupported router/BGP/line combinations are refused, not replaced by a static recipe.", { vendor: ipsecVendor.optional(), lang: recipeLanguage.optional(), lines: z.enum(["all", "2"]).optional(), version: z.string().max(64).optional(), inputs: recipeInputs.optional() }, { query: ["vendor", "lang", "lines", "version", "inputs"] }),
   tool("save_network_vpn_router_setup", "PUT", `${peer}/router-setup`, "Save nonsecret backend-catalogue router version and local interface/zone fields for an IPsec site, optionally line 2. This changes saved setup guidance, not the tunnel. The backend validates vendor, version and fields.", { vendor: ipsecVendor, line: z.union([z.literal(1), z.literal(2)]).optional(), version: z.string().max(64).nullable().optional(), inputs: routerInputs.optional() }),
   tool("set_network_vpn_site_bgp", "PUT", `${peer}/bgp`, "Enable or change BGP over an eligible IPsec site using the gateway generation. For two lines, the backend requires listed prefixes and a qualified route-based line 2 with current agent capability; preserve its typed 409 vpn_ipsec_lines_bgp if unavailable. Set enabled=false to turn BGP off; when switching from any_private, supply remote_prefixes for static routing. Follow each line's bgp and active facts separately; no operation ID is promised.", bgpFields, { destructive: true, validate: validateBgp }),
   tool("add_network_vpn_site_line", "POST", `${peer}/lines`, "Add line 2 to an IPsec site using the gateway generation and an external X25519 public reveal key. Keep its private key outside MCP; after config_available, take_network_vpn_site_line_config returns its sealed key exactly once. For two-line BGP, supply a supported route-based vendor and let the backend infer independent setup; no independent_setup request field exists. Preserve the backend's typed 409 vpn_ipsec_lines_bgp when the current capability is unavailable.", { expected_generation: generation, reveal_public_key: publicKey, remote_address: ipv4.nullable().optional(), vendor: ipsecVendor.nullable().optional(), dpd_seconds: z.number().int().min(10).max(300).optional() }, { idempotent: true, destructive: true }),

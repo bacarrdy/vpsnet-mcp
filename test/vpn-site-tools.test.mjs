@@ -175,8 +175,48 @@ test("IPsec recipe is a scoped non-consuming read with placeholder-only setup ma
   assert.equal(requests[0].body, undefined);
   await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER });
   assert.equal(requests[1].path, `/account/networking/appliances/vpn-gateways/${GATEWAY}/peers/${PEER}/recipe`);
-  assert.equal((await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, vendor: "unknown_router" })).isError, true);
+  // Only the identifier format is checked locally; which vendors exist is the backend's answer.
+  assert.equal((await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, vendor: "Not a router!" })).isError, true);
+  assert.equal((await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, lang: "english" })).isError, true);
   assert.equal(requests.length, 2);
+});
+
+test("router vendors, WireGuard router models and recipe languages are the backend's lists, not the MCP's", async t => {
+  const { client, requests, call } = await harness(t, request => request.method === "GET"
+    ? { status: 200, body: { vendor: "vyos", cli: ["{{PSK}}"] } }
+    : { status: 202, body: { peer: { id: PEER }, operation: { in_progress: true } } });
+  // IDs the backend's capability answer offers today (vpn.ipsec_vendors[].id, vpn.site_router_models, vpn.recipe_languages)
+  // that an earlier hard-coded list refused, plus a future one: all reach the backend unchanged.
+  for (const vendor of ["cisco_asa_vti", "vyos", "generic_ikev2", "a_router_added_later"]) {
+    const site = { remote_prefixes: ["192.168.50.0/24"], remote_address: null, vendor };
+    assert.notEqual((await call("create_network_vpn_peer", { gateway_id: GATEWAY, name: "branch", grants: ["100.64.0.10"], reveal_public_key: REVEAL,
+      kind: "site_to_site", protocol: "ipsec_ikev2", site, idempotencyKey: `${KEY}-${vendor}` })).isError, true, `create ${vendor}`);
+    assert.equal(requests.at(-1).body.site.vendor, vendor);
+    assert.notEqual((await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, vendor, lang: "lv" })).isError, true, `recipe ${vendor}`);
+    assert.match(requests.at(-1).path, new RegExp(`\\?vendor=${vendor}&lang=lv$`));
+    assert.notEqual((await call("save_network_vpn_router_setup", { gateway_id: GATEWAY, peer_id: PEER, vendor })).isError, true, `router setup ${vendor}`);
+    assert.equal(requests.at(-1).body.vendor, vendor);
+    assert.notEqual((await call("add_network_vpn_site_line", { gateway_id: GATEWAY, peer_id: PEER, expected_generation: 3, reveal_public_key: REVEAL, vendor,
+      idempotencyKey: `${KEY}-line-${vendor}` })).isError, true, `site line ${vendor}`);
+    assert.equal(requests.at(-1).body.vendor, vendor);
+  }
+  assert.notEqual((await call("get_network_vpn_peer_recipe", { gateway_id: GATEWAY, peer_id: PEER, lang: "et" })).isError, true);
+  const wireguard = { remote_prefixes: ["192.168.60.0/24"], endpoint: "91.225.104.20:51820", router_model: "vyos" };
+  assert.notEqual((await call("create_network_vpn_peer", { gateway_id: GATEWAY, name: "office", grants: ["100.64.0.10"], reveal_public_key: REVEAL,
+    kind: "site_to_site", protocol: "wireguard", site: wireguard, idempotencyKey: `${KEY}-wg-vyos` })).isError, true);
+  assert.equal(requests.at(-1).body.site.router_model, "vyos");
+
+  // No list of values is published in the tool schemas, so none can drift from the backend's.
+  const tools = Object.fromEntries((await client.listTools()).tools.map(tool => [tool.name, tool.inputSchema]));
+  const vendorSchemas = [
+    tools.get_network_vpn_peer_recipe.properties.vendor, tools.get_network_vpn_peer_recipe.properties.lang,
+    tools.save_network_vpn_router_setup.properties.vendor, tools.add_network_vpn_site_line.properties.vendor,
+  ];
+  for (const schema of vendorSchemas) {
+    assert.doesNotMatch(JSON.stringify(schema), /"enum"/);
+    assert.match(JSON.stringify(schema), /get_network_appliance_capabilities vpn\./);
+  }
+  assert.doesNotMatch(JSON.stringify(tools.create_network_vpn_peer.properties.site), /"enum":\["(?:fortigate|mikrotik)/);
 });
 
 test("unavailable IPsec profile is returned without fallback, retries or another purchase", async t => {
