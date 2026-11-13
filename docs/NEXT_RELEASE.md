@@ -8,6 +8,8 @@ MCP server **2.7.3**:
 
 - Every router the VPN offers can be used: the router vendor, a WireGuard office's router model and the recipe language are checked by VPSnet against the list `get_network_appliance_capabilities` returns, so Cisco ASA (route-based), VyOS and other IKEv2 routers, and recipes in Latvian and Estonian, are no longer refused by the MCP.
 - Domain registration and transfer can answer what the registry asks about the holder (`registrant_extra`).
+- `get_api_key_inference_usage` is removed (no API key can read an AI key's usage; it is shown in the VPSnet panel). Local package: 370 tools. Publish on the same day as the panel's API reference that says the MCP has no such tool (panel !440).
+- `quote_account_vpn` and the bundled skills describe the VPN as it is sold: its own price; devices on WireGuard or, where offered, the built-in IKEv2 client.
 
 Hosted connector: the same changes reach it when the gateway runs 2.7.3 (registration only; transfer is not offered there). See [CHANGELOG](../CHANGELOG.md).
 
