@@ -3721,24 +3721,6 @@ server.registerTool(
   }
 );
 
-server.registerTool(
-  "get_api_key_inference_usage",
-  {
-    description:
-      "Get exact paid VPSnet AI usage for this inference API key: committed and currently reserved spend for the UTC day and month, request and token totals by public VPSnet model profile, configured spend limits, remaining spend, and notification preferences. API-key callers can inspect only the same key that authenticated the MCP connection, and this server needs a management key: a management key has no inference usage of its own and an inference key is refused on every account route, so read inference usage in the VPSnet panel. Internal provider model names are never returned. This is read-only and does not change limits, notifications, or billing.",
-    inputSchema: {
-      id: positiveIdSchema.describe("Inference API key ID from list_api_keys (the calling key's own ID)"),
-    },
-  },
-  async ({ id }) => {
-    const { data } = await apiRequest(
-      "GET",
-      `/account/api-keys/${encodeURIComponent(String(id))}/inference-usage`
-    );
-    return { content: [{ type: "text", text: formatJson(data) }] };
-  }
-);
-
 // --- TLS certificates ---
 
 const certificatePaymentSchema = z

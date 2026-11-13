@@ -206,7 +206,6 @@ const legacyReadOnlyTools = new Set([
   'list_api_keys',
   'get_api_key',
   'get_api_key_activity',
-  'get_api_key_inference_usage',
   'list_domains',
   'get_domain',
   'list_domain_tlds',

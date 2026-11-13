@@ -4,7 +4,7 @@ Reviewed 2026-10-14; updated 2026-10-18 for the service file manager and VPN sit
 
 | Fixture | Discovery context | Tool count |
 | --- | --- | ---: |
-| `stdio` | General local server, API-key transport | 371 |
+| `stdio` | General local server, API-key transport | 370 |
 | `directory` | Remote profile, `services:read` | 289 |
 | `orders` | Remote orders profile, `services:read orders:read orders:servers orders:domains` | 296 |
 

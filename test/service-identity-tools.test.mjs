@@ -70,16 +70,19 @@ test("API-key tools expose only operations supported by API-key authentication",
   assert.match(source, /server\.registerTool\(\s*"list_api_keys"/);
   assert.match(source, /server\.registerTool\(\s*"get_api_key"/);
   assert.match(source, /server\.registerTool\(\s*"get_api_key_activity"/);
-  assert.match(source, /server\.registerTool\(\s*"get_api_key_inference_usage"/);
+  // API-MCP-01 (2026-11-13): no API key can read AI usage (self-only introspection; a management key has none; an
+  // AI key is refused on account routes), so the tool that promised it is gone and the README says where it is shown.
+  assert.doesNotMatch(source, /get_api_key_inference_usage/);
   assert.match(source, /"GET",\s*`\/account\/api-keys\/\$\{encodeURIComponent\(String\(id\)\)\}`/);
   assert.match(source, /`\/account\/api-keys\/\$\{encodeURIComponent\(String\(id\)\)\}\/activity\$\{query\}`/);
-  assert.match(source, /`\/account\/api-keys\/\$\{encodeURIComponent\(String\(id\)\)\}\/inference-usage`/);
+  assert.doesNotMatch(source, /\/inference-usage/);
   assert.match(source, /\.min\(1\)\.max\(200\)\.optional\(\)/);
   assert.match(source, /audit writes are capped per key per minute/);
   assert.match(source, /retained detail has a separate per-key row ceiling/);
   assert.doesNotMatch(source, /retained detail is capped per key per minute/);
   assert.match(readme, /\| `get_api_key_activity` \|/);
-  assert.match(readme, /\| `get_api_key_inference_usage` \|/);
+  assert.doesNotMatch(readme, /get_api_key_inference_usage/);
+  assert.match(readme, /AI key usage is read in the panel only/);
   for (const unsupported of [
     "create_api_key",
     "update_api_key",

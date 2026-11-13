@@ -6123,37 +6123,6 @@
       "name": "get_api_key_activity",
       "title": "Get API key activity"
     },
-    "get_api_key_inference_usage": {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Get API key inference usage"
-      },
-      "description": "Get exact paid VPSnet AI usage for this inference API key: committed and currently reserved spend for the UTC day and month, request and token totals by public VPSnet model profile, configured spend limits, remaining spend, and notification preferences. API-key callers can inspect only the same key that authenticated the MCP connection, and this server needs a management key: a management key has no inference usage of its own and an inference key is refused on every account route, so read inference usage in the VPSnet panel. Internal provider model names are never returned. This is read-only and does not change limits, notifications, or billing.",
-      "execution": {
-        "taskSupport": "forbidden"
-      },
-      "inputSchema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "description": "Inference API key ID from list_api_keys (the calling key's own ID)",
-            "exclusiveMinimum": 0,
-            "maximum": 9007199254740991,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "type": "object"
-      },
-      "name": "get_api_key_inference_usage",
-      "title": "Get API key inference usage"
-    },
     "get_application_compose_adoption": {
       "annotations": {
         "destructiveHint": false,
@@ -12651,7 +12620,7 @@
         "readOnlyHint": false,
         "title": "Quote account VPN"
       },
-      "description": "Quote the one canonical VPN product based on the current Firecracker plan for common checkout when vpn_account_order is advertised. Omit tier for a new request; standard/full_exit are backend compatibility/proof codes, not sellable VPN plan choices. Additional traffic is purchased separately with quote_network_vpn_traffic_pack. Internet exit is a gateway setting. Pass an owned attachment network when required; no provisioning or charge occurs before payment. Uses prepare_after_payment=true. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
+      "description": "Quote the one canonical VPN product for common checkout when vpn_account_order is advertised. The VPN has its own price, read from this quote; it is not tied to any server plan. Omit tier for a new request; standard/full_exit are backend compatibility/proof codes, not sellable VPN plan choices. Additional traffic is purchased separately with quote_network_vpn_traffic_pack. Internet exit is a gateway setting. Pass an owned attachment network when required; no provisioning or charge occurs before payment. Uses prepare_after_payment=true. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry. Requires full API access, networking:manage, enabled paid operations, networking:order and spend caps. Choose a supported live catalog tier and its documented request kind; preserve the exact quote; disclose its gross_amount in EUR before user approval. The same Idempotency-Key is required for quote and confirmation. API-key checkout supports the advertised account-balance payment method only. Payment acceptance is not resource readiness.",
       "execution": {
         "taskSupport": "forbidden"
       },

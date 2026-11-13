@@ -537,10 +537,6 @@
   "scopes": [],
   "paid": ""
  },
- "get_api_key_inference_usage": {
-  "scopes": [],
-  "paid": ""
- },
  "get_free_certificate_eligibility": {
   "scopes": [
    "certificates:read"

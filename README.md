@@ -4,7 +4,7 @@
 
 ## Features
 
-- **<!-- tool-count -->371<!-- /tool-count --> tools** (local package; the hosted connector offers a subset) covering VPSNet service management, networking (private networks, server firewall, port forwarding, public addresses, load balancers, VPN), managed applications, free and paid TLS certificates, Automatic SSL subscriptions, DNS, domains, billing, API keys, and account operations
+- **<!-- tool-count -->370<!-- /tool-count --> tools** (local package; the hosted connector offers a subset) covering VPSNet service management, networking (private networks, server firewall, port forwarding, public addresses, load balancers, VPN), managed applications, free and paid TLS certificates, Automatic SSL subscriptions, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
 - Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
@@ -625,6 +625,10 @@ Every request is sent with the `X-API-KEY` header (`VPSNET_API_KEY`).
   `read` (GET only). An **AI-scoped key** is issued only for VPSnet AI assistant
   inference and is refused on every account route, so no tool here works with one;
   the error result carries `auth_problem` with the reason and the fix.
+- **AI key usage is read in the panel only.** Spend, reservations and caps of an
+  AI-scoped key are shown in the VPSnet panel (API keys, the AI key, Usage and
+  setup). No API key can read them: a key may inspect only itself, and a
+  management key has no AI usage of its own. So no tool here offers them.
 - **Granular scopes only narrow a key.** A key with an empty scope list keeps
   everything its access level allows; listing scopes (for example `dns:read`,
   `services:manage`) restricts it. `X:manage` includes `X:read`. Networking is the
@@ -846,7 +850,6 @@ Firecracker servers need the updated guest agent and Cloud VPS (KVM) the VDS fil
 | `list_api_keys` | Show the API key authenticating this MCP connection | none | free |
 | `get_api_key` | Get one active key's non-secret metadata | none | free |
 | `get_api_key_activity` | Get the calling key's bounded retained request activity and recorded totals | none | free |
-| `get_api_key_inference_usage` | Get the calling inference key's exact paid VPSnet AI usage and cap state | none | free |
 
 API-key creation, changes, and revocation require a browser/session login. They
 cannot be performed by an MCP connection authenticated with an API key.
