@@ -6,6 +6,7 @@
 - Domain registration and transfer can answer what the registry asks about the holder (`registrant_extra` on `quote_domain_register`, `confirm_domain_register`, `quote_domain_transfer`, `confirm_domain_transfer`).
 - `get_api_key_inference_usage` is removed: no API key can read an AI key's usage (a key may inspect only itself, a management key has no AI usage of its own, and an AI-scoped key is refused on account routes), so the tool could never succeed. The usage is shown in the VPSnet panel (API keys, the AI key, Usage and setup). Local package: 370 tools.
 - `quote_account_vpn` no longer says the VPN is based on a Firecracker plan: the VPN has its own price, read from the quote.
+- Firecracker snapshots: `create_firecracker_snapshot`, `rollback_firecracker_snapshot` and `delete_firecracker_snapshot` say that while an administrator's move of the server to another node is open they answer 409 `actionInProgress` with `moveInProgress: true` and change nothing; retry after the move.
 - The bundled skills say personal VPN devices use WireGuard, or the operating system's built-in IPsec IKEv2 client where the gateway advertises `capabilities.device_ikev2`.
 
 ## 2.7.2 MCP server — 2026-11-13

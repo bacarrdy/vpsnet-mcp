@@ -999,6 +999,10 @@ short-lived quote token.
 | `rollback_firecracker_snapshot` | Destructively roll a Firecracker VPS back to a snapshot | `services:manage` | free |
 | `delete_firecracker_snapshot` | Delete a Firecracker VPS snapshot and stop its keep billing | `services:manage` | free |
 
+While an administrator's move of a Firecracker VPS to another node is open, `create_firecracker_snapshot`,
+`rollback_firecracker_snapshot` and `delete_firecracker_snapshot` answer 409 `actionInProgress` with
+`moveInProgress: true` and change nothing; retry after the move (a few minutes).
+
 ### Service Rescue
 | Tool | Description | Scope | Paid |
 |------|-------------|-------|------|

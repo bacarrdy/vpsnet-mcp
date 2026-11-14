@@ -5622,7 +5622,7 @@ server.registerTool(
   "create_firecracker_snapshot",
   {
     description:
-      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept until its automatic expiry. Take a snapshot before any risky or automated change, and delete it once the change succeeds to stop keep billing early. Check list_firecracker_snapshots for the exact policy and expiry fields. Requires services:manage and a full-access API key.",
+      "Create a temporary snapshot of a Firecracker VPS. Free for a short window, then billed per GB while kept until its automatic expiry. Take a snapshot before any risky or automated change, and delete it once the change succeeds to stop keep billing early. Check list_firecracker_snapshots for the exact policy and expiry fields. Requires services:manage and a full-access API key. While an administrator's move of the server to another node is open, this answers 409 actionInProgress with moveInProgress: true and nothing is changed; retry after the move (a few minutes).",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       description: z
@@ -5647,7 +5647,7 @@ server.registerTool(
   "rollback_firecracker_snapshot",
   {
     description:
-      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Firecracker snapshots expire automatically but remain billed after the free window until deletion or expiry, so delete an unneeded snapshot to stop keep billing early. Requires services:manage and a full-access API key.",
+      "Roll a Firecracker VPS back to a temporary snapshot. DESTRUCTIVE: disk state after the snapshot is lost. Confirm with the user before calling. Firecracker snapshots expire automatically but remain billed after the free window until deletion or expiry, so delete an unneeded snapshot to stop keep billing early. Requires services:manage and a full-access API key. While an administrator's move of the server to another node is open, this answers 409 actionInProgress with moveInProgress: true and nothing is changed; retry after the move (a few minutes).",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       snapshot_id: positiveIdSchema.describe("Snapshot ID from list_firecracker_snapshots"),
@@ -5665,7 +5665,7 @@ server.registerTool(
 server.registerTool(
   "delete_firecracker_snapshot",
   {
-    description: "Delete a Firecracker VPS temporary snapshot (stops its keep billing). Requires services:manage and a full-access API key.",
+    description: "Delete a Firecracker VPS temporary snapshot (stops its keep billing). Requires services:manage and a full-access API key. While an administrator's move of the server to another node is open, this answers 409 actionInProgress with moveInProgress: true and nothing is changed; retry after the move (a few minutes).",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       snapshot_id: positiveIdSchema.describe("Snapshot ID from list_firecracker_snapshots"),
