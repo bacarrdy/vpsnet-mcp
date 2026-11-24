@@ -2134,11 +2134,6 @@
             "description": "True only after the user approved the reconstructed customer-owned recipe",
             "type": "boolean"
           },
-          "acknowledge_runtime_restart": {
-            "const": true,
-            "description": "Explicit consent for a possible one-time service restart while the application runtime is prepared",
-            "type": "boolean"
-          },
           "acknowledge_source_stop": {
             "const": true,
             "description": "True only after the user approved stopping the exact source containers during takeover",
@@ -9086,7 +9081,7 @@
         "readOnlyHint": true,
         "title": "Get service public firewall"
       },
-      "description": "Read the firewall of an owned server's public interface (VPS or Cloud VPS; incoming allow rules for IPv4 and IPv6). Free. available and unavailable_reason say whether it is offered for this server now; enabled, rules, generation (send it as expected_generation to set_service_public_firewall; 0 = the server never had one), applied_generation and state: applying, applied (the node enforces it), saved_for_start (stored, loaded before the server's interface comes up), not_applied with reason_code (public_firewall_closed = the node closed ALL incoming connections; apply_service_public_firewall sends the saved rules again), not_enforced (the node's bypass is on, nothing is filtered) or off. limits.rules is the rule limit; manage and manage_reason (read_only_key, two_factor_locked, suspended, check_failed) say whether this key may change it now; management_ports names the SSH port (RDP on a Windows Cloud VPS) that a change must keep open so the user is not locked out. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
+      "description": "Read the firewall of an owned server's public interface (VPS or Cloud VPS; incoming rules for IPv4 and IPv6). Free. available and unavailable_reason say whether it is offered for this server now; enabled, ingress_policy (the default for new incoming connections no rule decides: drop or accept), rules (in evaluation order, each with its action accept or drop; the first rule that matches decides), actions.available (whether ingress_policy accept and drop rules are offered for this server now; reason public_firewall_actions_unavailable otherwise), generation (send it as expected_generation to set_service_public_firewall; 0 = the server never had one), applied_generation and state: applying, applied (the node enforces it), saved_for_start (stored, loaded before the server's interface comes up), not_applied with reason_code (public_firewall_closed = the node closed ALL incoming connections; apply_service_public_firewall sends the saved rules again), not_enforced (the node's bypass is on, nothing is filtered) or off. limits.rules is the rule limit; manage and manage_reason (read_only_key, two_factor_locked, suspended, check_failed) say whether this key may change it now; management_ports names the SSH port (RDP on a Windows Cloud VPS) that a change must keep open so the user is not locked out. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -9351,7 +9346,7 @@
         "readOnlyHint": false,
         "title": "Install managed application"
       },
-      "description": "Queue installation of a catalog application using its version-pinned container blueprint. Call list_application_catalog first: target.install_requirements.runtime_restart_consent.required tells you whether this server still needs restart consent, and the entry's secret_delivery.one_time_secrets tells you whether the install generates a password shown only once. Confirm the service, application, release channel, access choice, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. For the first managed application on an existing server, acknowledge_runtime_restart may be true only after explicit consent to a possible one-time server restart. This tool always requests portal secret delivery: a generated password is revealed once, to the user, in the VPSnet panel. It is never returned here, and this tool must never claim on the user's behalf to have received and stored it. When the result reports secret_delivery.pending_reveal or a portal handoff, tell the user a password is waiting and send them to the panel. An install left on private access is reachable only from inside the server, not from a browser: when the user wants to open a web-UI application, request an advertised public mode (usually platform_https) in this call, and after the installation reports healthy, read the resulting public endpoint URL from get_application_installation and relay it to the user together with the panel handoff. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
+      "description": "Queue installation of a catalog application using its version-pinned container blueprint. Call list_application_catalog first: the entry's secret_delivery.one_time_secrets tells you whether the install generates a password shown only once. Confirm the service, application, release channel, access choice, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. An install never restarts the server and asks for no restart consent. This tool always requests portal secret delivery: a generated password is revealed once, to the user, in the VPSnet panel. It is never returned here, and this tool must never claim on the user's behalf to have received and stored it. When the result reports secret_delivery.pending_reveal or a portal handoff, tell the user a password is waiting and send them to the panel. An install left on private access is reachable only from inside the server, not from a browser: when the user wants to open a web-UI application, request an advertised public mode (usually platform_https) in this call, and after the installation reports healthy, read the resulting public endpoint URL from get_application_installation and relay it to the user together with the panel handoff. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -9486,11 +9481,6 @@
               }
             ]
           },
-          "acknowledge_runtime_restart": {
-            "const": true,
-            "description": "Explicit consent for a possible one-time server restart while the managed runtime is prepared",
-            "type": "boolean"
-          },
           "application": {
             "description": "Published application slug from list_application_catalog",
             "pattern": "^[a-z0-9][a-z0-9-]{0,95}$",
@@ -9565,7 +9555,7 @@
         "readOnlyHint": false,
         "title": "Install customer application recipe"
       },
-      "description": "Queue installation of one exact validated customer-owned recipe revision. Confirm the service, project, revision, secret NAMES, and possible first-runtime restart first; never repeat secret values in confirmation text. The result omits secret values and hands status/reveal work to the VPSnet portal. Requires applications:manage.",
+      "description": "Queue installation of one exact validated customer-owned recipe revision. Confirm the service, project, revision and secret NAMES first; never repeat secret values in confirmation text. An install never restarts the server and needs no restart consent. The result omits secret values and hands status/reveal work to the VPSnet portal. Requires applications:manage.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -9576,11 +9566,6 @@
           "acknowledge_recipe_risks": {
             "const": true,
             "description": "Explicit acknowledgement that this is a customer-owned recipe",
-            "type": "boolean"
-          },
-          "acknowledge_runtime_restart": {
-            "const": true,
-            "description": "Explicit consent for a possible one-time service restart while the application runtime is prepared",
             "type": "boolean"
           },
           "confirmed": {
@@ -9719,7 +9704,7 @@
         "readOnlyHint": true,
         "title": "List compatible managed applications"
       },
-      "description": "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation and before install_application. The response includes application details, container runtime, configuration fields, hard product/OS/architecture/runtime compatibility, and advisory CPU/RAM/disk sizing warnings. Resource guidance alone must not block installation. Two blocks state what an install needs before you attempt it: target.install_requirements.runtime_restart_consent says whether this server still needs explicit restart consent, and each entry's secret_delivery says whether that release generates a password revealed only once and lists those credential NAMES. Those credentials often do not appear in configuration, which lists only customer-editable fields. Requires applications:read.",
+      "description": "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation and before install_application. The response includes application details, container runtime, configuration fields, hard product/OS/architecture/runtime compatibility, and advisory CPU/RAM/disk sizing warnings. Resource guidance alone must not block installation. Each entry's secret_delivery says whether that release generates a password revealed only once and lists those credential NAMES. Those credentials often do not appear in configuration, which lists only customer-editable fields. An install never restarts the server; target.install_requirements.runtime_restart_consent.required is always false and needs no action. Requires applications:read.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -17585,7 +17570,7 @@
         "readOnlyHint": false,
         "title": "Set service public firewall"
       },
-      "description": "Replace the COMPLETE firewall of an owned server's public interface (VPS or Cloud VPS) at the generation read with get_service_public_firewall: enabled switches it on or off, rules is every incoming allow rule (at most limits.rules; a rule left out is removed). Free. Switched on, a new connection reaches the server only where a rule allows it (replies to connections the server opened, ICMP errors, neighbour discovery and DHCP still pass; outgoing traffic stays allowed); removing a rule refuses new connections at once but does not cut a session already open. Before switching it on or removing a rule, make sure management_ports stays open for the user's own address, and ask the user for that address. Switching on with no incoming rule needs acknowledge_no_incoming=true (every new connection is then refused). Outgoing rules are not offered. Refusals: 409 public_firewall_generation_conflict (read again), 409 public_firewall_unavailable with unavailable_reason (switching off is always accepted), 422 public_firewall_rule_limit, 422 with field rules.N.<key> for a refused rule, 422 public_firewall_idempotency_key_reused, 423 while the server's two-factor lock is closed. A body equal to the stored one answers the current state and changes nothing. The answer reads state applying; poll get_service_public_firewall until state is applied (saved_for_start for a stopped server) or not_applied. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
+      "description": "Replace the COMPLETE firewall of an owned server's public interface (VPS or Cloud VPS) at the generation read with get_service_public_firewall: enabled switches it on or off, ingress_policy is the default for new incoming connections (drop: only what an accept rule allows reaches the server; accept: everything reaches it except what a drop rule blocks), rules is every incoming rule in evaluation order, each with its action (at most limits.rules; a rule left out is removed; the first rule that matches decides). Free. Replies to connections the server opened, ICMP errors, neighbour discovery and DHCP always pass; outgoing traffic stays allowed; a change refuses new connections at once but does not cut a session already open. Once the stored firewall uses ingress_policy accept or a drop rule, every save must send ingress_policy and the action of every rule (422 public_firewall_action_required); ingress_policy accept or a drop rule while actions.available is false answers 409 public_firewall_actions_unavailable. Before a change, make sure management_ports stays open for the user's own address, and ask the user for that address. Switching on with nothing that lets a new connection in (ingress_policy drop and no accept rule), or a save after which the caller's address can no longer reach its management port while the firewall uses accept or drop, needs acknowledge_no_incoming=true. Outgoing rules are not offered. Refusals: 409 public_firewall_generation_conflict (read again), 409 public_firewall_unavailable with unavailable_reason (switching off is always accepted), 422 public_firewall_rule_limit, 422 with field rules.N.<key> for a refused rule, 422 public_firewall_idempotency_key_reused, 423 while the server's two-factor lock is closed. A body equal to the stored one answers the current state and changes nothing. The answer reads state applying; poll get_service_public_firewall until state is applied (saved_for_start for a stopped server) or not_applied. client_address in the answer is the address the VPSnet API saw for this request: with this local package the public address of the machine that runs it, over a hosted connection the connector's gateway (returned there as null). It is never proof of the user's own address: ask the user which source address to allow before writing a rule with it. Requires explicit networking:read for reads or networking:manage for changes; full/read defaults do not grant networking. The backend enforces ownership, feature availability and service 2FA locks. Read current capabilities and owned resource state first; obtain approval for the exact change. An accepted operation is pending, not proof of connectivity. Poll the returned operation/resource on its in_progress flag, waiting next_check_seconds between reads: while in_progress is true its reason_code is what is awaited (reason_kind waiting, e.g. a queued or pending reason, or a control plane that has not answered yet), never an error; only in_progress false with reason_kind failure is a failure. Preserve reason_code. On transport uncertainty inspect state and reuse only the original key and unchanged request; never automatically retry.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -17609,10 +17594,25 @@
             "pattern": "^[A-Za-z0-9._:-]{8,128}$(?![\\s\\S])",
             "type": "string"
           },
+          "ingress_policy": {
+            "enum": [
+              "drop",
+              "accept"
+            ],
+            "type": "string"
+          },
           "rules": {
             "items": {
               "additionalProperties": false,
               "properties": {
+                "action": {
+                  "description": "accept lets a matching new connection in, drop blocks it. Optional only while the stored firewall uses neither ingress_policy accept nor a drop rule (missing = accept); once it uses one, send the action of every rule (copy it from get_service_public_firewall)",
+                  "enum": [
+                    "accept",
+                    "drop"
+                  ],
+                  "type": "string"
+                },
                 "direction": {
                   "const": "ingress",
                   "description": "Only incoming rules are offered",

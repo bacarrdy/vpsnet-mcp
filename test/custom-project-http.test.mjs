@@ -285,7 +285,6 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     revision: 1,
     secrets: { DATABASE_PASSWORD: "secret-from-user" },
     acknowledgeCustomRecipeRisks: true,
-    acknowledgeRuntimeRestart: false,
   });
   assert.equal(installed.content[0].text.includes("secret-from-user"), false);
   assert.equal(installed.content[0].text.includes("must-not-leak"), false);
@@ -373,7 +372,6 @@ test("customer recipe tools preserve exact HTTP contracts and redact results", a
     registry_credential_ids: [],
     acknowledgeSourceStop: true,
     acknowledgeCustomRecipeRisks: true,
-    acknowledgeRuntimeRestart: false,
   });
   assert.equal(
     requests[8].headers["idempotency-key"],

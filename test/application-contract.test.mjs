@@ -160,7 +160,7 @@ test("immutable update expectation matches only the advertised release", () => {
   }), false);
 });
 
-test("managed application install preserves explicit access and restart consent", () => {
+test("managed application install preserves explicit access and never sends restart consent", () => {
   const access = applicationAccessSchema.parse({
     mode: "managed_https",
     zone_id: 42,
@@ -172,7 +172,6 @@ test("managed application install preserves explicit access and restart consent"
       application: "open-webui",
       releaseChannel: "stable",
       variables: {},
-      acknowledgeRuntimeRestart: true,
       access,
     }),
     {
@@ -180,7 +179,6 @@ test("managed application install preserves explicit access and restart consent"
       releaseChannel: "stable",
       variables: {},
       secretDelivery: "portal",
-      acknowledgeRuntimeRestart: true,
       access,
     }
   );
@@ -189,7 +187,6 @@ test("managed application install preserves explicit access and restart consent"
       application: "open-webui",
       releaseChannel: "stable",
       variables: {},
-      acknowledgeRuntimeRestart: false,
     }),
     {
       application: "open-webui",
@@ -202,7 +199,6 @@ test("managed application install preserves explicit access and restart consent"
     applicationInstallRequestBody({
       application: "open-webui",
       variables: {},
-      acknowledgeRuntimeRestart: false,
     }),
     {
       application: "open-webui",
@@ -216,8 +212,7 @@ test("managed application install preserves explicit access and restart consent"
       applicationInstallRequestBody({
         application: "open-webui",
         variables: {},
-        acknowledgeRuntimeRestart: false,
-      }),
+        }),
     false
   );
   assert.equal(
@@ -513,7 +508,6 @@ test("managed application install never acknowledges one-time secret delivery", 
     application: "bookstack",
     releaseChannel: "stable",
     variables: {},
-    acknowledgeRuntimeRestart: true,
   });
 
   assert.equal(body.secretDelivery, "portal");

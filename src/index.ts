@@ -849,7 +849,7 @@ server.registerTool(
   "list_application_catalog",
   {
     description:
-      "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation and before install_application. The response includes application details, container runtime, configuration fields, hard product/OS/architecture/runtime compatibility, and advisory CPU/RAM/disk sizing warnings. Resource guidance alone must not block installation. Two blocks state what an install needs before you attempt it: target.install_requirements.runtime_restart_consent says whether this server still needs explicit restart consent, and each entry's secret_delivery says whether that release generates a password revealed only once and lists those credential NAMES. Those credentials often do not appear in configuration, which lists only customer-editable fields. Requires applications:read.",
+      "List catalog applications compatible with one owned VPSnet service. Use this before a generic SSH installation and before install_application. The response includes application details, container runtime, configuration fields, hard product/OS/architecture/runtime compatibility, and advisory CPU/RAM/disk sizing warnings. Resource guidance alone must not block installation. Each entry's secret_delivery says whether that release generates a password revealed only once and lists those credential NAMES. Those credentials often do not appear in configuration, which lists only customer-editable fields. An install never restarts the server; target.install_requirements.runtime_restart_consent.required is always false and needs no action. Requires applications:read.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
     },
@@ -1881,15 +1881,12 @@ server.registerTool(
   "install_application_recipe",
   {
     description:
-      "Queue installation of one exact validated customer-owned recipe revision. Confirm the service, project, revision, secret NAMES, and possible first-runtime restart first; never repeat secret values in confirmation text. The result omits secret values and hands status/reveal work to the VPSnet portal. Requires applications:manage.",
+      "Queue installation of one exact validated customer-owned recipe revision. Confirm the service, project, revision and secret NAMES first; never repeat secret values in confirmation text. An install never restarts the server and needs no restart consent. The result omits secret values and hands status/reveal work to the VPSnet portal. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       project_id: customProjectIdSchema,
       revision: customProjectRevisionSchema,
       secrets: customProjectSecretsSchema,
-      acknowledge_runtime_restart: z.literal(true).optional().describe(
-        "Explicit consent for a possible one-time service restart while the application runtime is prepared"
-      ),
       acknowledge_recipe_risks: z.literal(true).describe(
         "Explicit acknowledgement that this is a customer-owned recipe"
       ),
@@ -1912,7 +1909,6 @@ server.registerTool(
     project_id,
     revision,
     secrets,
-    acknowledge_runtime_restart,
     idempotencyKey,
   }) => {
     const { status, data } = await apiRequest(
@@ -1925,7 +1921,6 @@ server.registerTool(
         revision,
         secrets,
         acknowledgeCustomRecipeRisks: true,
-        acknowledgeRuntimeRestart: acknowledge_runtime_restart === true,
       },
       { "Idempotency-Key": idempotencyKey }
     );
@@ -2068,9 +2063,6 @@ server.registerTool(
       acknowledge_recipe_risks: z.literal(true).describe(
         "True only after the user approved the reconstructed customer-owned recipe"
       ),
-      acknowledge_runtime_restart: z.literal(true).optional().describe(
-        "Explicit consent for a possible one-time service restart while the application runtime is prepared"
-      ),
       idempotencyKey: idempotencyKeySchema.describe(
         "Client-global unique key. Reuse it only to replay this exact adoption confirmation."
       ),
@@ -2093,7 +2085,6 @@ server.registerTool(
     env,
     secrets,
     registry_credential_ids,
-    acknowledge_runtime_restart,
     idempotencyKey,
   }) => {
     const { status, data } = await apiRequest(
@@ -2109,7 +2100,6 @@ server.registerTool(
         registry_credential_ids,
         acknowledgeSourceStop: true,
         acknowledgeCustomRecipeRisks: true,
-        acknowledgeRuntimeRestart: acknowledge_runtime_restart === true,
       },
       { "Idempotency-Key": idempotencyKey }
     );
@@ -2132,7 +2122,7 @@ server.registerTool(
   "install_application",
   {
     description:
-      "Queue installation of a catalog application using its version-pinned container blueprint. Call list_application_catalog first: target.install_requirements.runtime_restart_consent.required tells you whether this server still needs restart consent, and the entry's secret_delivery.one_time_secrets tells you whether the install generates a password shown only once. Confirm the service, application, release channel, access choice, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. For the first managed application on an existing server, acknowledge_runtime_restart may be true only after explicit consent to a possible one-time server restart. This tool always requests portal secret delivery: a generated password is revealed once, to the user, in the VPSnet panel. It is never returned here, and this tool must never claim on the user's behalf to have received and stored it. When the result reports secret_delivery.pending_reveal or a portal handoff, tell the user a password is waiting and send them to the panel. An install left on private access is reachable only from inside the server, not from a browser: when the user wants to open a web-UI application, request an advertised public mode (usually platform_https) in this call, and after the installation reports healthy, read the resulting public endpoint URL from get_application_installation and relay it to the user together with the panel handoff. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
+      "Queue installation of a catalog application using its version-pinned container blueprint. Call list_application_catalog first: the entry's secret_delivery.one_time_secrets tells you whether the install generates a password shown only once. Confirm the service, application, release channel, access choice, and configuration variable NAMES with the user first; never repeat variable values in confirmation text. An install never restarts the server and asks for no restart consent. This tool always requests portal secret delivery: a generated password is revealed once, to the user, in the VPSnet panel. It is never returned here, and this tool must never claim on the user's behalf to have received and stored it. When the result reports secret_delivery.pending_reveal or a portal handoff, tell the user a password is waiting and send them to the panel. An install left on private access is reachable only from inside the server, not from a browser: when the user wants to open a web-UI application, request an advertised public mode (usually platform_https) in this call, and after the installation reports healthy, read the resulting public endpoint URL from get_application_installation and relay it to the user together with the panel handoff. This is asynchronous and not a paid API-key operation. Requires applications:manage.",
     inputSchema: {
       orderNo: applicationOrderNoSchema,
       application: applicationSlugSchema,
@@ -2144,12 +2134,6 @@ server.registerTool(
           "Published release channel. Omit it to install the application's own published channel; most catalog applications are not published on a channel named 'stable', so never guess one."
         ),
       variables: applicationVariablesSchema,
-      acknowledge_runtime_restart: z
-        .literal(true)
-        .optional()
-        .describe(
-          "Explicit consent for a possible one-time server restart while the managed runtime is prepared"
-        ),
       access: applicationSingleAccessSchema
         .optional()
         .describe(
@@ -2174,7 +2158,6 @@ server.registerTool(
     application,
     release_channel,
     variables,
-    acknowledge_runtime_restart,
     access,
     idempotencyKey,
   }) => {
@@ -2185,7 +2168,6 @@ server.registerTool(
         application,
         releaseChannel: release_channel,
         variables: variables || {},
-        acknowledgeRuntimeRestart: acknowledge_runtime_restart === true,
         access,
       }),
       { "Idempotency-Key": idempotencyKey }

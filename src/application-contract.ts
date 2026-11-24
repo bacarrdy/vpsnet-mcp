@@ -295,7 +295,6 @@ export function applicationInstallRequestBody(params: {
   application: string;
   releaseChannel?: string;
   variables: Record<string, unknown>;
-  acknowledgeRuntimeRestart: boolean;
   access?: ApplicationSingleAccess;
 }): Record<string, unknown> {
   return {
@@ -309,9 +308,6 @@ export function applicationInstallRequestBody(params: {
       : {}),
     variables: params.variables,
     secretDelivery: APPLICATION_SECRET_DELIVERY,
-    ...(params.acknowledgeRuntimeRestart
-      ? { acknowledgeRuntimeRestart: true }
-      : {}),
     ...(params.access ? { access: params.access } : {}),
   };
 }

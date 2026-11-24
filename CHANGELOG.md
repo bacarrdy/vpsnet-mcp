@@ -1,5 +1,10 @@
 # Changelog
 
+## Next MCP server release (not published yet)
+
+- `install_application`, `install_application_recipe` and `confirm_application_compose_adoption` no longer have `acknowledge_runtime_restart`: installing an application never restarts the server and asks for no consent. `list_application_catalog` says that `target.install_requirements.runtime_restart_consent.required` is always false.
+- Server firewall: `set_service_public_firewall` takes `ingress_policy` (`drop` or `accept`, the default for new incoming connections) and an `action` (`accept` or `drop`) on every rule; rules are checked from top to bottom and the first one that matches decides. `get_service_public_firewall` describes `ingress_policy`, the rule actions and `actions.available`. A firewall saved in the panel with the default `accept` or a drop rule can be changed through MCP again (before, the rule schema refused `action`).
+
 ## 2.7.3 MCP server — 2026-11-17
 
 - Every router the VPN offers can be used: the router vendor, a WireGuard office's router model and the recipe language are checked by VPSnet against the list `get_network_appliance_capabilities` returns, so Cisco ASA (route-based), VyOS and other IKEv2 routers, and recipes in Latvian and Estonian, are no longer refused by the MCP.

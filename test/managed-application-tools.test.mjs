@@ -80,9 +80,11 @@ test("tools/list exposes the backend-compatible managed application contract", a
 
   assert.ok(install);
   assert.equal(
-    install.inputSchema.properties?.acknowledge_runtime_restart.const,
-    true
+    install.inputSchema.properties?.acknowledge_runtime_restart,
+    undefined,
+    "an install never restarts the server, so no consent is asked"
   );
+  assert.match(install.description, /never restarts the server/i);
   assert.ok(install.inputSchema.properties?.access);
   assert.match(install.description, /portal handoff/i);
   assert.doesNotMatch(install.description, /support boundary|authorship/i);

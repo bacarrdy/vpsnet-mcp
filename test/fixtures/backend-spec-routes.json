@@ -1,5 +1,5 @@
 {
- "backend_commit": "a33981f7cc959a6339bdedbcf185c54615c1b4aa",
+ "backend_commit": "f45df3e6503b8850384ab4687d1287e2bce27a42",
  "routes": {
   "DELETE /account/networking/appliances/load-balancers/{}": {
    "scopes": [
@@ -1570,7 +1570,8 @@
    "body": [
     "expected_generation",
     "grant_scope",
-    "grants"
+    "grants",
+    "internal_dns"
    ]
   },
   "PUT /account/networking/appliances/vpn-gateways/{}/peers/{}/ipsec-tuning": {
@@ -1744,6 +1745,7 @@
     "egress_policy",
     "enabled",
     "expected_generation",
+    "ingress_policy",
     "rules"
    ]
   }

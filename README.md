@@ -1140,10 +1140,14 @@ go back through the network; the target's `reply_route` says whether that is in 
 are not targets. Security groups still decide what a server accepts.
 Poll the rules resource until `applied_generation` equals `generation`.
 
-The firewall of a server's own public interface (VPS and Cloud VPS, IPv4 and IPv6 incoming allow
-rules) is read with `get_service_public_firewall` and replaced as a whole with
+The firewall of a server's own public interface (VPS and Cloud VPS, IPv4 and IPv6 incoming
+connections) is read with `get_service_public_firewall` and replaced as a whole with
 `set_service_public_firewall` at the read `generation`; `apply_service_public_firewall` sends the
-saved rules to the node again. Keep the management port (SSH, or RDP on Windows) open for the user's
+saved rules to the node again. `ingress_policy` is the default for new incoming connections
+(`drop`: only what an accept rule allows gets in; `accept`: everything gets in except what a drop rule
+blocks), and every rule has its own `action` (`accept` or `drop`); rules are checked from top to
+bottom and the first one that matches decides. Once a firewall uses `ingress_policy` `accept` or a
+drop rule, every save sends `ingress_policy` and the action of every rule. Keep the management port (SSH, or RDP on Windows) open for the user's
 own address and ask the user for that address: `client_address` in the answer is only the address
 the API saw for the request. Over the hosted connector, network changes act only on servers selected for the connection (`service_not_selected` otherwise).
 
@@ -1190,8 +1194,8 @@ feature gate.
 | `set_private_network_names` | Replace the complete internal DNS zone label and alias list | `networking:manage` | free |
 | `list_private_network_ports` | Read owned network ports, their fixed DHCP addresses, generations and attachment states | `networking:read` | free |
 | `list_service_private_ports` | Read private ports and order attachment recovery state for one owned service order number. | `networking:read` | free |
-| `get_service_public_firewall` | Read the firewall of a server's public interface (VPS or Cloud VPS): rules, generation and state | `networking:read` | free |
-| `set_service_public_firewall` | Switch the server's public firewall on or off and replace all its incoming rules  at the read generation | `networking:manage` | free |
+| `get_service_public_firewall` | Read the firewall of a server's public interface (VPS or Cloud VPS): incoming default, rules with their actions, generation and state | `networking:read` | free |
+| `set_service_public_firewall` | Switch the server's public firewall on or off, set its incoming default and replace all its incoming rules (each accept or drop) at the read generation | `networking:manage` | free |
 | `apply_service_public_firewall` | Send the saved firewall rules to the server's node again | `networking:manage` | free |
 | `list_network_attachment_candidates` | Read attachable services and each attachment_mode | `networking:read` | free |
 | `attach_private_network_port` | Attach an owned service; omit ipv4 for automatic allocation or pass a fixed usable address | `networking:manage` | free |
