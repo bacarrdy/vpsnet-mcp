@@ -1,6 +1,6 @@
 # Changelog
 
-## Next MCP server release (not published yet)
+## 2.7.4 MCP server — 2026-11-24
 
 - `install_application`, `install_application_recipe` and `confirm_application_compose_adoption` no longer have `acknowledge_runtime_restart`: installing an application never restarts the server and asks for no consent. `list_application_catalog` says that `target.install_requirements.runtime_restart_consent.required` is always false.
 - Server firewall: `set_service_public_firewall` takes `ingress_policy` (`drop` or `accept`, the default for new incoming connections) and an `action` (`accept` or `drop`) on every rule; rules are checked from top to bottom and the first one that matches decides. `get_service_public_firewall` describes `ingress_policy`, the rule actions and `actions.available`. A firewall saved in the panel with the default `accept` or a drop rule can be changed through MCP again (before, the rule schema refused `action`).

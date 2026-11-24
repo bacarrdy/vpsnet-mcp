@@ -1,18 +1,15 @@
-# MCP server 2.7.3
+# MCP server 2.7.4
 
-Published 2026-11-17. The connector stays at 1.0.1 (no connector or ZIP change). The capability answer carries `vpn.site_router_models` and `vpn.recipe_languages`, which the tool texts name.
+Published 2026-11-24. The connector stays at 1.0.1 (no connector or ZIP change).
 
 ## Release notes
 
-MCP server **2.7.3**:
+MCP server **2.7.4**:
 
-- Every router the VPN offers can be used: the router vendor, a WireGuard office's router model and the recipe language are checked by VPSnet against the list `get_network_appliance_capabilities` returns, so Cisco ASA (route-based), VyOS and other IKEv2 routers, and recipes in Latvian and Estonian, are no longer refused by the MCP.
-- Domain registration and transfer can answer what the registry asks about the holder (`registrant_extra`).
-- The AI key usage tool is removed (no API key can read an AI key's usage; it is shown in the VPSnet panel). Local package: 370 tools. The VPSnet panel's API reference drops the tool with its next release.
-- Firecracker snapshots: `create_firecracker_snapshot`, `rollback_firecracker_snapshot` and `delete_firecracker_snapshot` say that while an administrator's move of the server to another node is open they answer 409 `actionInProgress` with `moveInProgress: true` and change nothing; retry after the move.
-- `quote_account_vpn` and the bundled skills describe the VPN as it is sold: its own price; devices on WireGuard or, where offered, the built-in IKEv2 client.
+- Installing an application never restarts the server and asks for no consent: `install_application`, `install_application_recipe` and `confirm_application_compose_adoption` no longer have `acknowledge_runtime_restart`, and `list_application_catalog` says that `target.install_requirements.runtime_restart_consent.required` is always false.
+- Server firewall: `set_service_public_firewall` takes `ingress_policy` (`drop` or `accept`, the default for new incoming connections) and an `action` (`accept` or `drop`) on every rule; rules are checked from top to bottom and the first one that matches decides. `get_service_public_firewall` describes `ingress_policy`, the rule actions and `actions.available`. A firewall saved in the panel with the default `accept` or a drop rule can be changed through MCP again. Local package: 370 tools.
 
-Hosted connector: the same changes reach it when the gateway runs 2.7.3 (registration only; transfer is not offered there). See [CHANGELOG](../CHANGELOG.md).
+Hosted connector: the same changes reach it when the gateway runs 2.7.4. See [CHANGELOG](../CHANGELOG.md).
 
 ## Required release checks
 
