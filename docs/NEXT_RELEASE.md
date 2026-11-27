@@ -1,6 +1,6 @@
 # MCP server 2.8.0
 
-Not published yet. The connector stays at 1.0.1 (no connector or ZIP change).
+Published 2026-11-27. The connector stays at 1.0.1 (no connector or ZIP change).
 
 ## Release notes
 
