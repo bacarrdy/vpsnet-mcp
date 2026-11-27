@@ -204,7 +204,8 @@ test("the IPv4 charge: accepted succeeds, missing or stale returns the new IPv4 
 test("an IPv4 acceptance the API no longer needs says so and offers nothing to accept", async (t) => {
   const { client } = await start(t, {});
   const body = payload(await call(client, "change_plan", { acceptedIpv4: IPV4 }));
-  assert.equal(body.quote_changed, true);
+  assert.equal(body.confirmation_not_needed, true);
+  assert.equal(body.quote_changed, false);
   assert.equal(body.plan_changed, false);
   assert.equal(body.accept_with, undefined);
   assert.match(body.note, /Call change_plan again without it/);
@@ -226,7 +227,8 @@ test("a Windows value sent for a server without a Windows quote says no confirma
   const result = await call(client, "change_plan", { acceptedWindowsLicense: WINDOWS });
   assert.notEqual(result.isError, true);
   const body = payload(result);
-  assert.equal(body.quote_changed, true);
+  assert.equal(body.confirmation_not_needed, true);
+  assert.equal(body.quote_changed, false);
   assert.equal(body.windowsLicenseQuoteChanged, true);
   assert.equal(body.plan_changed, false);
   assert.equal(body.charged, false);
@@ -277,16 +279,61 @@ test("the combined Windows line is sent with both licence amounts as null, also 
   assert.deepEqual(missing.accept_with.acceptedWindowsLicense, COMBINED);
 });
 
-test("both quotes missing: the IPv4 answer comes first, then the Windows one, each without charging", async (t) => {
-  const { client } = await start(t, { windowsLicense: WINDOWS, ipv4: IPV4, ipv4Needed: true });
+test("both confirmations needed: accept_with is always the complete set for the next call", async (t) => {
+  const { client, requests } = await start(t, { windowsLicense: WINDOWS, ipv4: IPV4, ipv4Needed: true });
+  const both = { acceptedIpv4: IPV4, acceptedWindowsLicense: WINDOWS };
+
+  // Neither sent: the API names the IPv4 charge first; nothing else is known yet.
   const first = payload(await call(client, "change_plan", {}));
   assert.equal(first.ipv4QuoteChanged, true);
   assert.equal(first.windowsLicenseQuoteChanged, undefined);
+  assert.equal(first.quote_changed, true);
+  assert.deepEqual(first.accept_with, { acceptedIpv4: IPV4 });
+  assert.match(first.next_step, /run calculate_plan_change again/);
+  assert.match(first.next_step, /expiry date can move/);
+  assert.match(first.next_step, /ALL values of accept_with together/);
+  assert.match(first.next_step, /more than one charge, all of them are needed in the same call/);
+
+  // IPv4 only: the API now names the Windows charge; accept_with has both.
   const second = payload(await call(client, "change_plan", { acceptedIpv4: IPV4 }));
   assert.equal(second.windowsLicenseQuoteChanged, true);
   assert.equal(second.plan_changed, false);
-  const done = payload(await call(client, "change_plan", { acceptedIpv4: IPV4, acceptedWindowsLicense: WINDOWS }));
-  assert.equal(done.success, true);
+  assert.deepEqual(second.accept_with, both);
+  assert.equal(second.monthly_charges.length, 2);
+
+  // Windows sent, IPv4 missing: the Windows value is kept, not dropped.
+  const third = payload(await call(client, "change_plan", { acceptedWindowsLicense: WINDOWS }));
+  assert.equal(third.ipv4QuoteChanged, true);
+  assert.equal(third.windowsLicenseQuoteChanged, undefined);
+  assert.deepEqual(third.accept_with, both);
+  assert.equal(third.monthly_charges.length, 2);
+  assert.match(third.monthly_charges.join(" "), /Windows licence.*IPv4 addresses/);
+
+  // Both sent, Windows stale: both come back, with the new Windows numbers.
+  const stale = payload(await call(client, "change_plan", {
+    acceptedIpv4: IPV4,
+    acceptedWindowsLicense: { currentMonthlyCents: 1098, newMonthlyCents: 1500 },
+  }));
+  assert.equal(stale.windowsLicenseQuoteChanged, true);
+  assert.match(stale.message, /no longer matches/);
+  assert.deepEqual(stale.accept_with, both);
+  assert.deepEqual(stale.windowsLicense, WINDOWS);
+
+  // Following accept_with literally finishes in one more call.
+  const done = await call(client, "change_plan", stale.accept_with);
+  assert.notEqual(done.isError, true);
+  assert.equal(payload(done).success, true);
+  assert.deepEqual(requests.at(-1).body, { plan: 5, resources: [11, 12], ...both });
+  assert.equal(requests.filter((r) => r.url === CONFIRM).length, 5, "the tool never retries by itself");
+});
+
+test("a value the API says is not needed leaves accept_with empty", async (t) => {
+  const { client } = await start(t, { windowsLicense: { currentMonthlyCents: 499, newMonthlyCents: 499 } });
+  const body = payload(await call(client, "change_plan", { acceptedIpv4: IPV4 }));
+  assert.equal(body.confirmation_not_needed, true);
+  assert.equal(body.quote_changed, false);
+  assert.equal(body.accept_with, undefined);
+  assert.equal(body.next_step, undefined);
 });
 
 test("other HTTP 409 answers stay errors", async (t) => {
@@ -334,6 +381,8 @@ test("the tool texts say the price is put to the user first", async (t) => {
   const change = tools.find((tool) => tool.name === "change_plan");
   assert.match(change.description, /after the user has seen and agreed to the new monthly charges/);
   assert.match(change.description, /Never accept a changed price on the user's behalf/);
+  assert.match(change.description, /ALL values of accept_with together/);
+  assert.match(change.description, /run calculate_plan_change again/);
   assert.ok(change.inputSchema.properties.acceptedWindowsLicense);
   assert.ok(change.inputSchema.properties.acceptedIpv4);
   assert.deepEqual(change.inputSchema.required.sort(), ["orderNo", "plan", "resources"]);

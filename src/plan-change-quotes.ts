@@ -219,71 +219,88 @@ export function withQuoteAcceptance(data: unknown): unknown {
  * change_plan: an HTTP 409 that only says the confirmed monthly charge is
  * missing or stale becomes a result that reads as "nothing happened, ask the
  * user", not as a failure. Any other answer is returned as null (unchanged).
+ *
+ * The API refuses with one flag at a time (the IPv4 quote is checked before
+ * the Windows one), so `accept_with` is always the complete set for the next
+ * call: the new quote(s) of this refusal plus every value the caller sent that
+ * the API did not contradict. Nothing is invented: every value in it came from
+ * the API or from the caller.
  */
 export function quoteChangedResult(
   status: number,
   data: unknown,
-  sent: { acceptedWindowsLicense: boolean; acceptedIpv4: boolean }
+  sent: { acceptedWindowsLicense?: Record<string, number | null>; acceptedIpv4?: Record<string, number | string | null> }
 ): Record<string, unknown> | null {
   if (status !== 409 || !isRecord(data)) return null;
-  const windowsChanged = data.windowsLicenseQuoteChanged === true;
-  const ipv4Changed = data.ipv4QuoteChanged === true;
-  if (!windowsChanged && !ipv4Changed) return null;
+  const windowsFlagged = data.windowsLicenseQuoteChanged === true;
+  const ipv4Flagged = data.ipv4QuoteChanged === true;
+  if (!windowsFlagged && !ipv4Flagged) return null;
 
   const quotes: Record<string, unknown> = {};
-  const lines: string[] = [];
   const accept: Record<string, unknown> = {};
-  const staleOnly: string[] = [];
+  const lines: string[] = [];
+  const notNeeded: string[] = [];
+  let newQuote = false;
+  let contradicted = false;
 
-  if (windowsChanged) {
-    const windows = readWindowsQuote(data.windowsLicense);
-    if (windows !== null) {
+  const windows = windowsFlagged ? readWindowsQuote(data.windowsLicense) : readWindowsQuote(sent.acceptedWindowsLicense);
+  if (windowsFlagged) {
+    if (windows === null) {
+      notNeeded.push("windowsLicense");
+    } else {
+      newQuote = true;
+      contradicted ||= sent.acceptedWindowsLicense !== undefined;
       quotes.windowsLicense = data.windowsLicense;
-      lines.push(windows.summary);
-      accept.acceptedWindowsLicense = windows.exact;
-    } else {
-      staleOnly.push("windowsLicense");
     }
   }
+  if (windows !== null) {
+    accept.acceptedWindowsLicense = windows.exact;
+    lines.push(windows.summary);
+  }
 
-  if (ipv4Changed) {
-    const ipv4 = readIpv4Quote(data.ipv4);
-    if (ipv4 !== null) {
+  const ipv4 = ipv4Flagged ? readIpv4Quote(data.ipv4) : readIpv4Quote(sent.acceptedIpv4);
+  if (ipv4Flagged) {
+    if (ipv4 === null) {
+      notNeeded.push("ipv4");
+    } else {
+      newQuote = true;
+      contradicted ||= sent.acceptedIpv4 !== undefined;
       quotes.ipv4 = data.ipv4;
-      lines.push(ipv4.summary);
-      accept.acceptedIpv4 = ipv4.exact;
-    } else {
-      staleOnly.push("ipv4");
     }
   }
-
-  const provided = (windowsChanged && sent.acceptedWindowsLicense) || (ipv4Changed && sent.acceptedIpv4);
-  const reason = Object.keys(accept).length === 0
-    ? "No confirmation is needed for this change; call change_plan again without it."
-    : provided
-      ? "The monthly charge you confirmed no longer matches the current quote."
-      : "This plan change adds or changes a recurring monthly charge that must be confirmed first.";
-  const result: Record<string, unknown> = {
-    quote_changed: true,
-    plan_changed: false,
-    charged: false,
-    message: `The plan was NOT changed and nothing was charged. ${reason}`,
-    ...(windowsChanged ? { windowsLicenseQuoteChanged: true } : {}),
-    ...(ipv4Changed ? { ipv4QuoteChanged: true } : {}),
-    ...quotes,
-    monthly_charges: lines,
-  };
-
-  if (Object.keys(accept).length > 0) {
-    result.next_step =
-      "Show the user the monthly charges above and ask whether they agree. Only after they agree, call change_plan again with the same orderNo, plan and resources and "
-      + `${Object.keys(accept).join(" and ")} set to the values in accept_with. Do not agree to a price on the user's behalf and do not retry before the user has answered.`;
-    result.accept_with = accept;
+  if (ipv4 !== null) {
+    accept.acceptedIpv4 = ipv4.exact;
+    lines.push(ipv4.summary);
   }
 
-  if (staleOnly.length > 0) {
+  const reason = newQuote
+    ? contradicted
+      ? "The monthly charge you confirmed no longer matches the current quote."
+      : "This plan change adds or changes a recurring monthly charge that must be confirmed first."
+    : "No confirmation is needed for this change; call change_plan again without it.";
+  const result: Record<string, unknown> = newQuote
+    ? { quote_changed: true, plan_changed: false, charged: false }
+    : { confirmation_not_needed: true, quote_changed: false, plan_changed: false, charged: false };
+  result.message = `The plan was NOT changed and nothing was charged. ${reason}`;
+  if (windowsFlagged) result.windowsLicenseQuoteChanged = true;
+  if (ipv4Flagged) result.ipv4QuoteChanged = true;
+  Object.assign(result, quotes);
+  result.monthly_charges = lines;
+
+  const keys = Object.keys(accept);
+  if (keys.length > 0) {
+    result.accept_with = accept;
+    result.next_step =
+      "Show the user every monthly charge listed in monthly_charges and ask whether they agree. The expiry date can move when a price moved, so run calculate_plan_change again first "
+      + "and show the user the current preview (new expiry and all monthly charges) before asking for their agreement. "
+      + `Only after they agree, call change_plan again with the same orderNo, plan and resources and ALL values of accept_with together (${keys.join(" and ")}); `
+      + "when a preview listed more than one charge, all of them are needed in the same call. "
+      + "Do not agree to a price on the user's behalf and do not retry before the user has answered.";
+  }
+
+  if (notNeeded.length > 0) {
     result.note =
-      `The API returned no current ${staleOnly.join(" / ")} charge to confirm: no such confirmation is needed for this change. `
+      `The API returned no current ${notNeeded.join(" / ")} charge to confirm: no such confirmation is needed for this change. `
       + "Call change_plan again without it, or run calculate_plan_change again to see the current quote.";
   }
 
