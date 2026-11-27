@@ -1,6 +1,6 @@
 # Changelog
 
-## Next MCP server release (not published yet)
+## 2.8.0 MCP server — 2026-11-27
 
 - Plan changes of a Cloud VPS with a Windows licence, or of a server that would record extra IPv4 addresses that were not charged so far, need the new monthly charges confirmed: VPSnet applies such a change only when the confirmation carries the charges it was quoted, and answers HTTP 409 (`windowsLicenseQuoteChanged` / `ipv4QuoteChanged`) without changing or charging anything when they are missing or no longer match. Before, `change_plan` could not send them, so such a change could not be finished through MCP.
 - `calculate_plan_change` returns those charges (`windowsLicense`, `ipv4`, euro cents before VAT) and adds a `quote_acceptance` block: the amounts in euros, whether acceptance is needed, and the exact `acceptedWindowsLicense` / `acceptedIpv4` value to send back. Plan changes without such charges are answered as before.

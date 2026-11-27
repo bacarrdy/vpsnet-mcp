@@ -1,15 +1,15 @@
-# MCP server 2.7.4
+# MCP server 2.8.0
 
-Published 2026-11-24. The connector stays at 1.0.1 (no connector or ZIP change).
+Not published yet. The connector stays at 1.0.1 (no connector or ZIP change).
 
 ## Release notes
 
-MCP server **2.7.4**:
+MCP server **2.8.0**:
 
-- Installing an application never restarts the server and asks for no consent: `install_application`, `install_application_recipe` and `confirm_application_compose_adoption` no longer have `acknowledge_runtime_restart`, and `list_application_catalog` says that `target.install_requirements.runtime_restart_consent.required` is always false.
-- Server firewall: `set_service_public_firewall` takes `ingress_policy` (`drop` or `accept`, the default for new incoming connections) and an `action` (`accept` or `drop`) on every rule; rules are checked from top to bottom and the first one that matches decides. `get_service_public_firewall` describes `ingress_policy`, the rule actions and `actions.available`. A firewall saved in the panel with the default `accept` or a drop rule can be changed through MCP again. Local package: 370 tools.
+- Plan changes that change a monthly charge can be finished through MCP: `calculate_plan_change` returns the Windows licence (`windowsLicense`) and extra IPv4 (`ipv4`) monthly charges and a `quote_acceptance` block with the amounts in euros and the exact value to send back; `change_plan` takes `acceptedWindowsLicense` and `acceptedIpv4`, which are passed unchanged after the user has seen and agreed to the new monthly charges.
+- When those values are missing or no longer match, VPSnet changes and charges nothing (HTTP 409); `change_plan` returns `quote_changed: true`, `plan_changed: false`, `charged: false`, the new monthly charges and `accept_with` as an ordinary result, and never accepts a price by itself. Local package: 370 tools.
 
-Hosted connector: the same changes reach it when the gateway runs 2.7.4. See [CHANGELOG](../CHANGELOG.md).
+Hosted connector: the same changes reach it when the gateway runs 2.8.0. See [CHANGELOG](../CHANGELOG.md).
 
 ## Required release checks
 

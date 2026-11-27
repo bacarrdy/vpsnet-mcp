@@ -1,6 +1,6 @@
 {
   "name": "vpsnet-mcp",
-  "version": "2.7.4",
+  "version": "2.8.0",
   "type": "module",
   "description": "MCP server for managing VPSnet.com services, applications, DNS, domains, billing, and server lifecycle operations",
   "bin": {
@@ -35,6 +35,7 @@
     "build/tool-result.js",
     "build/tool-schema.js",
     "build/networking-tools.js",
+    "build/plan-change-quotes.js",
     "build/service-files.js",
     "build/remote.js",
     "build/http-server.js",
