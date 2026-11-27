@@ -207,6 +207,8 @@ test("an IPv4 acceptance the API no longer needs says so and offers nothing to a
   assert.equal(body.confirmation_not_needed, true);
   assert.equal(body.quote_changed, false);
   assert.equal(body.plan_changed, false);
+  assert.equal(body.ipv4QuoteChanged, undefined);
+  assert.equal(body.windowsLicenseQuoteChanged, undefined);
   assert.equal(body.accept_with, undefined);
   assert.match(body.note, /Call change_plan again without it/);
   assert.match(body.message, /No confirmation is needed for this change/);
@@ -229,7 +231,8 @@ test("a Windows value sent for a server without a Windows quote says no confirma
   const body = payload(result);
   assert.equal(body.confirmation_not_needed, true);
   assert.equal(body.quote_changed, false);
-  assert.equal(body.windowsLicenseQuoteChanged, true);
+  assert.equal(body.windowsLicenseQuoteChanged, undefined);
+  assert.equal(body.ipv4QuoteChanged, undefined);
   assert.equal(body.plan_changed, false);
   assert.equal(body.charged, false);
   assert.deepEqual(body.monthly_charges, []);

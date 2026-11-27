@@ -282,8 +282,9 @@ export function quoteChangedResult(
     ? { quote_changed: true, plan_changed: false, charged: false }
     : { confirmation_not_needed: true, quote_changed: false, plan_changed: false, charged: false };
   result.message = `The plan was NOT changed and nothing was charged. ${reason}`;
-  if (windowsFlagged) result.windowsLicenseQuoteChanged = true;
-  if (ipv4Flagged) result.ipv4QuoteChanged = true;
+  // The raw flags only appear when a quote really changed; otherwise they would read as a moved price.
+  if (newQuote && windowsFlagged) result.windowsLicenseQuoteChanged = true;
+  if (newQuote && ipv4Flagged) result.ipv4QuoteChanged = true;
   Object.assign(result, quotes);
   result.monthly_charges = lines;
 
