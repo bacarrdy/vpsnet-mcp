@@ -7,7 +7,7 @@
 - **<!-- tool-count -->370<!-- /tool-count --> tools** (local package; the hosted connector offers a subset) covering VPSNet service management, networking (private networks, server firewall, port forwarding, public addresses, load balancers, VPN), managed applications, free and paid TLS certificates, Automatic SSL subscriptions, DNS, domains, billing, API keys, and account operations
 - Account & profile management
 - VPS lifecycle (start, stop, restart, reinstall OS)
-- Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink)
+- Plan changes (free upgrades/downgrades; KVM/Firecracker disks cannot shrink; changed Windows licence and IPv4 monthly charges are shown and confirmed first)
 - Service reverse DNS (rDNS/PTR records)
 - Forward DNS zones, records, DNSSEC, templates, import/export, and DDNS tokens
 - Domain availability, contacts, register/transfer/renew/restore quotes, and paid confirmations
@@ -774,8 +774,10 @@ everything else.
 |------|-------------|-------|------|
 | `get_plan_options` | Get available plans for upgrade/downgrade; KVM/Firecracker targets that would shrink disk are unavailable | `services:read` | free |
 | `get_plan_resources` | Get configurable resources for a plan | `services:read` | free |
-| `calculate_plan_change` | Preview a plan change: no payment, the remaining value is converted, so an upgrade moves the expiry earlier | `services:read` | free |
-| `change_plan` | Change VPS plan | `services:manage` | free |
+| `calculate_plan_change` | Preview a plan change: no payment, the remaining value is converted, so an upgrade moves the expiry earlier; a Cloud VPS with a Windows licence or new extra IPv4 addresses also returns the new monthly charges (`windowsLicense`, `ipv4`, `quote_acceptance`) | `services:read` | free |
+| `change_plan` | Change VPS plan; for those monthly charges pass `acceptedWindowsLicense` / `acceptedIpv4` from `calculate_plan_change` after the user agreed | `services:manage` | free |
+
+A plan change of a Cloud VPS with a Windows licence, or of a server that would record extra IPv4 addresses that were not charged so far, changes a recurring monthly charge, and VPSnet applies it only when `change_plan` sends back the charges it was quoted. `calculate_plan_change` returns them (`windowsLicense`, `ipv4`, amounts in euro cents before VAT) and a `quote_acceptance` block with the amounts in euros and the exact `acceptedWindowsLicense` / `acceptedIpv4` value to pass. Show the user the monthly charges and call `change_plan` with those values only after they agree; the tool never accepts a price by itself. When they are missing or the price has moved, nothing is changed or charged: `change_plan` returns `quote_changed: true`, `plan_changed: false`, `charged: false`, the new monthly charges and `accept_with`, and is called again with `accept_with` once the user agrees.
 
 ### Renewal & Billing
 | Tool | Description | Scope | Paid |

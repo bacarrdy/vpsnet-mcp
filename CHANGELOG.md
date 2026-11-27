@@ -1,5 +1,11 @@
 # Changelog
 
+## Next MCP server release (not published yet)
+
+- Plan changes of a Cloud VPS with a Windows licence, or of a server that would record extra IPv4 addresses that were not charged so far, need the new monthly charges confirmed: VPSnet applies such a change only when the confirmation carries the charges it was quoted, and answers HTTP 409 (`windowsLicenseQuoteChanged` / `ipv4QuoteChanged`) without changing or charging anything when they are missing or no longer match. Before, `change_plan` could not send them, so such a change could not be finished through MCP.
+- `calculate_plan_change` returns those charges (`windowsLicense`, `ipv4`, euro cents before VAT) and adds a `quote_acceptance` block: the amounts in euros, whether acceptance is needed, and the exact `acceptedWindowsLicense` / `acceptedIpv4` value to send back. Plan changes without such charges are answered as before.
+- `change_plan` takes the optional inputs `acceptedWindowsLicense` (`{currentMonthlyCents, newMonthlyCents}`, or `{currentCombinedMonthlyCents, newCombinedMonthlyCents}` when the licence amount alone is not recorded) and `acceptedIpv4` (`{quantity, currentMonthlyCents, newMonthlyCents, renewalPriceVersion}`): the values returned by `calculate_plan_change`, passed after the user has seen and agreed to the new monthly charges. The tool never accepts a price by itself. When VPSnet answers 409 for a missing or stale charge, the tool returns an ordinary result (not an error): `quote_changed: true`, `plan_changed: false`, `charged: false`, the new monthly charges in euros, and `accept_with`; the user is asked first, and `change_plan` is called again with `accept_with` only after they agree.
+
 ## 2.7.4 MCP server — 2026-11-24
 
 - `install_application`, `install_application_recipe` and `confirm_application_compose_adoption` no longer have `acknowledge_runtime_restart`: installing an application never restarts the server and asks for no consent. `list_application_catalog` says that `target.install_requirements.runtime_restart_consent.required` is always false.

@@ -17,6 +17,7 @@ import { registerNetworkingTools } from "./networking-tools.js";
 import { registerServiceFileTools } from "./service-files.js";
 import { isIP } from "node:net";
 import { z } from "zod";
+import { acceptedIpv4Schema, acceptedWindowsLicenseSchema, quoteChangedResult, windowsLicenseForConfirm, withQuoteAcceptance } from "./plan-change-quotes.js";
 import { apiRequest, formatJson, initializeStdioApi } from "./api.js";
 import { installToolResultErrorFlag } from "./tool-result.js";
 import {
@@ -203,6 +204,7 @@ const server = new McpServer(
       "## Plan changes",
       "Plan changes are FREE — remaining time is recalculated (upgrade = shorter expiry, downgrade = longer expiry).",
       "Flow: get_plan_options → get_plan_resources(orderNo, plan) → calculate_plan_change → change_plan.",
+      "Monthly charges: a Cloud VPS plan change can change the recurring Windows licence charge, or record extra IPv4 addresses that were not charged so far. calculate_plan_change then returns windowsLicense and / or ipv4 (euro cents before VAT) and a quote_acceptance block with the amounts in euros and the exact acceptedWindowsLicense / acceptedIpv4 value to send. Put those monthly charges to the user together with the new expiry. Only after the user agrees, pass the values unchanged to change_plan. Without them, or with values that no longer match, change_plan answers quote_changed with plan_changed false and charged false: nothing was changed or charged, and the answer carries the new quote. Show it to the user and call change_plan again with accept_with only after they agree. Never accept a monthly charge on the user's behalf.",
       "Resources must be an array of numeric resource value IDs — one ID per resource type (RAM, SSD, CPU, Traffic, Bandwidth).",
       "Get IDs from get_plan_resources: each resource type has a 'values' array, pick one value's 'id' per type.",
       "Use isDefault=1 values for plan defaults. Do NOT pass an empty array — it will fail silently.",
@@ -3140,7 +3142,7 @@ server.registerTool(
   "calculate_plan_change",
   {
     description:
-      "Preview a plan change. No payment is taken: the unused value of the current plan is converted at the new plan's price, so an upgrade moves the expiry EARLIER and a downgrade moves it later. Returns expirationDate, currentExpirationDate, expirationChangeDays (negative = shorter) and paymentRequired=false; show the customer both dates. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
+      "Preview a plan change. No payment is taken: the unused value of the current plan is converted at the new plan's price, so an upgrade moves the expiry EARLIER and a downgrade moves it later. Returns expirationDate, currentExpirationDate, expirationChangeDays (negative = shorter) and paymentRequired=false; show the customer both dates. A Cloud VPS with a Windows licence, or one that would record extra IPv4 addresses that were not charged so far, also returns windowsLicense and / or ipv4 (monthly amounts in euro cents before VAT) and a quote_acceptance block that states them in euros and gives the exact acceptedWindowsLicense / acceptedIpv4 value change_plan needs; tell the customer these monthly charges too. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       plan: positiveIdSchema.describe("Plan ID from get_plan_options"),
@@ -3159,7 +3161,7 @@ server.registerTool(
       undefined,
       { readOnly: true }
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    return { content: [{ type: "text", text: formatJson(withQuoteAcceptance(data)) }] };
   }
 );
 
@@ -3167,7 +3169,7 @@ server.registerTool(
   "change_plan",
   {
     description:
-      "Change VPS plan. No payment is taken; the remaining value is converted at the new price, so an upgrade shortens the service period. Always call calculate_plan_change first and confirm the new expiry with the customer. Use get_plan_resources to get resource IDs for the target plan. Requires services:manage and a full-access API key.",
+      "Change VPS plan. No payment is taken; the remaining value is converted at the new price, so an upgrade shortens the service period. Always call calculate_plan_change first and confirm the new expiry with the customer. Use get_plan_resources to get resource IDs for the target plan. A Cloud VPS with a Windows licence, or one that would record extra IPv4 addresses that were not charged so far, needs the new monthly charges confirmed: pass acceptedWindowsLicense and / or acceptedIpv4 with the values returned by calculate_plan_change after the user has seen and agreed to the new monthly charges. Never accept a changed price on the user's behalf and never invent these values: put the price to the user first. When they are missing or no longer match, nothing is changed or charged and the tool returns quote_changed true with the new monthly charges and accept_with; show them to the user and call again only after the user agrees. Requires services:manage and a full-access API key.",
     inputSchema: {
       orderNo: serviceOrderNoSchema,
       plan: positiveIdSchema.describe("Plan ID from get_plan_options"),
@@ -3176,15 +3178,26 @@ server.registerTool(
         .describe(
           "Array of numeric resource value IDs — one per resource type (RAM, SSD, IP, etc.). Get IDs from get_plan_resources response: each resource type has 'values' array, pick one value's 'id' per type. A type left out keeps its current value; an id the target plan does not offer is refused with 422 invalidResources."
         ),
+      acceptedWindowsLicense: acceptedWindowsLicenseSchema.optional(),
+      acceptedIpv4: acceptedIpv4Schema.optional(),
     },
   },
-  async ({ orderNo, plan, resources }) => {
-    const { data } = await apiRequest(
+  async ({ orderNo, plan, resources, acceptedWindowsLicense, acceptedIpv4 }) => {
+    const { status, data } = await apiRequest(
       "POST",
       svc(orderNo, "plans-options"),
-      { plan, resources }
+      {
+        plan,
+        resources,
+        ...(acceptedWindowsLicense === undefined ? {} : { acceptedWindowsLicense: windowsLicenseForConfirm(acceptedWindowsLicense) }),
+        ...(acceptedIpv4 === undefined ? {} : { acceptedIpv4 }),
+      }
     );
-    return { content: [{ type: "text", text: formatJson(data) }] };
+    const changed = quoteChangedResult(status, data, {
+      acceptedWindowsLicense: acceptedWindowsLicense !== undefined,
+      acceptedIpv4: acceptedIpv4 !== undefined,
+    });
+    return { content: [{ type: "text", text: formatJson(changed ?? data) }] };
   }
 );
 

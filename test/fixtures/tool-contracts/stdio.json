@@ -829,7 +829,7 @@
         "readOnlyHint": true,
         "title": "Calculate plan change"
       },
-      "description": "Preview a plan change. No payment is taken: the unused value of the current plan is converted at the new plan's price, so an upgrade moves the expiry EARLIER and a downgrade moves it later. Returns expirationDate, currentExpirationDate, expirationChangeDays (negative = shorter) and paymentRequired=false; show the customer both dates. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
+      "description": "Preview a plan change. No payment is taken: the unused value of the current plan is converted at the new plan's price, so an upgrade moves the expiry EARLIER and a downgrade moves it later. Returns expirationDate, currentExpirationDate, expirationChangeDays (negative = shorter) and paymentRequired=false; show the customer both dates. A Cloud VPS with a Windows licence, or one that would record extra IPv4 addresses that were not charged so far, also returns windowsLicense and / or ipv4 (monthly amounts in euro cents before VAT) and a quote_acceptance block that states them in euros and gives the exact acceptedWindowsLicense / acceptedIpv4 value change_plan needs; tell the customer these monthly charges too. Use get_plan_resources first to see available resource IDs for the target plan. Requires services:read when called with an API key.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -1161,7 +1161,7 @@
         "readOnlyHint": false,
         "title": "Change plan"
       },
-      "description": "Change VPS plan. No payment is taken; the remaining value is converted at the new price, so an upgrade shortens the service period. Always call calculate_plan_change first and confirm the new expiry with the customer. Use get_plan_resources to get resource IDs for the target plan. Requires services:manage and a full-access API key.",
+      "description": "Change VPS plan. No payment is taken; the remaining value is converted at the new price, so an upgrade shortens the service period. Always call calculate_plan_change first and confirm the new expiry with the customer. Use get_plan_resources to get resource IDs for the target plan. A Cloud VPS with a Windows licence, or one that would record extra IPv4 addresses that were not charged so far, needs the new monthly charges confirmed: pass acceptedWindowsLicense and / or acceptedIpv4 with the values returned by calculate_plan_change after the user has seen and agreed to the new monthly charges. Never accept a changed price on the user's behalf and never invent these values: put the price to the user first. When they are missing or no longer match, nothing is changed or charged and the tool returns quote_changed true with the new monthly charges and accept_with; show them to the user and call again only after the user agrees. Requires services:manage and a full-access API key.",
       "execution": {
         "taskSupport": "forbidden"
       },
@@ -1169,6 +1169,95 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "acceptedIpv4": {
+            "additionalProperties": false,
+            "description": "The ipv4 object returned by calculate_plan_change, unchanged, after the user has seen and agreed to the new monthly IPv4 charge. Pass it only when calculate_plan_change says the IPv4 charge needs acceptance (quote_acceptance.ipv4.requires_acceptance true). Never fill it in yourself and never pass it without the user's agreement.",
+            "properties": {
+              "currentMonthlyCents": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Current IPv4 renewal charge per month, euro cents before VAT; null when the extra addresses had no price on record."
+              },
+              "newMonthlyCents": {
+                "description": "IPv4 renewal charge per month after the change, euro cents before VAT.",
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "quantity": {
+                "description": "Total attached IPv4 addresses, including the plan's primary address.",
+                "maximum": 9007199254740991,
+                "minimum": 2,
+                "type": "integer"
+              },
+              "renewalPriceVersion": {
+                "description": "Tariff version the amounts were calculated at.",
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "quantity",
+              "currentMonthlyCents",
+              "newMonthlyCents",
+              "renewalPriceVersion"
+            ],
+            "type": "object"
+          },
+          "acceptedWindowsLicense": {
+            "additionalProperties": false,
+            "description": "The windowsLicense object returned by calculate_plan_change, unchanged, after the user has seen and agreed to the new monthly Windows charge. Shape: {currentMonthlyCents, newMonthlyCents} in euro cents before VAT; when the licence amount is not recorded, {currentCombinedMonthlyCents, newCombinedMonthlyCents} instead. Never fill it in yourself and never pass it without the user's agreement.",
+            "properties": {
+              "currentCombinedMonthlyCents": {
+                "description": "Only when calculate_plan_change returned it: current combined monthly charge of Windows and other recurring extras, euro cents before VAT.",
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "currentMonthlyCents": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Booked Windows licence charge per month, euro cents before VAT. Null (or left out) when only the combined amounts are known."
+              },
+              "newCombinedMonthlyCents": {
+                "description": "Only when calculate_plan_change returned it: combined monthly charge on the new plan, euro cents before VAT.",
+                "maximum": 9007199254740991,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "newMonthlyCents": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Windows licence charge per month on the new plan, euro cents before VAT. Null (or left out) when only the combined amounts are known."
+              }
+            },
+            "type": "object"
+          },
           "orderNo": {
             "description": "Tenant-owned service order number: 1-64 ASCII letters, digits or hyphens, e.g. VP12345 or VP12345-1",
             "maxLength": 64,
