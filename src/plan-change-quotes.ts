@@ -66,9 +66,10 @@ export const acceptedIpv4Schema = z
     quantity: z.number().int().min(2).max(Number.MAX_SAFE_INTEGER).describe("Total attached IPv4 addresses, including the plan's primary address."),
     currentMonthlyCents: cents
       .nullable()
-      .describe("Current IPv4 renewal charge per month, euro cents before VAT; null when the extra addresses had no price on record."),
+      .optional()
+      .describe("Current IPv4 renewal charge per month, euro cents before VAT; null (or left out) when the extra addresses had no price on record."),
     newMonthlyCents: cents.describe("IPv4 renewal charge per month after the change, euro cents before VAT."),
-    renewalPriceVersion: z.string().min(1).max(64).describe("Tariff version the amounts were calculated at."),
+    renewalPriceVersion: z.string().min(1).max(255).describe("Tariff version the amounts were calculated at."),
   })
   .strict()
   .describe(
@@ -76,6 +77,16 @@ export const acceptedIpv4Schema = z
     + "Pass it only when calculate_plan_change says the IPv4 charge needs acceptance (quote_acceptance.ipv4.requires_acceptance true). "
     + "Never fill it in yourself and never pass it without the user's agreement."
   );
+
+/** The IPv4 object in the exact form the API compares: a left-out current amount is the null it stands for. */
+export function ipv4ForConfirm(value: z.infer<typeof acceptedIpv4Schema>): Record<string, number | string | null> {
+  return {
+    quantity: value.quantity,
+    currentMonthlyCents: value.currentMonthlyCents ?? null,
+    newMonthlyCents: value.newMonthlyCents,
+    renewalPriceVersion: value.renewalPriceVersion,
+  };
+}
 
 export type AcceptedWindowsLicense = z.infer<typeof acceptedWindowsLicenseSchema>;
 export type AcceptedIpv4 = z.infer<typeof acceptedIpv4Schema>;
@@ -247,9 +258,11 @@ export function quoteChangedResult(
   }
 
   const provided = (windowsChanged && sent.acceptedWindowsLicense) || (ipv4Changed && sent.acceptedIpv4);
-  const reason = provided
-    ? "The monthly charge you confirmed no longer matches the current quote."
-    : "This plan change adds or changes a recurring monthly charge that must be confirmed first.";
+  const reason = Object.keys(accept).length === 0
+    ? "No confirmation is needed for this change; call change_plan again without it."
+    : provided
+      ? "The monthly charge you confirmed no longer matches the current quote."
+      : "This plan change adds or changes a recurring monthly charge that must be confirmed first.";
   const result: Record<string, unknown> = {
     quote_changed: true,
     plan_changed: false,
@@ -270,8 +283,8 @@ export function quoteChangedResult(
 
   if (staleOnly.length > 0) {
     result.note =
-      `The API returned no current ${staleOnly.join(" / ")} charge to confirm, so that confirmation is not needed for this change: `
-      + "call change_plan again without it, or run calculate_plan_change again to see the current quote.";
+      `The API returned no current ${staleOnly.join(" / ")} charge to confirm: no such confirmation is needed for this change. `
+      + "Call change_plan again without it, or run calculate_plan_change again to see the current quote.";
   }
 
   return result;

@@ -9,7 +9,7 @@ MCP server **2.8.0**:
 - Plan changes that change a monthly charge can be finished through MCP: `calculate_plan_change` returns the Windows licence (`windowsLicense`) and extra IPv4 (`ipv4`) monthly charges and a `quote_acceptance` block with the amounts in euros and the exact value to send back; `change_plan` takes `acceptedWindowsLicense` and `acceptedIpv4`, which are passed unchanged after the user has seen and agreed to the new monthly charges.
 - When those values are missing or no longer match, VPSnet changes and charges nothing (HTTP 409); `change_plan` returns `quote_changed: true`, `plan_changed: false`, `charged: false`, the new monthly charges and `accept_with` as an ordinary result, and never accepts a price by itself. Local package: 370 tools.
 
-Hosted connector: the same changes reach it when the gateway runs 2.8.0. See [CHANGELOG](../CHANGELOG.md).
+Hosted connector: unchanged (it does not offer the plan-change tools). See [CHANGELOG](../CHANGELOG.md).
 
 ## Required release checks
 

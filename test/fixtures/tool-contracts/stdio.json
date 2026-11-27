@@ -1184,7 +1184,7 @@
                     "type": "null"
                   }
                 ],
-                "description": "Current IPv4 renewal charge per month, euro cents before VAT; null when the extra addresses had no price on record."
+                "description": "Current IPv4 renewal charge per month, euro cents before VAT; null (or left out) when the extra addresses had no price on record."
               },
               "newMonthlyCents": {
                 "description": "IPv4 renewal charge per month after the change, euro cents before VAT.",
@@ -1200,14 +1200,13 @@
               },
               "renewalPriceVersion": {
                 "description": "Tariff version the amounts were calculated at.",
-                "maxLength": 64,
+                "maxLength": 255,
                 "minLength": 1,
                 "type": "string"
               }
             },
             "required": [
               "quantity",
-              "currentMonthlyCents",
               "newMonthlyCents",
               "renewalPriceVersion"
             ],

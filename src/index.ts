@@ -17,7 +17,7 @@ import { registerNetworkingTools } from "./networking-tools.js";
 import { registerServiceFileTools } from "./service-files.js";
 import { isIP } from "node:net";
 import { z } from "zod";
-import { acceptedIpv4Schema, acceptedWindowsLicenseSchema, quoteChangedResult, windowsLicenseForConfirm, withQuoteAcceptance } from "./plan-change-quotes.js";
+import { acceptedIpv4Schema, acceptedWindowsLicenseSchema, ipv4ForConfirm, quoteChangedResult, windowsLicenseForConfirm, withQuoteAcceptance } from "./plan-change-quotes.js";
 import { apiRequest, formatJson, initializeStdioApi } from "./api.js";
 import { installToolResultErrorFlag } from "./tool-result.js";
 import {
@@ -3190,7 +3190,7 @@ server.registerTool(
         plan,
         resources,
         ...(acceptedWindowsLicense === undefined ? {} : { acceptedWindowsLicense: windowsLicenseForConfirm(acceptedWindowsLicense) }),
-        ...(acceptedIpv4 === undefined ? {} : { acceptedIpv4 }),
+        ...(acceptedIpv4 === undefined ? {} : { acceptedIpv4: ipv4ForConfirm(acceptedIpv4) }),
       }
     );
     const changed = quoteChangedResult(status, data, {

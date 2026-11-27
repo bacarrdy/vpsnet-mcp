@@ -51,8 +51,12 @@ async function start(t, scenario) {
       if (!scenario.ipv4Needed && body.acceptedIpv4 !== undefined) {
         return send(409, { success: false, ipv4QuoteChanged: true });
       }
-      if (scenario.windowsLicense && !sameQuote(body.acceptedWindowsLicense, scenario.windowsLicense)) {
-        return send(409, { success: false, windowsLicenseQuoteChanged: true, windowsLicense: scenario.windowsLicense });
+      // Like the API: the Windows quote is asked for when the charge changes, or when a value was sent at all.
+      const windows = scenario.windowsLicense;
+      const windowsChanges = windows !== undefined
+        && (windows.currentMonthlyCents ?? windows.currentCombinedMonthlyCents) !== (windows.newMonthlyCents ?? windows.newCombinedMonthlyCents);
+      if ((windowsChanges || body.acceptedWindowsLicense !== undefined) && !sameQuote(body.acceptedWindowsLicense, windows)) {
+        return send(409, { success: false, windowsLicenseQuoteChanged: true, ...(windows ? { windowsLicense: windows } : {}) });
       }
       return send(200, { success: true, expirationDate: "2026-12-20", noty: "11111111-1111-4111-8111-111111111111" });
     }
@@ -203,7 +207,55 @@ test("an IPv4 acceptance the API no longer needs says so and offers nothing to a
   assert.equal(body.quote_changed, true);
   assert.equal(body.plan_changed, false);
   assert.equal(body.accept_with, undefined);
-  assert.match(body.note, /call change_plan again without it/);
+  assert.match(body.note, /Call change_plan again without it/);
+  assert.match(body.message, /No confirmation is needed for this change/);
+  assert.doesNotMatch(body.message, /no longer matches/);
+});
+
+test("an unchanged Windows charge needs no value: the change succeeds without one", async (t) => {
+  const unchanged = { currentMonthlyCents: 499, newMonthlyCents: 499 };
+  const { client, requests } = await start(t, { windowsLicense: unchanged });
+  const result = await call(client, "change_plan", {});
+  assert.notEqual(result.isError, true);
+  assert.equal(payload(result).success, true);
+  assert.deepEqual(requests.at(-1).body, { plan: 5, resources: [11, 12] });
+});
+
+test("a Windows value sent for a server without a Windows quote says no confirmation is needed", async (t) => {
+  const { client } = await start(t, {});
+  const result = await call(client, "change_plan", { acceptedWindowsLicense: WINDOWS });
+  assert.notEqual(result.isError, true);
+  const body = payload(result);
+  assert.equal(body.quote_changed, true);
+  assert.equal(body.windowsLicenseQuoteChanged, true);
+  assert.equal(body.plan_changed, false);
+  assert.equal(body.charged, false);
+  assert.deepEqual(body.monthly_charges, []);
+  assert.equal(body.accept_with, undefined);
+  assert.doesNotMatch(body.message, /no longer matches/);
+  assert.match(body.message, /No confirmation is needed for this change; call change_plan again without it/);
+  assert.match(body.note, /windowsLicense/);
+});
+
+test("the IPv4 current amount may be left out (sent as null) and a long price version is accepted", async (t) => {
+  const longVersion = "v".repeat(255);
+  const quote = { ...IPV4, renewalPriceVersion: longVersion };
+  const { client, requests } = await start(t, { ipv4: quote, ipv4Needed: true });
+  const result = await call(client, "change_plan", {
+    acceptedIpv4: { quantity: 3, newMonthlyCents: 400, renewalPriceVersion: longVersion },
+  });
+  assert.equal(payload(result).success, true);
+  assert.deepEqual(requests.at(-1).body.acceptedIpv4, quote);
+
+  let refused = false;
+  try {
+    refused = (await call(client, "change_plan", {
+      acceptedIpv4: { quantity: 3, newMonthlyCents: 400, renewalPriceVersion: "v".repeat(256) },
+    })).isError === true;
+  } catch {
+    refused = true;
+  }
+  assert.ok(refused);
 });
 
 test("the combined Windows line is sent with both licence amounts as null, also when they are left out", async (t) => {
@@ -259,7 +311,7 @@ test("accepted quote inputs are validated before any request is sent", async (t)
     { acceptedWindowsLicense: { currentMonthlyCents: 1098, newMonthlyCents: 1996, currentCombinedMonthlyCents: 1, newCombinedMonthlyCents: 2 } },
     { acceptedWindowsLicense: { currentCombinedMonthlyCents: 1500 } },
     { acceptedIpv4: { quantity: 1, currentMonthlyCents: null, newMonthlyCents: 400, renewalPriceVersion: "v7" } },
-    { acceptedIpv4: { quantity: 3, newMonthlyCents: 400, renewalPriceVersion: "v7" } },
+    { acceptedIpv4: { quantity: 3, currentMonthlyCents: 1.5, newMonthlyCents: 400, renewalPriceVersion: "v7" } },
     { acceptedIpv4: { quantity: 3, currentMonthlyCents: null, newMonthlyCents: -4, renewalPriceVersion: "v7" } },
     { acceptedIpv4: { quantity: 3, currentMonthlyCents: null, newMonthlyCents: 400, renewalPriceVersion: "" } },
     { acceptedIpv4: { quantity: 3, currentMonthlyCents: null, newMonthlyCents: 400, renewalPriceVersion: "v7", note: "x" } },
